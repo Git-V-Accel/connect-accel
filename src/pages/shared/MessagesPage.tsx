@@ -8,7 +8,7 @@ import { Badge } from '../../components/ui/badge';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { Send, Search, Paperclip } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from '../../utils/toast';
 
 export default function MessagesPage() {
   const { user } = useAuth();

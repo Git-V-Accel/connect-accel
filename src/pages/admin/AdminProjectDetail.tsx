@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { ArrowLeft, Edit2, Users, DollarSign, Calendar, TrendingUp, MessageSquare, AlertTriangle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../utils/toast';
 
 export default function AdminProjectDetail() {
   const { id } = useParams<{ id: string }>();

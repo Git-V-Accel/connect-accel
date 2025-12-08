@@ -4,7 +4,7 @@ import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { ArrowLeft, AlertTriangle, MessageSquare, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../utils/toast';
 
 export default function DisputeDetail() {
   const { id } = useParams<{ id: string }>();

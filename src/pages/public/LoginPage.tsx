@@ -5,7 +5,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Shield } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from '../../utils/toast';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');

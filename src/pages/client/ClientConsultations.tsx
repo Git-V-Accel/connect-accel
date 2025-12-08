@@ -11,7 +11,7 @@ import { Label } from '../../components/ui/label';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { Calendar as CalendarIcon, Clock, Video, CheckCircle2, XCircle, Plus } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from '../../utils/toast';
 
 const statusColors = {
   requested: 'bg-yellow-100 text-yellow-700',

@@ -15,7 +15,7 @@ import {
   AlertCircle, MessageSquare, FileText, ExternalLink, Download, Upload,
   Flag, Settings
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from '../../utils/toast';
 
 const statusColors = {
   draft: 'bg-gray-100 text-gray-700',

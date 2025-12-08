@@ -17,7 +17,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from '../../utils/toast';
 
 export default function AgentSettings() {
   const { user } = useAuth();

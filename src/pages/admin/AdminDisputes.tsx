@@ -40,7 +40,7 @@ import {
   User,
   Calendar,
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from '../../utils/toast';
 
 export default function AdminDisputes() {
   const { disputes, updateDispute, projects } = useData();

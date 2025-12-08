@@ -7,7 +7,7 @@ import { Label } from '../../components/ui/label';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { ArrowLeft, Send, Search, X } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from '../../utils/toast';
 
 export default function AdminCreateBidInvitation() {
   const navigate = useNavigate();

@@ -13,7 +13,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Calendar, DollarSign, FileText, Settings } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from '../../utils/toast';
 
 const categories = [
   'Web Development',

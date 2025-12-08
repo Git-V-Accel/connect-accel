@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
@@ -40,7 +40,7 @@ import {
   Mail,
   ArrowRight,
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from '../../utils/toast';
 
 export default function AdminConsultations() {
   const { consultations, updateConsultation, addConsultation, projects } = useData();

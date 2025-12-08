@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import React, { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';

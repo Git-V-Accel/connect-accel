@@ -19,7 +19,7 @@ import {
   Code,
   Star
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from '../../utils/toast';
 
 interface PortfolioItem {
   id: string;

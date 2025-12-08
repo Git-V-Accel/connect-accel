@@ -4,7 +4,7 @@ import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { ArrowLeft, Send, UserPlus, Search, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../utils/toast';
 
 // Mock freelancer data
 const mockFreelancers = [

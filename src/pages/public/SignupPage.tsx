@@ -6,7 +6,7 @@ import { Label } from '../../components/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group';
 import { Shield, Briefcase, User, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from '../../utils/toast';
 
 export default function SignupPage() {
   const [searchParams] = useSearchParams();

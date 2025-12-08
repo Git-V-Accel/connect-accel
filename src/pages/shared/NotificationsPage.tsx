@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
@@ -49,7 +49,11 @@ export default function NotificationsPage() {
     unreadNotifications.forEach(n => markNotificationAsRead(n.id));
   };
 
-  const NotificationCard = ({ notification }: { notification: typeof notifications[0] }) => {
+  interface NotificationCardProps {
+    notification: typeof notifications[0];
+  }
+
+  const NotificationCard: React.FC<NotificationCardProps> = ({ notification }) => {
     const Icon = notificationIcons[notification.type];
     const colorClass = notificationColors[notification.type];
 

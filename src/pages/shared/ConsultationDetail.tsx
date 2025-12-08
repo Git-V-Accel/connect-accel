@@ -4,7 +4,7 @@ import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { ArrowLeft, Calendar, Clock, Video, CheckCircle, XCircle, Edit2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../utils/toast';
 
 export default function ConsultationDetail() {
   const { id } = useParams<{ id: string }>();
