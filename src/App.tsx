@@ -1,0 +1,220 @@
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "./components/ui/sonner";
+import { AuthProvider } from "./contexts/AuthContext";
+import { DataProvider } from "./contexts/DataContext";
+import { useAuth } from "./contexts/AuthContext";
+
+// Public pages
+import LandingPage from "./pages/public/LandingPage";
+import LoginPage from "./pages/public/LoginPage";
+import SignupPage from "./pages/public/SignupPage";
+import HowItWorksPage from "./pages/public/HowItWorksPage";
+import PricingPage from "./pages/public/PricingPage";
+
+// Client portal
+import ClientDashboard from "./pages/client/ClientDashboard";
+import ClientProjects from "./pages/client/ClientProjects";
+import CreateProject from "./pages/client/CreateProject";
+import ProjectDetail from "./pages/client/ProjectDetail";
+import ClientConsultations from "./pages/client/ClientConsultations";
+import ClientPayments from "./pages/client/ClientPayments";
+import ClientSettings from "./pages/client/ClientSettings";
+
+// Freelancer portal
+import FreelancerDashboard from "./pages/freelancer/FreelancerDashboard";
+import BrowseProjects from "./pages/freelancer/BrowseProjects";
+import FreelancerBids from "./pages/freelancer/FreelancerBids";
+import FreelancerProjects from "./pages/freelancer/FreelancerProjects";
+import FreelancerWallet from "./pages/freelancer/FreelancerWallet";
+import FreelancerProfile from "./pages/freelancer/FreelancerProfile";
+import FreelancerSettings from "./pages/freelancer/FreelancerSettings";
+import ProjectDetailPage from "./pages/freelancer/ProjectDetailPage";
+import ActiveProjects from "./pages/freelancer/ActiveProjects";
+import ProjectWorkspace from "./pages/freelancer/ProjectWorkspace";
+import EarningsPage from "./pages/freelancer/EarningsPage";
+import PortfolioPage from "./pages/freelancer/PortfolioPage";
+import FreelancerAnalytics from "./pages/freelancer/FreelancerAnalytics";
+import OnboardingWizard from "./pages/freelancer/OnboardingWizard";
+import BidInvitations from "./pages/freelancer/BidInvitations";
+import SubmitBid from "./pages/freelancer/SubmitBid";
+
+// Admin portal
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminProjects from "./pages/admin/AdminProjects";
+import ProjectReview from "./pages/admin/ProjectReview";
+import FreelancerDirectory from "./pages/admin/FreelancerDirectory";
+import BiddingManagement from "./pages/admin/BiddingManagement";
+import AdminConsultations from "./pages/admin/AdminConsultations";
+import AdminDisputes from "./pages/admin/AdminDisputes";
+import AdminReports from "./pages/admin/AdminReports";
+import AdminProjectDetail from "./pages/admin/AdminProjectDetail";
+import FreelancerDetail from "./pages/admin/FreelancerDetail";
+import AdminBidManagement from "./pages/admin/AdminBidManagement";
+import AdminCreateBidInvitation from "./pages/admin/AdminCreateBidInvitation";
+import AdminBidDetail from "./pages/admin/AdminBidDetail";
+
+// Agent portal
+import AgentDashboard from "./pages/agent/AgentDashboard";
+import CreateBidInvitation from "./pages/agent/CreateBidInvitation";
+import AgentProjects from "./pages/agent/AgentProjects";
+import AgentFreelancers from "./pages/agent/AgentFreelancers";
+import AgentClients from "./pages/agent/AgentClients";
+import AgentConsultations from "./pages/agent/AgentConsultations";
+import AgentBidManagement from "./pages/agent/AgentBidManagement";
+import AgentProjectDetail from "./pages/agent/AgentProjectDetail";
+import AgentFreelancerDetail from "./pages/agent/AgentFreelancerDetail";
+import AgentClientDetail from "./pages/agent/AgentClientDetail";
+import AgentReports from "./pages/agent/AgentReports";
+import AgentSettings from "./pages/agent/AgentSettings";
+
+// Super Admin portal
+import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
+import UserManagement from "./pages/superadmin/UserManagement";
+import SystemConfiguration from "./pages/superadmin/SystemConfiguration";
+import FinancialReports from "./pages/superadmin/FinancialReports";
+import DisputeEscalations from "./pages/superadmin/DisputeEscalations";
+import AuditLogs from "./pages/superadmin/AuditLogs";
+import Analytics from "./pages/superadmin/Analytics";
+
+// Shared
+import MessagesPage from "./pages/shared/MessagesPage";
+import NotificationsPage from "./pages/shared/NotificationsPage";
+import SupportPage from "./pages/shared/SupportPage";
+import DisputeDetail from "./pages/shared/DisputeDetail";
+import ConsultationDetail from "./pages/shared/ConsultationDetail";
+
+function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  const { user } = useAuth();
+
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={user ? <Navigate to={getRoleBasedRoute(user.role)} /> : <LoginPage />} />
+      <Route path="/signup" element={user ? <Navigate to={getRoleBasedRoute(user.role)} /> : <SignupPage />} />
+      <Route path="/how-it-works" element={<HowItWorksPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
+
+      {/* Client routes */}
+      <Route path="/client/dashboard" element={<ProtectedRoute allowedRoles={['client']}><ClientDashboard /></ProtectedRoute>} />
+      <Route path="/client/projects" element={<ProtectedRoute allowedRoles={['client']}><ClientProjects /></ProtectedRoute>} />
+      <Route path="/client/projects/new" element={<ProtectedRoute allowedRoles={['client']}><CreateProject /></ProtectedRoute>} />
+      <Route path="/client/projects/:id" element={<ProtectedRoute allowedRoles={['client']}><ProjectDetail /></ProtectedRoute>} />
+      <Route path="/client/consultations" element={<ProtectedRoute allowedRoles={['client']}><ClientConsultations /></ProtectedRoute>} />
+      <Route path="/client/payments" element={<ProtectedRoute allowedRoles={['client']}><ClientPayments /></ProtectedRoute>} />
+      <Route path="/client/settings" element={<ProtectedRoute allowedRoles={['client']}><ClientSettings /></ProtectedRoute>} />
+
+      {/* Freelancer routes */}
+      <Route path="/freelancer/dashboard" element={<ProtectedRoute allowedRoles={['freelancer']}><FreelancerDashboard /></ProtectedRoute>} />
+      <Route path="/freelancer/projects" element={<ProtectedRoute allowedRoles={['freelancer']}><BrowseProjects /></ProtectedRoute>} />
+      <Route path="/freelancer/projects/:projectId/detail" element={<ProtectedRoute allowedRoles={['freelancer']}><ProjectDetailPage /></ProtectedRoute>} />
+      <Route path="/freelancer/bids" element={<ProtectedRoute allowedRoles={['freelancer']}><FreelancerBids /></ProtectedRoute>} />
+      <Route path="/freelancer/active-projects" element={<ProtectedRoute allowedRoles={['freelancer']}><ActiveProjects /></ProtectedRoute>} />
+      <Route path="/freelancer/workspace/:projectId" element={<ProtectedRoute allowedRoles={['freelancer']}><ProjectWorkspace /></ProtectedRoute>} />
+      <Route path="/freelancer/earnings" element={<ProtectedRoute allowedRoles={['freelancer']}><EarningsPage /></ProtectedRoute>} />
+      <Route path="/freelancer/portfolio" element={<ProtectedRoute allowedRoles={['freelancer']}><PortfolioPage /></ProtectedRoute>} />
+      <Route path="/freelancer/analytics" element={<ProtectedRoute allowedRoles={['freelancer']}><FreelancerAnalytics /></ProtectedRoute>} />
+      <Route path="/freelancer/wallet" element={<ProtectedRoute allowedRoles={['freelancer']}><FreelancerWallet /></ProtectedRoute>} />
+      <Route path="/freelancer/profile" element={<ProtectedRoute allowedRoles={['freelancer']}><FreelancerProfile /></ProtectedRoute>} />
+      <Route path="/freelancer/settings" element={<ProtectedRoute allowedRoles={['freelancer']}><FreelancerSettings /></ProtectedRoute>} />
+      <Route path="/freelancer/onboarding" element={<ProtectedRoute allowedRoles={['freelancer']}><OnboardingWizard /></ProtectedRoute>} />
+      <Route path="/freelancer/bid-invitations" element={<ProtectedRoute allowedRoles={['freelancer']}><BidInvitations /></ProtectedRoute>} />
+      <Route path="/freelancer/submit-bid/:projectId" element={<ProtectedRoute allowedRoles={['freelancer']}><SubmitBid /></ProtectedRoute>} />
+
+      {/* Admin routes */}
+      <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/projects" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminProjects /></ProtectedRoute>} />
+      <Route path="/admin/projects/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminProjectDetail /></ProtectedRoute>} />
+      <Route path="/admin/projects/:id/review" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><ProjectReview /></ProtectedRoute>} />
+      <Route path="/admin/freelancers" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><FreelancerDirectory /></ProtectedRoute>} />
+      <Route path="/admin/freelancers/:id/detail" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><FreelancerDetail /></ProtectedRoute>} />
+      <Route path="/admin/projects/:id/bids" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><BiddingManagement /></ProtectedRoute>} />
+      <Route path="/admin/consultations" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminConsultations /></ProtectedRoute>} />
+      <Route path="/admin/disputes" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminDisputes /></ProtectedRoute>} />
+      <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminReports /></ProtectedRoute>} />
+      <Route path="/admin/bids" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminBidManagement /></ProtectedRoute>} />
+      <Route path="/admin/bids/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminCreateBidInvitation /></ProtectedRoute>} />
+      <Route path="/admin/bids/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminBidDetail /></ProtectedRoute>} />
+
+      {/* Agent routes */}
+      <Route path="/agent/dashboard" element={<ProtectedRoute allowedRoles={['agent']}><AgentDashboard /></ProtectedRoute>} />
+      <Route path="/agent/bids/create" element={<ProtectedRoute allowedRoles={['agent']}><CreateBidInvitation /></ProtectedRoute>} />
+      <Route path="/agent/projects" element={<ProtectedRoute allowedRoles={['agent']}><AgentProjects /></ProtectedRoute>} />
+      <Route path="/agent/projects/:id" element={<ProtectedRoute allowedRoles={['agent']}><AgentProjectDetail /></ProtectedRoute>} />
+      <Route path="/agent/projects/:id/bids" element={<ProtectedRoute allowedRoles={['agent']}><AgentBidManagement /></ProtectedRoute>} />
+      <Route path="/agent/freelancers" element={<ProtectedRoute allowedRoles={['agent']}><AgentFreelancers /></ProtectedRoute>} />
+      <Route path="/agent/freelancers/:id" element={<ProtectedRoute allowedRoles={['agent']}><AgentFreelancerDetail /></ProtectedRoute>} />
+      <Route path="/agent/clients" element={<ProtectedRoute allowedRoles={['agent']}><AgentClients /></ProtectedRoute>} />
+      <Route path="/agent/clients/:id" element={<ProtectedRoute allowedRoles={['agent']}><AgentClientDetail /></ProtectedRoute>} />
+      <Route path="/agent/consultations" element={<ProtectedRoute allowedRoles={['agent']}><AgentConsultations /></ProtectedRoute>} />
+      <Route path="/agent/bids" element={<ProtectedRoute allowedRoles={['agent']}><AgentBidManagement /></ProtectedRoute>} />
+      <Route path="/agent/reports" element={<ProtectedRoute allowedRoles={['agent']}><AgentReports /></ProtectedRoute>} />
+      <Route path="/agent/settings" element={<ProtectedRoute allowedRoles={['agent']}><AgentSettings /></ProtectedRoute>} />
+
+      {/* Super Admin routes */}
+      <Route path="/superadmin/dashboard" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperAdminDashboard /></ProtectedRoute>} />
+      <Route path="/superadmin/users" element={<ProtectedRoute allowedRoles={['superadmin']}><UserManagement /></ProtectedRoute>} />
+      <Route path="/superadmin/settings" element={<ProtectedRoute allowedRoles={['superadmin']}><SystemConfiguration /></ProtectedRoute>} />
+      <Route path="/superadmin/financials" element={<ProtectedRoute allowedRoles={['superadmin']}><FinancialReports /></ProtectedRoute>} />
+      <Route path="/superadmin/disputes" element={<ProtectedRoute allowedRoles={['superadmin']}><DisputeEscalations /></ProtectedRoute>} />
+      <Route path="/superadmin/audit" element={<ProtectedRoute allowedRoles={['superadmin']}><AuditLogs /></ProtectedRoute>} />
+      <Route path="/superadmin/analytics" element={<ProtectedRoute allowedRoles={['superadmin']}><Analytics /></ProtectedRoute>} />
+
+      {/* Shared routes */}
+      <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+      <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+      <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
+      <Route path="/dispute/:id" element={<ProtectedRoute><DisputeDetail /></ProtectedRoute>} />
+      <Route path="/consultation/:id" element={<ProtectedRoute><ConsultationDetail /></ProtectedRoute>} />
+
+      {/* Catch all */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+function getRoleBasedRoute(role: string): string {
+  const routes: Record<string, string> = {
+    client: '/client/dashboard',
+    freelancer: '/freelancer/dashboard',
+    admin: '/admin/dashboard',
+    superadmin: '/superadmin/dashboard',
+    agent: '/agent/dashboard',
+  };
+  return routes[role] || '/';
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <DataProvider>
+          <AppRoutes />
+          <Toaster />
+        </DataProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
