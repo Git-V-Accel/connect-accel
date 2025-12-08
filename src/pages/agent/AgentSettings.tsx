@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { PasswordInput } from '../../components/common';
+import { Switch } from '../../components/ui/switch';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   User,
@@ -14,15 +16,12 @@ import {
   CreditCard,
   Settings,
   Save,
-  Eye,
-  EyeOff
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
 export default function AgentSettings() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('profile');
-  const [showPassword, setShowPassword] = useState(false);
 
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
@@ -255,16 +254,16 @@ export default function AgentSettings() {
                     { key: 'email_consultation_scheduled', label: 'Consultation scheduled' },
                     { key: 'email_project_completed', label: 'Project completed' },
                   ].map((item) => (
-                    <label key={item.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                      <span className="text-sm">{item.label}</span>
-                      <input
-                        type="checkbox"
+                    <label key={item.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                      <span className="text-sm font-medium">{item.label}</span>
+                      <Switch
                         checked={notificationSettings[item.key as keyof typeof notificationSettings]}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          [item.key]: e.target.checked
-                        })}
-                        className="size-5 text-blue-600 rounded"
+                        onCheckedChange={(checked) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            [item.key]: checked,
+                          })
+                        }
                       />
                     </label>
                   ))}
@@ -280,16 +279,16 @@ export default function AgentSettings() {
                     { key: 'push_consultation_reminder', label: 'Consultation reminder' },
                     { key: 'push_payment_received', label: 'Payment received' },
                   ].map((item) => (
-                    <label key={item.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                      <span className="text-sm">{item.label}</span>
-                      <input
-                        type="checkbox"
+                    <label key={item.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                      <span className="text-sm font-medium">{item.label}</span>
+                      <Switch
                         checked={notificationSettings[item.key as keyof typeof notificationSettings]}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          [item.key]: e.target.checked
-                        })}
-                        className="size-5 text-blue-600 rounded"
+                        onCheckedChange={(checked) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            [item.key]: checked,
+                          })
+                        }
                       />
                     </label>
                   ))}
@@ -315,28 +314,18 @@ export default function AgentSettings() {
                 <div className="space-y-4 max-w-md">
                   <div>
                     <Label htmlFor="current_password">Current Password</Label>
-                    <div className="relative mt-1">
-                      <Input
-                        id="current_password"
-                        type={showPassword ? 'text' : 'password'}
-                        value={passwordData.current_password}
-                        onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                      >
-                        {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-                      </button>
-                    </div>
+                    <PasswordInput
+                      id="current_password"
+                      value={passwordData.current_password}
+                      onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                      className="mt-1"
+                    />
                   </div>
 
                   <div>
                     <Label htmlFor="new_password">New Password</Label>
-                    <Input
+                    <PasswordInput
                       id="new_password"
-                      type={showPassword ? 'text' : 'password'}
                       value={passwordData.new_password}
                       onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
                       className="mt-1"
@@ -346,9 +335,8 @@ export default function AgentSettings() {
 
                   <div>
                     <Label htmlFor="confirm_password">Confirm New Password</Label>
-                    <Input
+                    <PasswordInput
                       id="confirm_password"
-                      type={showPassword ? 'text' : 'password'}
                       value={passwordData.confirm_password}
                       onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
                       className="mt-1"
