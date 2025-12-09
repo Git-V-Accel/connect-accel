@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
@@ -47,6 +47,12 @@ export default function CreateProject() {
   const navigate = useNavigate();
   
   const [step, setStep] = useState(1);
+  const [visitedSteps, setVisitedSteps] = useState<Set<number>>(new Set([1]));
+  const formContentRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -88,9 +94,131 @@ export default function CreateProject() {
     }
   };
 
+  const changeStep = (newStep: number, skipValidation = false) => {
+    if (isTransitioning) return;
+    
+    // Validation: can only go forward if current step is valid
+    if (newStep > step && !skipValidation && !canProceed()) {
+      return;
+    }
+    
+    // Can go back to any visited step, or forward if validation passes
+    if (newStep <= step || visitedSteps.has(newStep) || (newStep === step + 1 && canProceed())) {
+      setIsTransitioning(true);
+      setStep(newStep);
+      setVisitedSteps(prev => new Set([...prev, newStep]));
+      
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 300); // Match CSS transition duration
+    }
+  };
+
+  const handleStepChange = (newStep: number) => {
+    changeStep(newStep, true); // Allow clicking on visited steps
+  };
+
+  const handleNext = () => {
+    if (canProceed() && step < 4) {
+      changeStep(step + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      changeStep(step - 1, true);
+    }
+  };
+
+  // Throttled scroll handler
+  const handleWheel = (e: WheelEvent) => {
+    if (isTransitioning || scrollTimeoutRef.current) return;
+    
+    e.preventDefault();
+    
+    scrollTimeoutRef.current = setTimeout(() => {
+      scrollTimeoutRef.current = null;
+    }, 500); // Throttle: 500ms between scroll actions
+    
+    const deltaY = e.deltaY;
+    
+    if (deltaY > 0) {
+      // Scrolling down - go to next step
+      if (canProceed() && step < 4) {
+        handleNext();
+      }
+    } else if (deltaY < 0) {
+      // Scrolling up - go to previous step
+      if (step > 1) {
+        handleBack();
+      }
+    }
+  };
+
+  // Touch swipe handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      time: Date.now(),
+    };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current || isTransitioning) return;
+    
+    const touchEnd = {
+      x: e.changedTouches[0].clientX,
+      y: e.changedTouches[0].clientY,
+      time: Date.now(),
+    };
+    
+    const deltaX = touchEnd.x - touchStartRef.current.x;
+    const deltaY = touchEnd.y - touchStartRef.current.y;
+    const deltaTime = touchEnd.time - touchStartRef.current.time;
+    
+    // Minimum swipe distance and maximum time
+    const minSwipeDistance = 50;
+    const maxSwipeTime = 300;
+    
+    // Check if it's a vertical swipe (more vertical than horizontal)
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > minSwipeDistance && deltaTime < maxSwipeTime) {
+      if (deltaY < 0) {
+        // Swipe up - go to next step
+        if (canProceed() && step < 4) {
+          handleNext();
+        }
+      } else {
+        // Swipe down - go to previous step
+        if (step > 1) {
+          handleBack();
+        }
+      }
+    }
+    
+    touchStartRef.current = null;
+  };
+
+  // Add wheel event listener
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const wheelHandler = (e: WheelEvent) => handleWheel(e);
+    container.addEventListener('wheel', wheelHandler, { passive: false });
+
+    return () => {
+      container.removeEventListener('wheel', wheelHandler);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, [step, isTransitioning]);
+
   const handleSubmit = () => {
     if (!user) return;
 
+    const budget = parseInt(formData.client_budget);
     const project = createProject({
       title: formData.title,
       description: formData.description,
@@ -99,7 +227,8 @@ export default function CreateProject() {
       status: formData.prefer_consultation ? 'draft' : 'pending_review',
       category: formData.category,
       skills_required: formData.skills_required,
-      client_budget: parseInt(formData.client_budget),
+      budget: budget,
+      client_budget: budget,
       duration_weeks: parseInt(formData.duration_weeks),
       priority: 'medium',
       complexity: formData.complexity as 'simple' | 'moderate' | 'complex',
@@ -114,8 +243,8 @@ export default function CreateProject() {
     navigate('/client/projects');
   };
 
-  const renderStep = () => {
-    switch (step) {
+  const renderStep = (stepNumber: number) => {
+    switch (stepNumber) {
       case 1:
         return (
           <div className="space-y-6">
@@ -417,12 +546,11 @@ export default function CreateProject() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-8xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/client/dashboard')}>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/client/projects')}>
             <ArrowLeft className="size-4 mr-2" />
-            Back
           </Button>
           <div className="flex-1">
             <h1 className="text-3xl">Create New Project</h1>
@@ -431,66 +559,121 @@ export default function CreateProject() {
         </div>
 
         {/* Progress Steps */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            {steps.map((s, index) => (
-              <div key={s.number} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
-                  <div
-                    className={`size-10 rounded-full flex items-center justify-center transition-colors ${
-                      step > s.number
-                        ? 'bg-green-600 text-white'
-                        : step === s.number
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-500'
-                    }`}
-                  >
-                    {step > s.number ? <Check className="size-5" /> : s.icon}
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            {steps.map((s, index) => {
+              const isCompleted = step > s.number;
+              const isCurrent = step === s.number;
+              const isVisited = visitedSteps.has(s.number);
+              const canClick = isVisited || isCurrent;
+              
+              return (
+                <div key={s.number} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center flex-1">
+                    <button
+                      type="button"
+                      onClick={() => canClick && handleStepChange(s.number)}
+                      disabled={!canClick}
+                      className={`size-10 rounded-full flex items-center justify-center transition-all ${
+                        isCompleted
+                          ? 'bg-green-600 text-white cursor-pointer hover:bg-green-700'
+                          : isCurrent
+                          ? 'bg-blue-600 text-white cursor-pointer hover:bg-blue-700'
+                          : isVisited
+                          ? 'bg-gray-300 text-gray-600 cursor-pointer hover:bg-gray-400'
+                          : 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-50'
+                      } ${canClick ? 'hover:scale-105' : ''}`}
+                      title={canClick ? `Go to ${s.title}` : 'Complete previous steps first'}
+                    >
+                      {isCompleted ? <Check className="size-5" /> : s.icon}
+                    </button>
+                    <p className={`text-sm mt-2 ${step >= s.number ? 'font-medium' : 'text-gray-500'}`}>
+                      {s.title}
+                    </p>
                   </div>
-                  <p className={`text-sm mt-2 ${step >= s.number ? 'font-medium' : 'text-gray-500'}`}>
-                    {s.title}
-                  </p>
+                  {index < steps.length - 1 && (
+                    <div className={`h-1 flex-1 mx-2 rounded transition-colors ${step > s.number ? 'bg-green-600' : 'bg-gray-200'}`}></div>
+                  )}
                 </div>
-                {index < steps.length - 1 && (
-                  <div className={`h-1 flex-1 mx-2 rounded ${step > s.number ? 'bg-green-600' : 'bg-gray-200'}`}></div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
-          <Progress value={(step / steps.length) * 100} className="h-2" />
         </Card>
 
         {/* Form Content */}
-        <Card className="p-6">
-          {renderStep()}
-        </Card>
+        <div 
+          ref={containerRef}
+          className="overflow-hidden relative"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          style={{ height: '600px' }}
+        >
+          <Card ref={formContentRef} className="p-4 scroll-mt-4 h-full overflow-hidden">
+            <div className="relative h-full">
+              {[1, 2, 3, 4]
+                .filter((stepNum) => {
+                  // Only show steps that are unlocked (visited or current step)
+                  return visitedSteps.has(stepNum) || stepNum === step;
+                })
+                .map((stepNum) => {
+                  const isCurrentStep = stepNum === step;
+                  const unlockedSteps = [1, 2, 3, 4].filter(s => visitedSteps.has(s) || s === step);
+                  const currentIndex = unlockedSteps.indexOf(step);
+                  
+                  return (
+                    <div
+                      key={stepNum}
+                      className="w-full h-full overflow-y-auto absolute top-0 left-0 transition-all duration-300 ease-in-out"
+                      style={{ 
+                        height: '100%',
+                        width: '100%',
+                        transform: isCurrentStep 
+                          ? `translateY(0)` 
+                          : `translateY(${stepNum < step ? '-100%' : '100%'})`,
+                        opacity: isCurrentStep ? 1 : 0,
+                        pointerEvents: isCurrentStep ? 'auto' : 'none',
+                        zIndex: isCurrentStep ? 10 : 1,
+                      }}
+                    >
+                      <div className="space-y-6">
+                        {renderStep(stepNum)}
+                        {/* Navigation Buttons - only show for current step */}
+                        {isCurrentStep && (
+                          <div className="flex items-center justify-between pt-4 border-t">
+                            <Button
+                              variant="outline"
+                              onClick={handleBack}
+                              disabled={step === 1 || isTransitioning}
+                            >
+                              <ArrowLeft className="size-4 mr-2" />
+                              Previous
+                            </Button>
 
-        {/* Navigation Buttons */}
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={() => setStep(step - 1)}
-            disabled={step === 1}
-          >
-            <ArrowLeft className="size-4 mr-2" />
-            Previous
-          </Button>
-
-          {step < 4 ? (
-            <Button
-              onClick={() => setStep(step + 1)}
-              disabled={!canProceed()}
-            >
-              Next
-              <ArrowRight className="size-4 ml-2" />
-            </Button>
-          ) : (
-            <Button onClick={handleSubmit} size="lg">
-              Submit Project
-              <Check className="size-4 ml-2" />
-            </Button>
-          )}
+                            {step < 4 ? (
+                              <Button
+                                onClick={handleNext}
+                                disabled={!canProceed() || isTransitioning}
+                              >
+                                Next
+                                <ArrowRight className="size-4 ml-2" />
+                              </Button>
+                            ) : (
+                              <Button onClick={handleSubmit} size="lg" disabled={isTransitioning}>
+                                Submit Project
+                                <Check className="size-4 ml-2" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </Card>
         </div>
+
+       
       </div>
     </DashboardLayout>
   );
