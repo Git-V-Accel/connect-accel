@@ -3,7 +3,7 @@ import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { PasswordInput } from '../../components/common';
+import { PasswordInput, RichTextEditor, RichTextViewer } from '../../components/common';
 import { Switch } from '../../components/ui/switch';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
@@ -16,6 +16,8 @@ import {
   CreditCard,
   Settings,
   Save,
+  Edit,
+  X,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
@@ -31,6 +33,9 @@ export default function AgentSettings() {
     bio: '',
     commission_rate: 15,
   });
+
+  const [isBioEditing, setIsBioEditing] = useState(false);
+  const [bioEditValue, setBioEditValue] = useState('');
 
   const [notificationSettings, setNotificationSettings] = useState({
     email_new_project: true,
@@ -220,15 +225,68 @@ export default function AgentSettings() {
               </div>
 
               <div>
+                <div className="flex items-center justify-between mb-2">
                 <Label htmlFor="bio">Bio</Label>
-                <textarea
-                  id="bio"
-                  value={profileData.bio}
-                  onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
-                  className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={4}
+                  {!isBioEditing && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setBioEditValue(profileData.bio);
+                        setIsBioEditing(true);
+                      }}
+                    >
+                      <Edit className="size-4 mr-2" />
+                      Edit
+                    </Button>
+                  )}
+                </div>
+                {isBioEditing ? (
+                  <div className="space-y-2">
+                    <RichTextEditor
+                      value={bioEditValue}
+                      onChange={setBioEditValue}
                   placeholder="Tell clients about your expertise..."
-                />
+                      className="mt-1"
+                      minHeight="150px"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          setProfileData({ ...profileData, bio: bioEditValue });
+                          setIsBioEditing(false);
+                          toast.success('Bio updated successfully');
+                        }}
+                      >
+                        <Save className="size-4 mr-2" />
+                        Save
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setBioEditValue(profileData.bio);
+                          setIsBioEditing(false);
+                        }}
+                      >
+                        <X className="size-4 mr-2" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-1 p-4 border border-gray-200 rounded-lg bg-gray-50 min-h-[150px]">
+                    {profileData.bio ? (
+                      <RichTextViewer content={profileData.bio} />
+                    ) : (
+                      <p className="text-gray-400 italic">No bio added yet. Click Edit to add one.</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <Button onClick={handleSaveProfile}>
@@ -260,7 +318,7 @@ export default function AgentSettings() {
                         checked={notificationSettings[item.key as keyof typeof notificationSettings]}
                         onCheckedChange={(checked) =>
                           setNotificationSettings({
-                            ...notificationSettings,
+                          ...notificationSettings,
                             [item.key]: checked,
                           })
                         }
@@ -285,7 +343,7 @@ export default function AgentSettings() {
                         checked={notificationSettings[item.key as keyof typeof notificationSettings]}
                         onCheckedChange={(checked) =>
                           setNotificationSettings({
-                            ...notificationSettings,
+                          ...notificationSettings,
                             [item.key]: checked,
                           })
                         }
@@ -315,9 +373,9 @@ export default function AgentSettings() {
                   <div>
                     <Label htmlFor="current_password">Current Password</Label>
                     <PasswordInput
-                      id="current_password"
-                      value={passwordData.current_password}
-                      onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                        id="current_password"
+                        value={passwordData.current_password}
+                        onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
                       className="mt-1"
                     />
                   </div>

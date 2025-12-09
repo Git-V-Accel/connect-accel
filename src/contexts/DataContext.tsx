@@ -498,7 +498,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const getBidsByAgent = (agentId: string) => {
-    return data.bids.filter((b: Bid) => (b as any).admin_id === agentId);
+    // Bids are associated with projects, and projects have admin_id
+    // Filter bids where the associated project's admin_id matches the agentId
+    return data.bids.filter((b: Bid) => {
+      const project = data.projects.find((p: Project) => p.id === b.project_id);
+      return project?.admin_id === agentId;
+    });
   };
 
   // Bid Invitation methods

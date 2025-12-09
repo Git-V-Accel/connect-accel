@@ -1,30 +1,80 @@
 "use client";
 
 import * as React from "react";
-import * as SwitchPrimitive from "@radix-ui/react-switch";
+import { Switch as MuiSwitch, SwitchProps as MuiSwitchProps } from "@mui/material";
+import { styled } from "@mui/material/styles";
 
-import { cn } from "./utils";
+const StyledSwitch = styled(MuiSwitch)(({ theme }) => ({
+  width: 42,
+  height: 26,
+  padding: 0,
+  "& .MuiSwitch-switchBase": {
+    padding: 0,
+    margin: 2,
+    transitionDuration: "300ms",
+    "&.Mui-checked": {
+      transform: "translateX(16px)",
+      color: "#fff",
+      "& + .MuiSwitch-track": {
+        backgroundColor: theme.palette.mode === "dark" ? "#2ECA45" : "#1976d2",
+        opacity: 1,
+        border: 0,
+      },
+      "&.Mui-disabled + .MuiSwitch-track": {
+        opacity: 0.5,
+      },
+    },
+    "&.Mui-disabled .MuiSwitch-thumb": {
+      color: theme.palette.mode === "dark" ? theme.palette.grey[600] : theme.palette.grey[300],
+    },
+    "&.Mui-disabled + .MuiSwitch-track": {
+      opacity: theme.palette.mode === "dark" ? 0.3 : 0.5,
+    },
+  },
+  "& .MuiSwitch-thumb": {
+    boxSizing: "border-box",
+    width: 22,
+    height: 22,
+  },
+  "& .MuiSwitch-track": {
+    borderRadius: 26 / 2,
+    backgroundColor: theme.palette.mode === "dark" ? "#39393D" : "#E9E9EA",
+    opacity: 1,
+    transition: theme.transitions.create(["background-color"], {
+      duration: 500,
+    }),
+  },
+}));
+
+export interface SwitchProps extends Omit<MuiSwitchProps, "onChange"> {
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  onChange?: (event: React.ChangeEvent<HTMLInputElement>, checked: boolean) => void;
+}
 
 function Switch({
+  checked,
+  onCheckedChange,
+  onChange,
   className,
   ...props
-}: React.ComponentProps<typeof SwitchPrimitive.Root>) {
+}: SwitchProps) {
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
+    if (onCheckedChange) {
+      onCheckedChange(checked);
+    }
+    if (onChange) {
+      onChange(event, checked);
+    }
+  };
+
   return (
-    <SwitchPrimitive.Root
-      data-slot="switch"
-      className={cn(
-        "peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-switch-background focus-visible:border-ring focus-visible:ring-ring/50 dark:data-[state=unchecked]:bg-input/80 inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
-        className,
-      )}
+    <StyledSwitch
+      checked={checked}
+      onChange={handleChange}
+      className={className}
       {...props}
-    >
-      <SwitchPrimitive.Thumb
-        data-slot="switch-thumb"
-        className={cn(
-          "bg-card dark:data-[state=unchecked]:bg-card-foreground dark:data-[state=checked]:bg-primary-foreground pointer-events-none block size-4 rounded-full ring-0 transition-transform data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0",
-        )}
-      />
-    </SwitchPrimitive.Root>
+    />
   );
 }
 

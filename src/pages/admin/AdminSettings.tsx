@@ -4,34 +4,26 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { PasswordInput, RichTextEditor, RichTextViewer } from '../../components/common';
-import {
-  User,
-  Mail,
-  Bell,
-  Shield,
-  Monitor,
-  Save,
-  Edit,
-  X,
-} from 'lucide-react';
+import { Switch } from '../../components/ui/switch';
 import { toast } from '../../utils/toast';
+import { User, Bell, Monitor, Shield, Save, Edit, X } from 'lucide-react';
 import {
   Select,
+  SelectContent,
+  SelectItem,
   SelectTrigger,
   SelectValue,
-  SelectContent,
-  SelectItem
 } from '../../components/ui/select';
-import { Switch } from '../../components/ui/switch';
 
-export default function FreelancerSettings() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'appearance' | 'security'>('profile');
+type TabId = 'profile' | 'notifications' | 'appearance' | 'security';
+
+export default function AdminSettings() {
+  const [activeTab, setActiveTab] = useState<TabId>('profile');
 
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
-    title: '',
-    location: '',
+    title: 'Admin',
     bio: '',
   });
 
@@ -39,11 +31,10 @@ export default function FreelancerSettings() {
   const [bioEditValue, setBioEditValue] = useState('');
 
   const [notificationSettings, setNotificationSettings] = useState({
-    email_job_matches: true,
-    email_project_updates: true,
-    email_messages: true,
-    push_invites: true,
-    push_deadlines: true,
+    email_incidents: true,
+    email_reports: true,
+    push_escalations: true,
+    push_system: true,
   });
 
   const [appearanceSettings, setAppearanceSettings] = useState({
@@ -61,39 +52,29 @@ export default function FreelancerSettings() {
       toast.error('Name and email are required');
       return;
     }
-    toast.success('Profile updated successfully!');
+    toast.success('Profile updated');
   };
 
-  const handleSaveNotifications = () => {
-    toast.success('Notification preferences updated!');
-  };
-
-  const handleSaveAppearance = () => {
-    toast.success('Appearance settings saved');
-  };
-
+  const handleSaveNotifications = () => toast.success('Notification settings saved');
+  const handleSaveAppearance = () => toast.success('Appearance saved');
   const handleChangePassword = () => {
     if (!passwordData.current_password || !passwordData.new_password) {
-      toast.error('Please fill in all password fields');
+      toast.error('Please fill all password fields');
       return;
     }
     if (passwordData.new_password !== passwordData.confirm_password) {
       toast.error('New passwords do not match');
       return;
     }
-    if (passwordData.new_password.length < 8) {
-      toast.error('Password must be at least 8 characters');
-      return;
-    }
-    toast.success('Password changed successfully!');
+    toast.success('Password updated');
     setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
   };
 
   const tabs = [
-    { id: 'profile', label: 'Profile Settings', icon: <User className="size-4" /> },
-    { id: 'notifications', label: 'Notifications', icon: <Bell className="size-4" /> },
-    { id: 'appearance', label: 'Appearance', icon: <Monitor className="size-4" /> },
-    { id: 'security', label: 'Security', icon: <Shield className="size-4" /> },
+    { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" /> },
+    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
+    { id: 'appearance', label: 'Appearance', icon: <Monitor className="w-4 h-4" /> },
+    { id: 'security', label: 'Security', icon: <Shield className="w-4 h-4" /> },
   ];
 
   return (
@@ -101,7 +82,9 @@ export default function FreelancerSettings() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl">Settings</h1>
-          <p className="text-gray-600 mt-1">Manage your profile, notifications, theme, and security</p>
+          <p className="text-gray-600 mt-1">
+            Manage admin profile, notifications, theme, and security
+          </p>
         </div>
 
         <div className="border-b border-gray-200">
@@ -109,7 +92,7 @@ export default function FreelancerSettings() {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                onClick={() => setActiveTab(tab.id as TabId)}
                 className={`flex items-center gap-2 px-4 py-3 border-b-2 whitespace-nowrap transition-colors ${
                   activeTab === tab.id
                     ? 'border-blue-600 text-blue-600'
@@ -123,12 +106,11 @@ export default function FreelancerSettings() {
           </div>
         </div>
 
-        {/* Profile */}
         {activeTab === 'profile' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <div>
-              <h2 className="text-xl mb-1">Profile Settings</h2>
-              <p className="text-sm text-gray-600">Update your freelancer profile</p>
+              <h2 className="text-xl mb-1">Profile</h2>
+              <p className="text-sm text-gray-600">Update admin details</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -139,48 +121,35 @@ export default function FreelancerSettings() {
                   value={profileData.name}
                   onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
                   className="mt-1"
-                  placeholder="Alex Smith"
+                  placeholder="Jane Admin"
                 />
               </div>
-
               <div>
-                <Label htmlFor="email">Email Address *</Label>
+                <Label htmlFor="email">Email *</Label>
                 <Input
                   id="email"
                   type="email"
                   value={profileData.email}
                   onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
                   className="mt-1"
-                  placeholder="alex@example.com"
+                  placeholder="admin@example.com"
                 />
               </div>
-
               <div>
-                <Label htmlFor="title">Professional Title</Label>
+                <Label htmlFor="title">Title</Label>
                 <Input
                   id="title"
                   value={profileData.title}
                   onChange={(e) => setProfileData({ ...profileData, title: e.target.value })}
                   className="mt-1"
-                  placeholder="Full-stack Developer"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="location">Location</Label>
-                <Input
-                  id="location"
-                  value={profileData.location}
-                  onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
-                  className="mt-1"
-                  placeholder="City, Country"
+                  placeholder="Administrator"
                 />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label htmlFor="bio">Bio</Label>
+                <Label htmlFor="bio">Admin Notes / Bio</Label>
                 {!isBioEditing && (
                   <Button
                     type="button"
@@ -191,7 +160,7 @@ export default function FreelancerSettings() {
                       setIsBioEditing(true);
                     }}
                   >
-                    <Edit className="size-4 mr-2" />
+                    <Edit className="w-4 h-4 mr-2" />
                     Edit
                   </Button>
                 )}
@@ -201,7 +170,7 @@ export default function FreelancerSettings() {
                   <RichTextEditor
                     value={bioEditValue}
                     onChange={setBioEditValue}
-                    placeholder="Highlight your expertise, skills, and experience..."
+                    placeholder="Team notes, responsibilities, etc."
                     className="mt-1"
                     minHeight="150px"
                   />
@@ -215,7 +184,7 @@ export default function FreelancerSettings() {
                         toast.success('Bio updated successfully');
                       }}
                     >
-                      <Save className="size-4 mr-2" />
+                      <Save className="w-4 h-4 mr-2" />
                       Save
                     </Button>
                     <Button
@@ -227,7 +196,7 @@ export default function FreelancerSettings() {
                         setIsBioEditing(false);
                       }}
                     >
-                      <X className="size-4 mr-2" />
+                      <X className="w-4 h-4 mr-2" />
                       Cancel
                     </Button>
                   </div>
@@ -244,80 +213,57 @@ export default function FreelancerSettings() {
             </div>
 
             <Button onClick={handleSaveProfile}>
-              <Save className="size-4 mr-2" />
-              Save Changes
+              <Save className="w-4 h-4 mr-2" />
+              Save Profile
             </Button>
           </div>
         )}
 
-        {/* Notifications */}
         {activeTab === 'notifications' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <div>
-              <h2 className="text-xl mb-1">Notification Settings</h2>
-              <p className="text-sm text-gray-600">Choose how you want to be notified</p>
+              <h2 className="text-xl mb-1">Notifications</h2>
+              <p className="text-sm text-gray-600">Control admin alerts</p>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <h3 className="text-lg">Email Notifications</h3>
-                {[
-                  { key: 'email_job_matches', label: 'New job matches and invitations' },
-                  { key: 'email_project_updates', label: 'Project updates & milestones' },
-                  { key: 'email_messages', label: 'Messages from clients' },
-                ].map((item) => (
-                  <label key={item.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
-                    <span className="text-sm font-medium">{item.label}</span>
-                    <Switch
-                      checked={notificationSettings[item.key as keyof typeof notificationSettings]}
-                      onCheckedChange={(checked) =>
-                        setNotificationSettings({
-                          ...notificationSettings,
-                          [item.key]: checked,
-                        })
-                      }
-                    />
-                  </label>
-                ))}
-              </div>
-
-              <div className="space-y-3">
-                <h3 className="text-lg">Push Notifications</h3>
-                {[
-                  { key: 'push_invites', label: 'Project invites and bid updates' },
-                  { key: 'push_deadlines', label: 'Deadline and meeting reminders' },
-                ].map((item) => (
-                  <label key={item.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
-                    <span className="text-sm font-medium">{item.label}</span>
-                    <Switch
-                      checked={notificationSettings[item.key as keyof typeof notificationSettings]}
-                      onCheckedChange={(checked) =>
-                        setNotificationSettings({
-                          ...notificationSettings,
-                          [item.key]: checked,
-                        })
-                      }
-                    />
-                  </label>
-                ))}
-              </div>
-
-              <Button onClick={handleSaveNotifications}>
-                <Save className="size-4 mr-2" />
-                Save Preferences
-              </Button>
+            <div className="space-y-3">
+              {[
+                { key: 'email_incidents', label: 'Incident & escalation emails' },
+                { key: 'email_reports', label: 'Scheduled reports' },
+                { key: 'push_escalations', label: 'Push: escalations & approvals' },
+                { key: 'push_system', label: 'Push: system status updates' },
+              ].map((item) => (
+                <label
+                  key={item.key}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <span className="text-sm font-medium">{item.label}</span>
+                  <Switch
+                    checked={notificationSettings[item.key as keyof typeof notificationSettings]}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings({
+                        ...notificationSettings,
+                        [item.key]: checked,
+                      })
+                    }
+                  />
+                </label>
+              ))}
             </div>
+
+            <Button onClick={handleSaveNotifications}>
+              <Save className="w-4 h-4 mr-2" />
+              Save Notifications
+            </Button>
           </div>
         )}
 
-        {/* Appearance */}
         {activeTab === 'appearance' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <div>
               <h2 className="text-xl mb-1">Appearance</h2>
-              <p className="text-sm text-gray-600">Theme and display preferences</p>
+              <p className="text-sm text-gray-600">Theme preferences</p>
             </div>
-
             <div className="max-w-md space-y-4">
               <div>
                 <Label>Theme</Label>
@@ -335,23 +281,20 @@ export default function FreelancerSettings() {
                   </SelectContent>
                 </Select>
               </div>
-
               <Button onClick={handleSaveAppearance}>
-                <Save className="size-4 mr-2" />
+                <Save className="w-4 h-4 mr-2" />
                 Save Appearance
               </Button>
             </div>
           </div>
         )}
 
-        {/* Security */}
         {activeTab === 'security' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <div>
-              <h2 className="text-xl mb-1">Change Password</h2>
-              <p className="text-sm text-gray-600">Keep your account secure</p>
+              <h2 className="text-xl mb-1">Security</h2>
+              <p className="text-sm text-gray-600">Change password</p>
             </div>
-
             <div className="space-y-4 max-w-md">
               <div>
                 <Label htmlFor="current_password">Current Password</Label>
@@ -362,7 +305,6 @@ export default function FreelancerSettings() {
                   className="mt-1"
                 />
               </div>
-
               <div>
                 <Label htmlFor="new_password">New Password</Label>
                 <PasswordInput
@@ -373,7 +315,6 @@ export default function FreelancerSettings() {
                 />
                 <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
               </div>
-
               <div>
                 <Label htmlFor="confirm_password">Confirm New Password</Label>
                 <PasswordInput
@@ -383,9 +324,8 @@ export default function FreelancerSettings() {
                   className="mt-1"
                 />
               </div>
-
               <Button onClick={handleChangePassword}>
-                <Shield className="size-4 mr-2" />
+                <Shield className="w-4 h-4 mr-2" />
                 Update Password
               </Button>
             </div>
@@ -395,3 +335,4 @@ export default function FreelancerSettings() {
     </DashboardLayout>
   );
 }
+

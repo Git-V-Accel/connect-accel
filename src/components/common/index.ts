@@ -24,3 +24,12 @@ export { buttonVariants } from './Button';
 export { PasswordInput } from './PasswordInput';
 export type { PasswordInputProps } from './PasswordInput';
 
+export { RichTextEditor } from './RichTextEditor';
+export type { RichTextEditorProps } from './RichTextEditor';
+
+export { RichTextViewer } from './RichTextViewer';
+export type { RichTextViewerProps } from './RichTextViewer';
+
+export { ThemeSwitch } from './ThemeSwitch';
+export type { ThemeSwitchProps } from './ThemeSwitch';
+

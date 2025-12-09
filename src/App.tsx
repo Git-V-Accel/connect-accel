@@ -1,4 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ThemeProvider as NextThemeProvider } from "next-themes";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DataProvider } from "./contexts/DataContext";
@@ -52,6 +55,7 @@ import FreelancerDetail from "./pages/admin/FreelancerDetail";
 import AdminBidManagement from "./pages/admin/AdminBidManagement";
 import AdminCreateBidInvitation from "./pages/admin/AdminCreateBidInvitation";
 import AdminBidDetail from "./pages/admin/AdminBidDetail";
+import AdminSettings from "./pages/admin/AdminSettings";
 
 // Agent portal
 import AgentDashboard from "./pages/agent/AgentDashboard";
@@ -82,6 +86,7 @@ import NotificationsPage from "./pages/shared/NotificationsPage";
 import SupportPage from "./pages/shared/SupportPage";
 import DisputeDetail from "./pages/shared/DisputeDetail";
 import ConsultationDetail from "./pages/shared/ConsultationDetail";
+import SettingsRouter from "./pages/shared/Settings";
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { user, loading } = useAuth();
@@ -157,6 +162,7 @@ function AppRoutes() {
       <Route path="/admin/bids" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminBidManagement /></ProtectedRoute>} />
       <Route path="/admin/bids/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminCreateBidInvitation /></ProtectedRoute>} />
       <Route path="/admin/bids/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminBidDetail /></ProtectedRoute>} />
+      <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminSettings /></ProtectedRoute>} />
 
       {/* Agent routes */}
       <Route path="/agent/dashboard" element={<ProtectedRoute allowedRoles={['agent']}><AgentDashboard /></ProtectedRoute>} />
@@ -176,7 +182,8 @@ function AppRoutes() {
       {/* Super Admin routes */}
       <Route path="/superadmin/dashboard" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperAdminDashboard /></ProtectedRoute>} />
       <Route path="/superadmin/users" element={<ProtectedRoute allowedRoles={['superadmin']}><UserManagement /></ProtectedRoute>} />
-      <Route path="/superadmin/settings" element={<ProtectedRoute allowedRoles={['superadmin']}><SystemConfiguration /></ProtectedRoute>} />
+      <Route path="/superadmin/settings" element={<ProtectedRoute allowedRoles={['superadmin']}><AdminSettings /></ProtectedRoute>} />
+      <Route path="/superadmin/system-configuration" element={<ProtectedRoute allowedRoles={['superadmin']}><SystemConfiguration /></ProtectedRoute>} />
       <Route path="/superadmin/financials" element={<ProtectedRoute allowedRoles={['superadmin']}><FinancialReports /></ProtectedRoute>} />
       <Route path="/superadmin/disputes" element={<ProtectedRoute allowedRoles={['superadmin']}><DisputeEscalations /></ProtectedRoute>} />
       <Route path="/superadmin/audit" element={<ProtectedRoute allowedRoles={['superadmin']}><AuditLogs /></ProtectedRoute>} />
@@ -188,6 +195,7 @@ function AppRoutes() {
       <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
       <Route path="/dispute/:id" element={<ProtectedRoute><DisputeDetail /></ProtectedRoute>} />
       <Route path="/consultation/:id" element={<ProtectedRoute><ConsultationDetail /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><SettingsRouter /></ProtectedRoute>} />
 
       {/* Catch all */}
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -206,15 +214,32 @@ function getRoleBasedRoute(role: string): string {
   return routes[role] || '/';
 }
 
-export default function App() {
+function AppWithTheme() {
+  const muiTheme = createTheme({
+    palette: {
+      mode: 'light',
+    },
+  });
+
   return (
-    <BrowserRouter>
+    <ThemeProvider theme={muiTheme}>
+      <CssBaseline />
       <AuthProvider>
         <DataProvider>
           <AppRoutes />
           <Toaster />
         </DataProvider>
       </AuthProvider>
+    </ThemeProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <NextThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <AppWithTheme />
+      </NextThemeProvider>
     </BrowserRouter>
   );
 }

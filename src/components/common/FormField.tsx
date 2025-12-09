@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
@@ -115,7 +115,8 @@ export interface CheckboxFieldProps extends React.ComponentProps<typeof Checkbox
 }
 
 export function CheckboxField({ label, error, hint, required, className, id, ...checkboxProps }: CheckboxFieldProps) {
-  const checkboxId = id || `checkbox-${Math.random().toString(36).substr(2, 9)}`;
+  const generatedId = useId();
+  const checkboxId = id || generatedId;
   
   return (
     <FormField error={error} hint={hint} className="flex flex-row items-start space-x-2 space-y-0">
