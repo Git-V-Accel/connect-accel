@@ -4,6 +4,7 @@ import { generateMockData } from '../data/mockData';
 
 // Types
 export interface Project {
+  requirements: boolean;
   id: string;
   title: string;
   description: string;
@@ -227,6 +228,7 @@ interface DataContextType {
   // Milestone methods
   createMilestone: (milestone: Omit<Milestone, 'id'>) => Milestone;
   updateMilestone: (id: string, updates: Partial<Milestone>) => void;
+  deleteMilestone: (id: string) => void;
   getMilestonesByProject: (projectId: string) => Milestone[];
   
   // Bid methods
@@ -268,6 +270,31 @@ interface DataContextType {
   createNotification: (notification: Omit<Notification, 'id' | 'created_at' | 'read'>) => Notification;
   markNotificationAsRead: (id: string) => void;
   getUserNotifications: (userId: string) => Notification[];
+  
+  // User management methods
+  getAllUsers: () => Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: 'client' | 'freelancer' | 'admin' | 'superadmin' | 'agent';
+    status: 'active' | 'suspended' | 'banned';
+    phone?: string;
+    company?: string;
+    created_at: string;
+    last_login?: string;
+    title?: string;
+    rating?: number;
+  }>;
+  createUser: (userData: {
+    name: string;
+    email: string;
+    role: 'freelancer' | 'admin' | 'agent' | 'superadmin';
+    phone?: string;
+    company?: string;
+    title?: string;
+  }) => void;
+  updateUserStatus: (userId: string, status: 'active' | 'suspended' | 'banned') => void;
+  deleteUser: (userId: string) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -415,6 +442,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       milestones: prev.milestones.map((m: Milestone) =>
         m.id === id ? { ...m, ...updates } : m
       ),
+    }));
+  };
+
+  const deleteMilestone = (id: string) => {
+    setData((prev: any) => ({
+      ...prev,
+      milestones: prev.milestones.filter((m: Milestone) => m.id !== id),
     }));
   };
 
@@ -777,6 +811,141 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return data.notifications.filter((n: Notification) => n.user_id === userId);
   };
 
+  // User management methods
+  const getAllUsers = () => {
+    // Get created users from localStorage
+    const storedCreatedUsers = localStorage.getItem('connect_accel_created_users');
+    const createdUsers = storedCreatedUsers ? JSON.parse(storedCreatedUsers) : [];
+
+    const adminUsers = [
+      {
+        id: 'admin_1',
+        name: 'Sarah Admin',
+        email: 'sarah@connectaccel.com',
+        role: 'admin' as const,
+        status: 'active' as const,
+        created_at: '2024-01-01T10:00:00Z',
+        last_login: new Date().toISOString(),
+      },
+      {
+        id: 'admin_2',
+        name: 'Mike Admin',
+        email: 'mike@connectaccel.com',
+        role: 'admin' as const,
+        status: 'active' as const,
+        created_at: '2024-02-15T10:00:00Z',
+        last_login: new Date().toISOString(),
+      },
+      {
+        id: 'superadmin_1',
+        name: 'Super Admin',
+        email: 'superadmin@connectaccel.com',
+        role: 'superadmin' as const,
+        status: 'active' as const,
+        created_at: '2023-12-01T10:00:00Z',
+        last_login: new Date().toISOString(),
+      },
+      {
+        id: 'agent_1',
+        name: 'John Agent',
+        email: 'john@connectaccel.com',
+        role: 'agent' as const,
+        status: 'active' as const,
+        created_at: '2024-03-01T10:00:00Z',
+        last_login: new Date().toISOString(),
+      },
+      ...createdUsers,
+    ];
+
+    const clientUsers = data.clients.map((c: Client) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      role: 'client' as const,
+      status: 'active' as const,
+      phone: c.phone,
+      company: c.company,
+      created_at: c.created_at,
+    }));
+
+    const freelancerUsers = data.freelancers.map((f: Freelancer) => ({
+      id: f.id,
+      name: f.name,
+      email: f.email,
+      role: 'freelancer' as const,
+      status: 'active' as const,
+      created_at: f.member_since + 'T10:00:00Z',
+      title: f.title,
+      rating: f.rating,
+    }));
+
+    return [...adminUsers, ...clientUsers, ...freelancerUsers];
+  };
+
+  const createUser = (userData: {
+    name: string;
+    email: string;
+    role: 'freelancer' | 'admin' | 'agent' | 'superadmin';
+    phone?: string;
+    company?: string;
+    title?: string;
+  }) => {
+    const newUserId = `${userData.role}_${Date.now()}`;
+    const newUser = {
+      id: newUserId,
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      status: 'active' as const,
+      phone: userData.phone,
+      company: userData.company,
+      created_at: new Date().toISOString(),
+      title: userData.title,
+      ...(userData.role === 'freelancer' && { rating: 0 }),
+    };
+
+    // Add to appropriate data structure
+    if (userData.role === 'freelancer') {
+      setData((prev: any) => ({
+        ...prev,
+        freelancers: [
+          ...prev.freelancers,
+          {
+            id: newUserId,
+            name: userData.name,
+            email: userData.email,
+            title: userData.title || 'Freelancer',
+            bio: '',
+            skills: [],
+            hourly_rate: 0,
+            rating: 0,
+            total_reviews: 0,
+            availability: 'available' as const,
+            member_since: new Date().toISOString().split('T')[0],
+          },
+        ],
+      }));
+    } else if (userData.role === 'admin' || userData.role === 'agent' || userData.role === 'superadmin') {
+      // Store admin, agent, and superadmin users in localStorage
+      const storedCreatedUsers = localStorage.getItem('connect_accel_created_users');
+      const createdUsers = storedCreatedUsers ? JSON.parse(storedCreatedUsers) : [];
+      createdUsers.push(newUser);
+      localStorage.setItem('connect_accel_created_users', JSON.stringify(createdUsers));
+    }
+  };
+
+  const updateUserStatus = (userId: string, status: 'active' | 'suspended' | 'banned') => {
+    // In a real app, this would update the user in the database
+    // For now, we'll just show a toast
+    console.log(`Updating user ${userId} status to ${status}`);
+  };
+
+  const deleteUser = (userId: string) => {
+    // In a real app, this would delete the user from the database
+    // For now, we'll just show a toast
+    console.log(`Deleting user ${userId}`);
+  };
+
   const value = {
     projects: data.projects,
     milestones: data.milestones,
@@ -799,6 +968,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     
     createMilestone,
     updateMilestone,
+    deleteMilestone,
     getMilestonesByProject,
     
     createBid,
@@ -833,6 +1003,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     createNotification,
     markNotificationAsRead,
     getUserNotifications,
+    
+    getAllUsers,
+    createUser,
+    updateUserStatus,
+    deleteUser,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

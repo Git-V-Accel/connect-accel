@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
@@ -84,7 +84,8 @@ export default function ProjectDetailPage() {
       amount,
       duration_weeks: parseInt(bidDuration),
       proposal: bidProposal,
-      status: 'pending'
+      status: 'pending',
+      submitted_at: new Date().toISOString(),
     });
 
     toast.success('Bid submitted successfully!');
@@ -115,7 +116,6 @@ export default function ProjectDetailPage() {
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate(-1)}>
             <ArrowLeft className="size-4 mr-2" />
-            Back
           </Button>
           {project.status === 'in_bidding' && !myBid && (
             <Button onClick={() => setShowBidDialog(true)} size="lg">

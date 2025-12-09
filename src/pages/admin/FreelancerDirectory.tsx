@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -41,11 +42,11 @@ import {
 import { toast } from '../../utils/toast';
 
 export default function FreelancerDirectory() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [skillFilter, setSkillFilter] = useState('all');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [selectedFreelancer, setSelectedFreelancer] = useState<any>(null);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
 
@@ -213,7 +214,7 @@ export default function FreelancerDirectory() {
               <div className="flex items-center gap-2">
                 <h3 className="text-xl">{freelancer.name}</h3>
                 {freelancer.verified && (
-                  <CheckCircle className="size-5 text-blue-600" title="Verified" />
+                  <CheckCircle className="size-5 text-blue-600" />
                 )}
               </div>
               <p className="text-gray-600">{freelancer.specialization}</p>
@@ -275,8 +276,7 @@ export default function FreelancerDirectory() {
             variant="outline"
             size="sm"
             onClick={() => {
-              setSelectedFreelancer(freelancer);
-              setIsViewDialogOpen(true);
+              navigate(`/admin/freelancers/${freelancer.id}`);
             }}
           >
             <Eye className="size-4 mr-2" />
@@ -429,134 +429,6 @@ export default function FreelancerDirectory() {
           )}
         </div>
 
-        {/* View Profile Dialog */}
-        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Freelancer Profile</DialogTitle>
-              <DialogDescription>Complete profile and work history</DialogDescription>
-            </DialogHeader>
-
-            {selectedFreelancer && (
-              <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="bg-blue-100 size-20 rounded-full flex items-center justify-center">
-                    <span className="text-3xl">
-                      {selectedFreelancer.name.split(' ').map((n: string) => n[0]).join('')}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-2xl">{selectedFreelancer.name}</h2>
-                      {selectedFreelancer.verified && (
-                        <CheckCircle className="size-6 text-blue-600" />
-                      )}
-                    </div>
-                    <p className="text-gray-600">{selectedFreelancer.specialization}</p>
-                    <div className="flex items-center gap-4 mt-2">
-                      <Badge className={selectedFreelancer.available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
-                        {selectedFreelancer.available ? 'Available' : 'Busy'}
-                      </Badge>
-                      <span className="flex items-center gap-1 text-sm">
-                        <Star className="size-4 text-yellow-500 fill-yellow-500" />
-                        {selectedFreelancer.rating}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-600">Completed Projects</div>
-                    <div className="text-2xl mt-1">{selectedFreelancer.completedProjects}</div>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-600">Success Rate</div>
-                    <div className="text-2xl mt-1">{selectedFreelancer.successRate}%</div>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-600">Total Earnings</div>
-                    <div className="text-2xl mt-1">₹{(selectedFreelancer.totalEarnings / 100000).toFixed(1)}L</div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-3">Bio</h4>
-                  <p className="text-gray-700">{selectedFreelancer.bio}</p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-3">Skills</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedFreelancer.skills.map((skill: string) => (
-                      <Badge key={skill} variant="outline">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-3">Contact Information</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Mail className="size-4 text-gray-600" />
-                      <span>{selectedFreelancer.email}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="size-4 text-gray-600" />
-                      <span>{selectedFreelancer.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="size-4 text-gray-600" />
-                      <span>{selectedFreelancer.location}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-3">Work Details</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Hourly Rate:</span>
-                      <span className="ml-2 font-medium">₹{selectedFreelancer.hourlyRate}/hr</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Response Time:</span>
-                      <span className="ml-2 font-medium">{selectedFreelancer.responseTime}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Active Projects:</span>
-                      <span className="ml-2 font-medium">{selectedFreelancer.activeProjects}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Joined:</span>
-                      <span className="ml-2 font-medium">
-                        {new Date(selectedFreelancer.joinedDate).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-                Close
-              </Button>
-              <Button
-                onClick={() => {
-                  setIsViewDialogOpen(false);
-                  setIsAssignDialogOpen(true);
-                }}
-                disabled={!selectedFreelancer?.available}
-              >
-                <UserPlus className="size-4 mr-2" />
-                Assign to Project
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* Assign to Project Dialog */}
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>

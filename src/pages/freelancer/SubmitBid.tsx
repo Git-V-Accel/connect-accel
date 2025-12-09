@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
@@ -41,7 +41,6 @@ export default function SubmitBid() {
           <Button asChild>
             <Link to="/freelancer/projects">
               <ArrowLeft className="size-4 mr-2" />
-              Back to Projects
             </Link>
           </Button>
         </div>
@@ -113,7 +112,6 @@ export default function SubmitBid() {
             <Button asChild variant="outline">
               <Link to={`/freelancer/projects/${project.id}/detail`}>
                 <ArrowLeft className="size-4 mr-2" />
-                Back
               </Link>
             </Button>
             <div>

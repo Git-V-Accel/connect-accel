@@ -26,4 +26,7 @@ export { Label } from './label';
 export { Textarea } from './textarea';
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from './card';
 export { Badge } from './badge';
+export { RightDrawer } from './right-drawer';
+export { SearchableSelect } from './searchable-select';
+export type { SearchableSelectOption, SearchableSelectProps } from './searchable-select';
 

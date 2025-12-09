@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -86,6 +86,11 @@ export default function CreateBidInvitation() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!user) {
+      toast.error('You must be logged in to create bid invitations');
+      return;
+    }
+
     if (!selectedProject) {
       toast.error('Please select a project');
       return;
@@ -123,8 +128,9 @@ export default function CreateBidInvitation() {
           budget_max: budgetRange.max,
           deadline,
           message: customMessage,
-          invited_by: user?.id,
-          invited_by_name: user?.name,
+          invited_by: user.id,
+          invited_by_name: user.name,
+          status: 'pending',
         });
 
         // Send notification to freelancer
@@ -143,7 +149,7 @@ export default function CreateBidInvitation() {
   };
 
   return (
-    <DashboardLayout role={role as any}>
+    <DashboardLayout>
       <div className="p-6">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -153,7 +159,6 @@ export default function CreateBidInvitation() {
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
             >
               <ArrowLeft className="w-5 h-5" />
-              Back
             </button>
             <h1 className="text-3xl mb-2">Create Bid Invitation</h1>
             <p className="text-gray-600">Invite select freelancers to bid on a project</p>

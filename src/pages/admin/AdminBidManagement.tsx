@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 import { useData } from '../../contexts/DataContext';
 import { 
   FileText,
   Filter,
-  Send,
   Eye,
   CheckCircle2,
   XCircle,
@@ -14,19 +14,25 @@ import {
   Users,
   DollarSign,
   Calendar,
-  Plus
+  Plus,
+  Search,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
 export default function AdminBidManagement() {
-  const { bids, projects, bidInvitations, updateBid, freelancers } = useData();
+  const { bids, projects, updateBid, freelancers } = useData();
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [projectFilter, setProjectFilter] = useState<string>('all');
+  const [projectSearch, setProjectSearch] = useState<string>('');
 
   const filteredBids = bids.filter(bid => {
     if (statusFilter !== 'all' && bid.status !== statusFilter) return false;
-    if (projectFilter !== 'all' && bid.project_id !== projectFilter) return false;
+    if (projectSearch.trim() !== '') {
+      const project = projects.find(p => p.id === bid.project_id);
+      if (!project || !project.title.toLowerCase().includes(projectSearch.toLowerCase())) {
+        return false;
+      }
+    }
     return true;
   });
 
@@ -92,9 +98,6 @@ export default function AdminBidManagement() {
     },
   ];
 
-  // Pending Invitations
-  const pendingInvitations = bidInvitations.filter(inv => inv.status === 'pending');
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -104,11 +107,9 @@ export default function AdminBidManagement() {
             <h1 className="text-3xl">Bid Management</h1>
             <p className="text-gray-600 mt-1">Review and manage all bids across projects</p>
           </div>
-          <Button asChild>
-            <Link to="/admin/bids/create">
-              <Plus className="size-4 mr-2" />
-              Create Bid Invitation
-            </Link>
+          <Button onClick={() => navigate('/admin/bids/create')}>
+            <Plus className="size-4 mr-2" />
+            Create Bid
           </Button>
         </div>
 
@@ -129,26 +130,6 @@ export default function AdminBidManagement() {
           ))}
         </div>
 
-        {/* Pending Invitations */}
-        {pendingInvitations.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Send className="size-5 text-blue-600" />
-                <div>
-                  <h3 className="text-sm">Pending Bid Invitations</h3>
-                  <p className="text-sm text-gray-600">
-                    {pendingInvitations.length} invitations awaiting freelancer response
-                  </p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/admin/invitations">View All</Link>
-              </Button>
-            </div>
-          </div>
-        )}
-
         {/* Filters */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center gap-4 flex-wrap">
@@ -168,16 +149,16 @@ export default function AdminBidManagement() {
               <option value="rejected">Rejected</option>
               <option value="under_review">Under Review</option>
             </select>
-            <select
-              value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Projects</option>
-              {projects.map(project => (
-                <option key={project.id} value={project.id}>{project.title}</option>
-              ))}
-            </select>
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search projects..."
+                value={projectSearch}
+                onChange={(e) => setProjectSearch(e.target.value)}
+                className="pl-10 pr-4"
+              />
+            </div>
           </div>
         </div>
 
@@ -188,7 +169,7 @@ export default function AdminBidManagement() {
               <FileText className="size-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg mb-2">No bids found</h3>
               <p className="text-gray-600">
-                {statusFilter !== 'all' || projectFilter !== 'all'
+                {statusFilter !== 'all' || projectSearch.trim() !== ''
                   ? 'Try adjusting your filters'
                   : 'No bids have been submitted yet'}
               </p>
@@ -299,19 +280,17 @@ export default function AdminBidManagement() {
                         </>
                       ) : null}
                       <Button asChild variant="outline" size="sm">
-                        <Link to={`/admin/bids/${bid.id}`}>
-                          <Eye className="size-4 mr-2" />
-                          View Details
+                        <Link to={`/admin/bids/${bid.id}/proposal`}>
+                          <FileText className="size-4 mr-2" />
+                          View Full Proposal
                         </Link>
                       </Button>
-                      {freelancer && (
-                        <Button asChild variant="outline" size="sm">
-                          <Link to={`/admin/freelancers/${freelancer.id}`}>
-                            <Users className="size-4 mr-2" />
-                            View Profile
-                          </Link>
-                        </Button>
-                      )}
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={`/admin/freelancers/${bid.freelancer_id}`}>
+                          <Users className="size-4 mr-2" />
+                          View Profile
+                        </Link>
+                      </Button>
                       <Button asChild variant="outline" size="sm">
                         <Link to={`/admin/projects/${project.id}`}>
                           <FileText className="size-4 mr-2" />

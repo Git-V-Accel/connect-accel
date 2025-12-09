@@ -43,7 +43,7 @@ export default function AgentDashboard() {
     .slice(0, 5);
 
   return (
-    <DashboardLayout role="agent">
+    <DashboardLayout>
       <div className="p-6">
         <div className="mb-6">
           <h1 className="text-3xl mb-2">Agent Dashboard</h1>

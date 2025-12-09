@@ -1,9 +1,11 @@
 import React, { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useData } from "../../contexts/DataContext";
 import { Button } from "../ui/button";
 import { ThemeSwitch } from "../common/ThemeSwitch";
 import { useTheme } from "next-themes";
+import { NotificationsDrawer } from "./NotificationsDrawer";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -43,11 +45,15 @@ export default function DashboardLayout({
   children?: ReactNode;
 }) {
   const { user, logout } = useAuth();
+  const { getUserNotifications } = useData();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+
+  const unreadCount = user ? getUserNotifications(user.id).filter(n => !n.read).length : 0;
 
   // Avoid hydration mismatch
   React.useEffect(() => {
@@ -69,11 +75,6 @@ export default function DashboardLayout({
             label: "Projects",
             icon: <FolderKanban className="size-5" />,
             path: "/client/projects",
-          },
-          {
-            label: "Consultations",
-            icon: <Users className="size-5" />,
-            path: "/client/consultations",
           },
           {
             label: "Payments",
@@ -171,9 +172,9 @@ export default function DashboardLayout({
             path: "/admin/consultations",
           },
           {
-            label: "Disputes",
-            icon: <AlertCircle className="size-5" />,
-            path: "/admin/disputes",
+            label: "Users",
+            icon: <Users className="size-5" />,
+            path: "/admin/users",
           },
           {
             label: "Reports",
@@ -317,9 +318,18 @@ export default function DashboardLayout({
                   onChange={(e, checked) => setTheme(checked ? "dark" : "light")}
                 />
               )}
-              <Button variant="ghost" size="sm" onClick={() => navigate("/notifications")}>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setNotificationsOpen(true)}
+                className="relative"
+              >
                 <Bell className="w-5 h-5" />
-                <span className="ml-2 w-2 h-2 bg-red-500 rounded-full block"></span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </Button>
               <div className="flex items-center gap-3">
                 <div className="hidden sm:block text-right">
@@ -457,6 +467,12 @@ export default function DashboardLayout({
           <div className="p-6">{children}</div>
         </main>
       </div>
+
+      {/* Notifications Drawer */}
+      <NotificationsDrawer 
+        open={notificationsOpen} 
+        onClose={() => setNotificationsOpen(false)} 
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
@@ -44,7 +44,6 @@ export default function BiddingManagement() {
   const [selectedBid, setSelectedBid] = useState<any>(null);
   const [isAcceptDialogOpen, setIsAcceptDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
@@ -102,8 +101,7 @@ export default function BiddingManagement() {
 
     updateBid(selectedBid.id, {
       status: 'rejected',
-      rejection_reason: rejectionReason,
-      admin_notes: adminNotes,
+      admin_notes: adminNotes || rejectionReason || 'Bid rejected by admin',
     });
 
     toast.success('Bid rejected');
@@ -226,10 +224,7 @@ export default function BiddingManagement() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setSelectedBid(bid);
-                setIsViewDialogOpen(true);
-              }}
+              onClick={() => navigate(`/admin/bids/${bid.id}/proposal`)}
             >
               <Eye className="size-4 mr-2" />
               View Full Proposal
@@ -279,7 +274,6 @@ export default function BiddingManagement() {
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate('/admin/projects')}>
               <ArrowLeft className="size-4 mr-2" />
-              Back
             </Button>
             <div>
               <h1 className="text-3xl">Bidding Management</h1>
@@ -482,79 +476,6 @@ export default function BiddingManagement() {
           </DialogContent>
         </Dialog>
 
-        {/* View Full Proposal Dialog */}
-        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Full Proposal</DialogTitle>
-              <DialogDescription>Complete bid details and freelancer information</DialogDescription>
-            </DialogHeader>
-            
-            {selectedBid && (
-              <div className="space-y-6">
-                {/* Freelancer Info */}
-                <div>
-                  <h4 className="font-medium mb-3">Freelancer Details</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Name</span>
-                      <span>John Doe</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Rating</span>
-                      <span className="flex items-center gap-1">
-                        <Star className="size-4 text-yellow-500 fill-yellow-500" />
-                        4.8
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Completed Projects</span>
-                      <span>45</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Success Rate</span>
-                      <span>98%</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bid Details */}
-                <div className="pt-4 border-t">
-                  <h4 className="font-medium mb-3">Bid Information</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-gray-600">Bid Amount</Label>
-                      <p className="text-2xl">₹{selectedBid.amount.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <Label className="text-gray-600">Delivery Time</Label>
-                      <p className="text-2xl">{selectedBid.delivery_time}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Full Proposal */}
-                <div className="pt-4 border-t">
-                  <h4 className="font-medium mb-3">Cover Letter</h4>
-                  <p className="text-gray-700 whitespace-pre-wrap">{selectedBid.proposal}</p>
-                </div>
-
-                {/* Submitted Date */}
-                <div className="pt-4 border-t">
-                  <div className="text-sm text-gray-600">
-                    Submitted on {new Date(selectedBid.created_at).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );

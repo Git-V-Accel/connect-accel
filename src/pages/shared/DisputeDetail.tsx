@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,7 +21,7 @@ export default function DisputeDetail() {
 
   if (!dispute || !project) {
     return (
-      <DashboardLayout role={user?.role || 'client'}>
+      <DashboardLayout>
         <div className="p-6">
           <div className="max-w-4xl mx-auto text-center py-12">
             <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
@@ -108,7 +108,7 @@ export default function DisputeDetail() {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   return (
-    <DashboardLayout role={user?.role || 'client'}>
+    <DashboardLayout>
       <div className="p-6">
         <div className="max-w-5xl mx-auto">
           {/* Header */}
@@ -118,7 +118,6 @@ export default function DisputeDetail() {
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
             >
               <ArrowLeft className="w-5 h-5" />
-              Back
             </button>
 
             <div className="flex items-start justify-between">

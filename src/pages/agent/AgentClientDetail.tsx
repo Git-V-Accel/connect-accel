@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
@@ -36,7 +37,6 @@ export default function AgentClientDetail() {
           <Button asChild>
             <Link to="/agent/clients">
               <ArrowLeft className="size-4 mr-2" />
-              Back to Clients
             </Link>
           </Button>
         </div>
@@ -103,7 +103,6 @@ export default function AgentClientDetail() {
             <Button asChild variant="outline">
               <Link to="/agent/clients">
                 <ArrowLeft className="size-4 mr-2" />
-                Back
               </Link>
             </Button>
             <div className="flex items-center gap-4">

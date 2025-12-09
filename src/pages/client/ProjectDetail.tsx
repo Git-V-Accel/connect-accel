@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
@@ -16,6 +16,8 @@ import {
   Flag, Settings
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 
 const statusColors = {
   draft: 'bg-gray-100 text-gray-700',
@@ -61,7 +63,6 @@ export default function ProjectDetail() {
           <p className="text-gray-600 mb-6">The project you're looking for doesn't exist.</p>
           <Button onClick={() => navigate('/client/projects')}>
             <ArrowLeft className="size-4 mr-2" />
-            Back to Projects
           </Button>
         </div>
       </DashboardLayout>
@@ -146,7 +147,6 @@ export default function ProjectDetail() {
           <div className="flex-1">
             <Button variant="ghost" size="sm" onClick={() => navigate('/client/projects')} className="mb-4">
               <ArrowLeft className="size-4 mr-2" />
-              Back to Projects
             </Button>
             <div className="flex items-start justify-between">
               <div>

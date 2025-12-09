@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,7 +23,7 @@ export default function ConsultationDetail() {
 
   if (!consultation) {
     return (
-      <DashboardLayout role={user?.role || 'client'}>
+      <DashboardLayout>
         <div className="p-6">
           <div className="max-w-4xl mx-auto text-center py-12">
             <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -106,7 +106,7 @@ export default function ConsultationDetail() {
   const canComplete = isAdmin && consultation.status === 'scheduled' && isPastDate;
 
   return (
-    <DashboardLayout role={user?.role || 'client'}>
+    <DashboardLayout>
       <div className="p-6">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -116,7 +116,6 @@ export default function ConsultationDetail() {
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
             >
               <ArrowLeft className="w-5 h-5" />
-              Back
             </button>
 
             <div className="flex items-start justify-between">
@@ -235,7 +234,7 @@ export default function ConsultationDetail() {
 
                   <div>
                     <label className="text-sm text-gray-600">Fee</label>
-                    <p className="mt-1">₹{consultation.fee.toLocaleString()}</p>
+                    <p className="mt-1">₹{(consultation.fee || 0).toLocaleString()}</p>
                     <span className={`text-sm ${consultation.paid ? 'text-green-600' : 'text-yellow-600'}`}>
                       {consultation.paid ? '✓ Paid' : '⏳ Payment Pending'}
                     </span>

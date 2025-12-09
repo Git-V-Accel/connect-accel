@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
@@ -406,7 +406,6 @@ export default function OnboardingWizard() {
               disabled={currentStep === 1}
             >
               <ArrowLeft className="size-4 mr-2" />
-              Back
             </Button>
 
             {currentStep < STEPS.length ? (

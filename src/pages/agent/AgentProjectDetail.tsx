@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
@@ -36,7 +37,6 @@ export default function AgentProjectDetail() {
           <Button asChild>
             <Link to="/agent/projects">
               <ArrowLeft className="size-4 mr-2" />
-              Back to Projects
             </Link>
           </Button>
         </div>
@@ -100,7 +100,6 @@ export default function AgentProjectDetail() {
             <Button asChild variant="outline">
               <Link to="/agent/projects">
                 <ArrowLeft className="size-4 mr-2" />
-                Back
               </Link>
             </Button>
             <div>
@@ -229,11 +228,11 @@ export default function AgentProjectDetail() {
                     <div key={milestone.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className={`size-8 rounded-full flex items-center justify-center ${
-                          milestone.status === 'completed' ? 'bg-green-500' :
+                          milestone.status === 'paid' || milestone.status === 'approved' ? 'bg-green-500' :
                           milestone.status === 'in_progress' ? 'bg-blue-500' :
                           'bg-gray-300'
                         }`}>
-                          {milestone.status === 'completed' ? (
+                          {milestone.status === 'paid' || milestone.status === 'approved' ? (
                             <CheckCircle2 className="size-5 text-white" />
                           ) : (
                             <Clock className="size-5 text-white" />

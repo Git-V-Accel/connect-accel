@@ -12,34 +12,9 @@ import { Progress } from '../../components/ui/progress';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Calendar, DollarSign, FileText, Settings } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Calendar, DollarSign, FileText, Settings, Plus, X, Phone } from 'lucide-react';
 import { toast } from '../../utils/toast';
-
-const categories = [
-  'Web Development',
-  'Mobile Development',
-  'Backend Development',
-  'Frontend Development',
-  'Full Stack Development',
-  'UI/UX Design',
-  'DevOps',
-  'AI/ML',
-  'Blockchain',
-  'Cloud Architecture',
-];
-
-const commonSkills = [
-  'React', 'Node.js', 'Python', 'JavaScript', 'TypeScript',
-  'MongoDB', 'PostgreSQL', 'AWS', 'Docker', 'Kubernetes',
-  'React Native', 'Vue.js', 'Angular', 'Django', 'Flask',
-  'GraphQL', 'REST API', 'Git', 'CI/CD', 'Testing',
-];
-
-const complexityLevels = [
-  { value: 'simple', label: 'Simple', description: 'Basic functionality, straightforward requirements' },
-  { value: 'moderate', label: 'Moderate', description: 'Medium complexity, some integrations needed' },
-  { value: 'complex', label: 'Complex', description: 'Advanced features, multiple integrations' },
-];
+import { categories, commonSkills, projectTypes, projectPriorities } from '../../constants/projectConstants';
 
 export default function CreateProject() {
   const { user } = useAuth();
@@ -53,17 +28,17 @@ export default function CreateProject() {
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [newSkillInput, setNewSkillInput] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     category: '',
-    skills_required: [] as string[],
-    complexity: 'moderate',
+    project_type: '',
+    priority: 'medium',
     client_budget: '',
     duration_weeks: '',
-    requirements: '',
-    deliverables: '',
-    prefer_consultation: false,
+    negotiable: false,
+    skills_required: [] as string[],
   });
 
   const updateFormData = (field: string, value: any) => {
@@ -79,14 +54,32 @@ export default function CreateProject() {
     }));
   };
 
+  const addNewSkill = () => {
+    const trimmedSkill = newSkillInput.trim();
+    if (trimmedSkill && !formData.skills_required.includes(trimmedSkill)) {
+      setFormData(prev => ({
+        ...prev,
+        skills_required: [...prev.skills_required, trimmedSkill],
+      }));
+      setNewSkillInput('');
+    }
+  };
+
+  const handleNewSkillKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addNewSkill();
+    }
+  };
+
   const canProceed = () => {
     switch (step) {
       case 1:
-        return formData.title && formData.description && formData.category;
+        return formData.title && formData.description && formData.category && formData.project_type;
       case 2:
-        return formData.skills_required.length > 0 && formData.complexity;
+        return formData.client_budget && formData.duration_weeks && formData.priority;
       case 3:
-        return formData.client_budget && formData.duration_weeks;
+        return formData.skills_required.length > 0;
       case 4:
         return true;
       default:
@@ -224,21 +217,17 @@ export default function CreateProject() {
       description: formData.description,
       client_id: user.id,
       client_name: user.name,
-      status: formData.prefer_consultation ? 'draft' : 'pending_review',
+      status: 'pending_review',
       category: formData.category,
       skills_required: formData.skills_required,
       budget: budget,
       client_budget: budget,
       duration_weeks: parseInt(formData.duration_weeks),
-      priority: 'medium',
-      complexity: formData.complexity as 'simple' | 'moderate' | 'complex',
+      priority: formData.priority as 'low' | 'medium' | 'high',
+      complexity: 'moderate', // Default value, can be updated later
     });
 
-    toast.success(
-      formData.prefer_consultation
-        ? 'Project saved! We\'ll contact you to schedule a consultation.'
-        : 'Project submitted successfully! Our team will review it shortly.'
-    );
+    toast.success('Project submitted successfully! Our team will review it shortly.');
     
     navigate('/client/projects');
   };
@@ -293,70 +282,24 @@ export default function CreateProject() {
               </div>
 
               <div>
-                <Label htmlFor="requirements">Specific Requirements (Optional)</Label>
-                <Textarea
-                  id="requirements"
-                  placeholder="List any specific requirements, features, or functionalities"
-                  rows={4}
-                  value={formData.requirements}
-                  onChange={e => updateFormData('requirements', e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        );
-
-      case 2:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl mb-2">Technical Requirements</h2>
-              <p className="text-gray-600">Select skills and complexity level</p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <Label>Required Skills *</Label>
-                <p className="text-sm text-gray-500 mb-3">
-                  Select all relevant skills (you can select multiple)
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {commonSkills.map(skill => {
-                    const isSelected = formData.skills_required.includes(skill);
-                    return (
-                      <Badge
-                        key={skill}
-                        variant={isSelected ? 'default' : 'outline'}
-                        className="cursor-pointer hover:bg-blue-100 transition-colors"
-                        onClick={() => toggleSkill(skill)}
-                      >
-                        {isSelected && <Check className="size-3 mr-1" />}
-                        {skill}
-                      </Badge>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <Label>Project Complexity *</Label>
+                <Label>Project Type *</Label>
                 <div className="grid gap-3 mt-2">
-                  {complexityLevels.map(level => (
+                  {projectTypes.map(type => (
                     <Card
-                      key={level.value}
+                      key={type.value}
                       className={`p-4 cursor-pointer transition-colors ${
-                        formData.complexity === level.value
+                        formData.project_type === type.value
                           ? 'border-blue-500 bg-blue-50'
                           : 'hover:border-gray-400'
                       }`}
-                      onClick={() => updateFormData('complexity', level.value)}
+                      onClick={() => updateFormData('project_type', type.value)}
                     >
                       <div className="flex items-start justify-between">
                         <div>
-                          <h4 className="font-medium">{level.label}</h4>
-                          <p className="text-sm text-gray-600">{level.description}</p>
+                          <h4 className="font-medium">{type.label}</h4>
+                          <p className="text-sm text-gray-600">{type.description}</p>
                         </div>
-                        {formData.complexity === level.value && (
+                        {formData.project_type === type.value && (
                           <Check className="size-5 text-blue-600" />
                         )}
                       </div>
@@ -368,7 +311,7 @@ export default function CreateProject() {
           </div>
         );
 
-      case 3:
+      case 2:
         return (
           <div className="space-y-6">
             <div>
@@ -377,67 +320,160 @@ export default function CreateProject() {
             </div>
 
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="budget">Project Budget (₹) *</Label>
-                <Input
-                  id="budget"
-                  type="number"
-                  placeholder="50000"
-                  value={formData.client_budget}
-                  onChange={e => updateFormData('client_budget', e.target.value)}
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  This is your total budget including all milestones and our service fees
-                </p>
-              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="budget">Project Budget (₹) *</Label>
+                  <Input
+                    id="budget"
+                    type="number"
+                    placeholder="50000"
+                    value={formData.client_budget}
+                    onChange={e => updateFormData('client_budget', e.target.value)}
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    This is your total budget including all milestones and our service fees
+                  </p>
+                </div>
 
-              <div>
-                <Label htmlFor="duration">Expected Duration (weeks) *</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  placeholder="8"
-                  value={formData.duration_weeks}
-                  onChange={e => updateFormData('duration_weeks', e.target.value)}
-                />
+                <div>
+                  <Label htmlFor="duration">Expected Duration (weeks) *</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    placeholder="8"
+                    value={formData.duration_weeks}
+                    onChange={e => updateFormData('duration_weeks', e.target.value)}
+                  />
+                </div>
               </div>
-
-              <Card className="p-4 bg-blue-50 border-blue-200">
-                <h4 className="font-medium mb-2">Budget Breakdown Estimate</h4>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span>Freelancer Payment:</span>
-                    <span className="font-medium">
-                      ₹{formData.client_budget ? Math.floor(parseInt(formData.client_budget) * 0.85).toLocaleString() : '0'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Platform Service Fee (15%):</span>
-                    <span className="font-medium">
-                      ₹{formData.client_budget ? Math.floor(parseInt(formData.client_budget) * 0.15).toLocaleString() : '0'}
-                    </span>
-                  </div>
-                  <div className="border-t border-blue-300 pt-1 mt-1 flex justify-between">
-                    <span>Total:</span>
-                    <span className="font-medium">
-                      ₹{formData.client_budget ? parseInt(formData.client_budget).toLocaleString() : '0'}
-                    </span>
+ <Card className="p-4">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="negotiable"
+                    checked={formData.negotiable}
+                    onCheckedChange={(checked) => updateFormData('negotiable', checked)}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="negotiable" className="cursor-pointer">
+                      Budget and Timeline are Negotiable
+                    </Label>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Check this if you're open to discussing budget and timeline with freelancers
+                    </p>
                   </div>
                 </div>
-                <p className="text-xs text-gray-600 mt-2">
-                  *This is an estimate. Final breakdown will be confirmed by our team.
-                </p>
               </Card>
-
               <div>
-                <Label htmlFor="deliverables">Expected Deliverables (Optional)</Label>
-                <Textarea
-                  id="deliverables"
-                  placeholder="What do you expect to receive at the end of the project? (e.g., source code, documentation, deployment)"
-                  rows={4}
-                  value={formData.deliverables}
-                  onChange={e => updateFormData('deliverables', e.target.value)}
-                />
+                <Label>Project Priority *</Label>
+                <div className="grid gap-3 mt-2">
+                  {projectPriorities.map(priority => (
+                    <Card
+                      key={priority.value}
+                      className={`p-4 cursor-pointer transition-colors ${
+                        formData.priority === priority.value
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'hover:border-gray-400'
+                      }`}
+                      onClick={() => updateFormData('priority', priority.value)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="font-medium">{priority.label}</h4>
+                          <p className="text-sm text-gray-600">{priority.description}</p>
+                        </div>
+                        {formData.priority === priority.value && (
+                          <Check className="size-5 text-blue-600" />
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+             
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl mb-2">Required Tech-Stacks</h2>
+              <p className="text-gray-600">Select the technologies and skills needed for your project</p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label>Required Skills *</Label>
+                <p className="text-sm text-gray-500 mb-3">
+                  Select from the list below or create new skills
+                </p>
+                
+                {/* Add New Skill Input */}
+                <div className="flex gap-2 mb-4">
+                  <Input
+                    placeholder="Enter a new skill (e.g., Next.js, Tailwind CSS)"
+                    value={newSkillInput}
+                    onChange={e => setNewSkillInput(e.target.value)}
+                    onKeyPress={handleNewSkillKeyPress}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    onClick={addNewSkill}
+                    disabled={!newSkillInput.trim() || formData.skills_required.includes(newSkillInput.trim())}
+                    variant="outline"
+                  >
+                    <Plus className="size-4 mr-2" />
+                    Add
+                  </Button>
+                </div>
+
+                {/* Selected Skills Display */}
+                {formData.skills_required.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm font-medium mb-2">Selected Skills:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.skills_required.map(skill => (
+                        <Badge
+                          key={skill}
+                          variant="default"
+                          className="cursor-pointer hover:bg-blue-700 transition-colors flex items-center gap-1"
+                          onClick={() => toggleSkill(skill)}
+                        >
+                          {skill}
+                          <X className="size-3" />
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Predefined Skills */}
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">Select from common skills:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {commonSkills.map(skill => {
+                      const isSelected = formData.skills_required.includes(skill);
+                      return (
+                        <Badge
+                          key={skill}
+                          variant={isSelected ? 'default' : 'outline'}
+                          className="cursor-pointer hover:bg-blue-100 transition-colors"
+                          onClick={() => toggleSkill(skill)}
+                        >
+                          {isSelected && <Check className="size-3 mr-1" />}
+                          {skill}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {formData.skills_required.length === 0 && (
+                  <p className="text-sm text-red-500 mt-2">Please select or add at least one skill</p>
+                )}
               </div>
             </div>
           </div>
@@ -463,43 +499,41 @@ export default function CreateProject() {
                   <p className="font-medium">{formData.category}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Complexity</p>
-                  <p className="font-medium capitalize">{formData.complexity}</p>
+                  <p className="text-sm text-gray-500">Project Type</p>
+                  <p className="font-medium capitalize">
+                    {projectTypes.find(t => t.value === formData.project_type)?.label || formData.project_type}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Priority</p>
+                  <p className="font-medium capitalize">{formData.priority}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Budget</p>
-                  <p className="font-medium">₹{parseInt(formData.client_budget).toLocaleString()}</p>
+                  <p className="font-medium">
+                    ₹{formData.client_budget ? parseInt(formData.client_budget).toLocaleString() : '0'}
+                    {formData.negotiable && <span className="text-xs text-gray-500 ml-2">(Negotiable)</span>}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Duration</p>
-                  <p className="font-medium">{formData.duration_weeks} weeks</p>
+                  <p className="font-medium">
+                    {formData.duration_weeks} weeks
+                    {formData.negotiable && <span className="text-xs text-gray-500 ml-2">(Negotiable)</span>}
+                  </p>
                 </div>
               </div>
 
               <div className="pt-4 border-t">
-                <p className="text-sm text-gray-500 mb-2">Required Skills</p>
+                <p className="text-sm text-gray-500 mb-2">Required Tech-Stacks</p>
                 <div className="flex flex-wrap gap-2">
-                  {formData.skills_required.map(skill => (
-                    <Badge key={skill} variant="secondary">{skill}</Badge>
-                  ))}
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-4 bg-green-50 border-green-200">
-              <div className="flex items-start gap-3">
-                <Checkbox
-                  id="consultation"
-                  checked={formData.prefer_consultation}
-                  onCheckedChange={(checked) => updateFormData('prefer_consultation', checked)}
-                />
-                <div className="flex-1">
-                  <Label htmlFor="consultation" className="cursor-pointer">
-                    I'd like a free consultation before proceeding
-                  </Label>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Our team will help refine your requirements and provide a detailed proposal
-                  </p>
+                  {formData.skills_required.length > 0 ? (
+                    formData.skills_required.map(skill => (
+                      <Badge key={skill} variant="secondary">{skill}</Badge>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-400">No skills selected</p>
+                  )}
                 </div>
               </div>
             </Card>
@@ -539,8 +573,8 @@ export default function CreateProject() {
 
   const steps = [
     { number: 1, title: 'Details', icon: <FileText className="size-4" /> },
-    { number: 2, title: 'Technical', icon: <Settings className="size-4" /> },
-    { number: 3, title: 'Budget', icon: <DollarSign className="size-4" /> },
+    { number: 2, title: 'Budget', icon: <DollarSign className="size-4" /> },
+    { number: 3, title: 'Tech-Stacks', icon: <Settings className="size-4" /> },
     { number: 4, title: 'Review', icon: <Check className="size-4" /> },
   ];
 
@@ -556,6 +590,10 @@ export default function CreateProject() {
             <h1 className="text-3xl">Create New Project</h1>
             <p className="text-gray-600">Submit a project and get matched with expert freelancers</p>
           </div>
+          <Button variant="default" onClick={() => alert('Consultation request Send successfully')}>
+            <Phone className="size-4 mr-2" />
+            Consultation
+          </Button>
         </div>
 
         {/* Progress Steps */}

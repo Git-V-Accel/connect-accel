@@ -6,15 +6,14 @@ import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { useData } from '../../contexts/DataContext';
-import { Briefcase, Users, AlertCircle, DollarSign, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Briefcase, Users, DollarSign, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { projects, consultations, disputes, bids } = useData();
+  const { projects, consultations, bids } = useData();
 
   const pendingProjects = projects.filter(p => p.status === 'pending_review');
   const biddingProjects = projects.filter(p => p.status === 'in_bidding');
   const activeProjects = projects.filter(p => p.status === 'in_progress');
-  const openDisputes = disputes.filter(d => d.status === 'open' || d.status === 'in_review');
   const pendingConsultations = consultations.filter(c => c.status === 'requested');
   const pendingBids = bids.filter(b => b.status === 'pending');
 
@@ -22,7 +21,6 @@ export default function AdminDashboard() {
     { label: 'Pending Review', value: pendingProjects.length.toString(), icon: Clock, color: 'text-yellow-600', bgColor: 'bg-yellow-50', link: '/admin/projects' },
     { label: 'In Bidding', value: biddingProjects.length.toString(), icon: Briefcase, color: 'text-blue-600', bgColor: 'bg-blue-50', link: '/admin/projects' },
     { label: 'Active Projects', value: activeProjects.length.toString(), icon: CheckCircle2, color: 'text-green-600', bgColor: 'bg-green-50', link: '/admin/projects' },
-    { label: 'Open Disputes', value: openDisputes.length.toString(), icon: AlertCircle, color: 'text-red-600', bgColor: 'bg-red-50', link: '/admin/disputes' },
   ];
 
   const recentProjects = projects.slice(0, 5).sort((a, b) => 
@@ -142,21 +140,7 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {openDisputes.length > 0 && (
-                <Link to="/admin/disputes">
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Resolve Disputes</p>
-                        <p className="text-sm text-gray-600">{openDisputes.length} open</p>
-                      </div>
-                      <ArrowRight className="size-5 text-red-600" />
-                    </div>
-                  </div>
-                </Link>
-              )}
-
-              {pendingConsultations.length === 0 && pendingBids.length === 0 && openDisputes.length === 0 && (
+              {pendingConsultations.length === 0 && pendingBids.length === 0 && (
                 <div className="p-8 text-center text-gray-600">
                   <p>No pending actions</p>
                 </div>

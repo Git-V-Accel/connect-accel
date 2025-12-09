@@ -1,3 +1,4 @@
+import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider as NextThemeProvider } from "next-themes";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -19,7 +20,6 @@ import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientProjects from "./pages/client/ClientProjects";
 import CreateProject from "./pages/client/CreateProject";
 import ProjectDetail from "./pages/client/ProjectDetail";
-import ClientConsultations from "./pages/client/ClientConsultations";
 import ClientPayments from "./pages/client/ClientPayments";
 import ClientSettings from "./pages/client/ClientSettings";
 
@@ -46,15 +46,16 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProjects from "./pages/admin/AdminProjects";
 import ProjectReview from "./pages/admin/ProjectReview";
 import FreelancerDirectory from "./pages/admin/FreelancerDirectory";
+import FreelancerDetails from "./pages/admin/FreelancerDetails";
 import BiddingManagement from "./pages/admin/BiddingManagement";
 import AdminConsultations from "./pages/admin/AdminConsultations";
-import AdminDisputes from "./pages/admin/AdminDisputes";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminProjectDetail from "./pages/admin/AdminProjectDetail";
 import FreelancerDetail from "./pages/admin/FreelancerDetail";
 import AdminBidManagement from "./pages/admin/AdminBidManagement";
-import AdminCreateBidInvitation from "./pages/admin/AdminCreateBidInvitation";
 import AdminBidDetail from "./pages/admin/AdminBidDetail";
+import ViewProposal from "./pages/admin/ViewProposal";
+import CreateBid from "./pages/admin/CreateBid";
 import AdminSettings from "./pages/admin/AdminSettings";
 
 // Agent portal
@@ -127,7 +128,6 @@ function AppRoutes() {
       <Route path="/client/projects" element={<ProtectedRoute allowedRoles={['client']}><ClientProjects /></ProtectedRoute>} />
       <Route path="/client/projects/new" element={<ProtectedRoute allowedRoles={['client']}><CreateProject /></ProtectedRoute>} />
       <Route path="/client/projects/:id" element={<ProtectedRoute allowedRoles={['client']}><ProjectDetail /></ProtectedRoute>} />
-      <Route path="/client/consultations" element={<ProtectedRoute allowedRoles={['client']}><ClientConsultations /></ProtectedRoute>} />
       <Route path="/client/payments" element={<ProtectedRoute allowedRoles={['client']}><ClientPayments /></ProtectedRoute>} />
       <Route path="/client/settings" element={<ProtectedRoute allowedRoles={['client']}><ClientSettings /></ProtectedRoute>} />
 
@@ -154,15 +154,18 @@ function AppRoutes() {
       <Route path="/admin/projects/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminProjectDetail /></ProtectedRoute>} />
       <Route path="/admin/projects/:id/review" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><ProjectReview /></ProtectedRoute>} />
       <Route path="/admin/freelancers" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><FreelancerDirectory /></ProtectedRoute>} />
+      <Route path="/admin/freelancers/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><FreelancerDetails /></ProtectedRoute>} />
       <Route path="/admin/freelancers/:id/detail" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><FreelancerDetail /></ProtectedRoute>} />
       <Route path="/admin/projects/:id/bids" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><BiddingManagement /></ProtectedRoute>} />
+      <Route path="/admin/projects/:id/create-bid" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><CreateBid /></ProtectedRoute>} />
       <Route path="/admin/consultations" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminConsultations /></ProtectedRoute>} />
-      <Route path="/admin/disputes" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminDisputes /></ProtectedRoute>} />
       <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminReports /></ProtectedRoute>} />
       <Route path="/admin/bids" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminBidManagement /></ProtectedRoute>} />
-      <Route path="/admin/bids/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminCreateBidInvitation /></ProtectedRoute>} />
+      <Route path="/admin/bids/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><CreateBid /></ProtectedRoute>} />
       <Route path="/admin/bids/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminBidDetail /></ProtectedRoute>} />
+      <Route path="/admin/bids/:bidId/proposal" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><ViewProposal /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminSettings /></ProtectedRoute>} />
+      <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><UserManagement /></ProtectedRoute>} />
 
       {/* Agent routes */}
       <Route path="/agent/dashboard" element={<ProtectedRoute allowedRoles={['agent']}><AgentDashboard /></ProtectedRoute>} />

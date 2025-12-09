@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Shield, ArrowLeft } from 'lucide-react';
@@ -18,7 +19,6 @@ export default function HowItWorksPage() {
               <Link to="/">
                 <Button variant="ghost">
                   <ArrowLeft className="size-4 mr-2" />
-                  Back to Home
                 </Button>
               </Link>
               <Link to="/login">

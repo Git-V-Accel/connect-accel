@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
+import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
@@ -144,7 +145,6 @@ export default function ProjectWorkspace() {
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate('/freelancer/active-projects')}>
             <ArrowLeft className="size-4 mr-2" />
-            Back to Projects
           </Button>
           <Button variant="outline" onClick={() => setShowDisputeDialog(true)}>
             <Flag className="size-4 mr-2" />

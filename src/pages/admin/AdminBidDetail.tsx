@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
+import { Label } from '../../components/ui/label';
 import { useData } from '../../contexts/DataContext';
 import { 
   ArrowLeft,
@@ -24,12 +25,17 @@ import { toast } from '../../utils/toast';
 export default function AdminBidDetail() {
   const { bidId } = useParams();
   const navigate = useNavigate();
-  const { bids, projects, freelancers, updateBid } = useData();
+  const { bids, projects, freelancers, updateBid, getProjectsByUser } = useData();
   const [adminNotes, setAdminNotes] = useState('');
 
   const bid = bids.find(b => b.id === bidId);
   const project = bid ? projects.find(p => p.id === bid.project_id) : null;
   const freelancer = bid ? freelancers.find(f => f.id === bid.freelancer_id) : null;
+  
+  // Calculate freelancer stats from projects
+  const freelancerProjects = freelancer ? getProjectsByUser(freelancer.id, 'freelancer') : [];
+  const completedProjectsCount = freelancerProjects.filter(p => p.status === 'completed').length;
+  const totalProjectsCount = freelancerProjects.length;
 
   if (!bid || !project) {
     return (
@@ -39,7 +45,6 @@ export default function AdminBidDetail() {
           <Button asChild>
             <Link to="/admin/bids">
               <ArrowLeft className="size-4 mr-2" />
-              Back to Bids
             </Link>
           </Button>
         </div>
@@ -92,7 +97,6 @@ export default function AdminBidDetail() {
         <div className="flex items-center gap-4">
           <Button variant="outline" onClick={() => navigate(-1)}>
             <ArrowLeft className="size-4 mr-2" />
-            Back
           </Button>
           <div className="flex-1">
             <div className="flex items-center gap-3">
@@ -108,49 +112,72 @@ export default function AdminBidDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Bid Overview */}
+            {/* Full Proposal */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-xl mb-4">Bid Overview</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <div className="flex items-center gap-2 text-green-700 mb-1">
-                    <DollarSign className="size-5" />
-                    <span className="text-sm">Bid Amount</span>
+              <h2 className="text-2xl mb-6">Full Proposal</h2>
+              
+              <div className="space-y-6">
+                {/* Freelancer Info */}
+                {freelancer && (
+                  <div>
+                    <h4 className="font-medium mb-3">Freelancer Details</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Name</span>
+                        <span>{freelancer.name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Rating</span>
+                        <span className="flex items-center gap-1">
+                          <Star className="size-4 text-yellow-500 fill-yellow-500" />
+                          {freelancer.rating}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Completed Projects</span>
+                        <span>{completedProjectsCount}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Success Rate</span>
+                        <span>
+                          {totalProjectsCount > 0 
+                            ? `${((completedProjectsCount / totalProjectsCount) * 100).toFixed(0)}%`
+                            : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-2xl">${bid.amount.toLocaleString()}</div>
+                )}
+
+                {/* Bid Details */}
+                <div className="pt-4 border-t">
+                  <h4 className="font-medium mb-3">Bid Information</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-600">Bid Amount</Label>
+                      <p className="text-2xl">₹{bid.amount.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-600">Delivery Time</Label>
+                      <p className="text-2xl">{bid.estimated_duration || (bid.duration_weeks ? `${bid.duration_weeks} weeks` : 'N/A')}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <div className="flex items-center gap-2 text-blue-700 mb-1">
-                    <Clock className="size-5" />
-                    <span className="text-sm">Duration</span>
-                  </div>
-                  <div className="text-2xl">{bid.estimated_duration || `${bid.duration_weeks} weeks`}</div>
+
+                {/* Full Proposal */}
+                <div className="pt-4 border-t">
+                  <h4 className="font-medium mb-3">Cover Letter</h4>
+                  <p className="text-gray-700 whitespace-pre-wrap">{bid.proposal || bid.cover_letter || 'No proposal provided.'}</p>
                 </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <div className="flex items-center gap-2 text-purple-700 mb-1">
-                    <Calendar className="size-5" />
-                    <span className="text-sm">Submitted</span>
+
+                {/* Submitted Date */}
+                <div className="pt-4 border-t">
+                  <div className="text-sm text-gray-600">
+                    Submitted on {new Date(bid.submitted_at || bid.created_at).toLocaleString()}
                   </div>
-                  <div className="text-sm mt-1">{new Date(bid.submitted_at).toLocaleDateString()}</div>
                 </div>
               </div>
-
-              {bid.invited && (
-                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg mb-4">
-                  <p className="text-sm text-purple-800">
-                    This freelancer was invited to submit this bid
-                  </p>
-                </div>
-              )}
             </div>
-
-            {/* Cover Letter */}
-            {bid.cover_letter && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h2 className="text-xl mb-4">Cover Letter</h2>
-                <p className="text-gray-700 whitespace-pre-wrap">{bid.cover_letter}</p>
-              </div>
-            )}
 
             {/* Proposed Milestones */}
             {bid.milestones && bid.milestones.length > 0 && (

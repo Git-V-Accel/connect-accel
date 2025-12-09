@@ -1,3 +1,4 @@
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
@@ -68,7 +69,7 @@ export default function FreelancerDetail() {
 
   if (!freelancer) {
     return (
-      <DashboardLayout role="admin">
+      <DashboardLayout>
         <div className="p-6">
           <div className="max-w-4xl mx-auto text-center py-12">
             <h2 className="text-2xl mb-2">Freelancer Not Found</h2>
@@ -85,7 +86,7 @@ export default function FreelancerDetail() {
   }
 
   return (
-    <DashboardLayout role="admin">
+    <DashboardLayout>
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -95,7 +96,6 @@ export default function FreelancerDetail() {
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
             >
               <ArrowLeft className="w-5 h-5" />
-              Back to Directory
             </button>
 
             <div className="bg-white rounded-lg border p-6">
