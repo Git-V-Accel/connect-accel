@@ -57,6 +57,9 @@ import AdminBidDetail from "./pages/admin/AdminBidDetail";
 import ViewProposal from "./pages/admin/ViewProposal";
 import CreateBid from "./pages/admin/CreateBid";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AgentManagement from "./pages/admin/AgentManagement";
+import ClientsManagement from "./pages/admin/ClientsManagement";
+import UserDetail from "./pages/admin/UserDetail";
 
 // Agent portal
 import AgentDashboard from "./pages/agent/AgentDashboard";
@@ -75,6 +78,7 @@ import AgentSettings from "./pages/agent/AgentSettings";
 // Super Admin portal
 import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
 import UserManagement from "./pages/superadmin/UserManagement";
+import CreateUser from "./pages/superadmin/CreateUser";
 import SystemConfiguration from "./pages/superadmin/SystemConfiguration";
 import FinancialReports from "./pages/superadmin/FinancialReports";
 import DisputeEscalations from "./pages/superadmin/DisputeEscalations";
@@ -166,6 +170,10 @@ function AppRoutes() {
       <Route path="/admin/bids/:bidId/proposal" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><ViewProposal /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminSettings /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><UserManagement /></ProtectedRoute>} />
+      <Route path="/admin/users/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><CreateUser /></ProtectedRoute>} />
+      <Route path="/admin/users/:id/:type" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><UserDetail /></ProtectedRoute>} />
+      <Route path="/admin/agents" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AgentManagement /></ProtectedRoute>} />
+      <Route path="/admin/clients" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'agent']}><ClientsManagement /></ProtectedRoute>} />
 
       {/* Agent routes */}
       <Route path="/agent/dashboard" element={<ProtectedRoute allowedRoles={['agent']}><AgentDashboard /></ProtectedRoute>} />
@@ -185,6 +193,7 @@ function AppRoutes() {
       {/* Super Admin routes */}
       <Route path="/superadmin/dashboard" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperAdminDashboard /></ProtectedRoute>} />
       <Route path="/superadmin/users" element={<ProtectedRoute allowedRoles={['superadmin']}><UserManagement /></ProtectedRoute>} />
+      <Route path="/admin/users/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><CreateUser /></ProtectedRoute>} />
       <Route path="/superadmin/settings" element={<ProtectedRoute allowedRoles={['superadmin']}><AdminSettings /></ProtectedRoute>} />
       <Route path="/superadmin/system-configuration" element={<ProtectedRoute allowedRoles={['superadmin']}><SystemConfiguration /></ProtectedRoute>} />
       <Route path="/superadmin/financials" element={<ProtectedRoute allowedRoles={['superadmin']}><FinancialReports /></ProtectedRoute>} />

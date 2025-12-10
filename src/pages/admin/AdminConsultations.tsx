@@ -35,7 +35,6 @@ import {
   XCircle,
   Edit,
   Search,
-  Plus,
   FileText,
   Mail,
   ArrowRight,
@@ -43,15 +42,13 @@ import {
 import { toast } from '../../utils/toast';
 
 export default function AdminConsultations() {
-  const { consultations, updateConsultation, addConsultation, projects } = useData();
+  const { consultations, updateConsultation, projects } = useData();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [selectedConsultation, setSelectedConsultation] = useState<any>(null);
 
   // Form states
-  const [selectedProject, setSelectedProject] = useState('');
   const [consultationDate, setConsultationDate] = useState('');
   const [consultationTime, setConsultationTime] = useState('');
   const [consultationType, setConsultationType] = useState('video');
@@ -70,38 +67,6 @@ export default function AdminConsultations() {
       projects.find((p) => p.id === c.project_id)?.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleScheduleConsultation = () => {
-    if (!selectedProject || !consultationDate || !consultationTime) {
-      toast.error('Please fill all required fields');
-      return;
-    }
-
-    const project = projects.find((p) => p.id === selectedProject);
-    if (!project) return;
-
-    const consultation = {
-      id: `CONS-${Date.now()}`,
-      project_id: selectedProject,
-      client_id: project.client_id,
-      admin_id: 'ADMIN-1',
-      scheduled_date: `${consultationDate} ${consultationTime}`,
-      type: consultationType,
-      status: 'scheduled' as const,
-      agenda,
-      notes: '',
-      created_at: new Date().toISOString(),
-    };
-
-    addConsultation(consultation);
-    toast.success('Consultation scheduled successfully!');
-    
-    // Reset form
-    setSelectedProject('');
-    setConsultationDate('');
-    setConsultationTime('');
-    setAgenda('');
-    setIsScheduleDialogOpen(false);
-  };
 
   const handleUpdateConsultation = () => {
     if (!selectedConsultation) return;
@@ -314,10 +279,6 @@ export default function AdminConsultations() {
               Schedule and manage client consultations
             </p>
           </div>
-          <Button onClick={() => setIsScheduleDialogOpen(true)}>
-            <Plus className="size-4 mr-2" />
-            Schedule Consultation
-          </Button>
         </div>
 
         {/* Stats */}
@@ -407,12 +368,8 @@ export default function AdminConsultations() {
                 <Calendar className="size-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-xl mb-2">No consultations found</h3>
                 <p className="text-gray-600 mb-6">
-                  Start by scheduling a consultation with a client
+                  No consultations have been scheduled yet
                 </p>
-                <Button onClick={() => setIsScheduleDialogOpen(true)}>
-                  <Plus className="size-4 mr-2" />
-                  Schedule Consultation
-                </Button>
               </Card>
             ) : (
               filteredConsultations.map((consultation) => (
@@ -469,88 +426,6 @@ export default function AdminConsultations() {
           </TabsContent>
         </Tabs>
 
-        {/* Schedule Dialog */}
-        <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Schedule Consultation</DialogTitle>
-              <DialogDescription>
-                Set up a consultation call with a client
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label>Project *</Label>
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.title} - {project.client_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Date *</Label>
-                  <Input
-                    type="date"
-                    value={consultationDate}
-                    onChange={(e) => setConsultationDate(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Time *</Label>
-                  <Input
-                    type="time"
-                    value={consultationTime}
-                    onChange={(e) => setConsultationTime(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label>Type</Label>
-                <Select value={consultationType} onValueChange={setConsultationType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="video">Video Call</SelectItem>
-                    <SelectItem value="phone">Phone Call</SelectItem>
-                    <SelectItem value="in-person">In Person</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Agenda</Label>
-                <Textarea
-                  placeholder="Topics to discuss..."
-                  value={agenda}
-                  onChange={(e) => setAgenda(e.target.value)}
-                  rows={4}
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsScheduleDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleScheduleConsultation}>
-                <Calendar className="size-4 mr-2" />
-                Schedule
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

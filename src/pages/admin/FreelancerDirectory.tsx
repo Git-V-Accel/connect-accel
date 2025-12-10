@@ -5,7 +5,6 @@ import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
-import { Textarea } from '../../components/ui/textarea';
 import { Label } from '../../components/ui/label';
 import {
   Dialog,
@@ -31,7 +30,6 @@ import {
   XCircle,
   Eye,
   UserPlus,
-  Mail,
   Phone,
   MapPin,
   Award,
@@ -48,11 +46,8 @@ export default function FreelancerDirectory() {
   const [ratingFilter, setRatingFilter] = useState('all');
   const [selectedFreelancer, setSelectedFreelancer] = useState<any>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
 
   // Form states
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteMessage, setInviteMessage] = useState('');
   const [selectedProject, setSelectedProject] = useState('');
 
   // Mock freelancer data
@@ -177,17 +172,6 @@ export default function FreelancerDirectory() {
     return matchesSearch && matchesSkill && matchesRating;
   });
 
-  const handleInviteFreelancer = () => {
-    if (!inviteEmail || !inviteMessage) {
-      toast.error('Please fill all required fields');
-      return;
-    }
-
-    toast.success('Invitation sent successfully!');
-    setIsInviteDialogOpen(false);
-    setInviteEmail('');
-    setInviteMessage('');
-  };
 
   const handleAssignToProject = () => {
     if (!selectedProject) {
@@ -310,10 +294,6 @@ export default function FreelancerDirectory() {
               Browse, evaluate, and assign freelancers to projects
             </p>
           </div>
-          <Button onClick={() => setIsInviteDialogOpen(true)}>
-            <UserPlus className="size-4 mr-2" />
-            Invite Freelancer
-          </Button>
         </div>
 
         {/* Stats */}
@@ -488,48 +468,6 @@ export default function FreelancerDirectory() {
           </DialogContent>
         </Dialog>
 
-        {/* Invite Freelancer Dialog */}
-        <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Invite Freelancer</DialogTitle>
-              <DialogDescription>
-                Send an invitation to join the platform
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              <div>
-                <Label>Email Address *</Label>
-                <Input
-                  type="email"
-                  placeholder="freelancer@example.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>Personal Message *</Label>
-                <Textarea
-                  placeholder="Write a personalized invitation message..."
-                  value={inviteMessage}
-                  onChange={(e) => setInviteMessage(e.target.value)}
-                  rows={5}
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleInviteFreelancer}>
-                <Mail className="size-4 mr-2" />
-                Send Invitation
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -6,6 +7,8 @@ import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import PaginationControls from '../../components/common/PaginationControls';
+import DataTable, { Column } from '../../components/common/DataTable';
 import {
   Select,
   SelectContent,
@@ -57,25 +60,18 @@ interface UnifiedUser {
 }
 
 export default function UserManagement() {
+  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  const { clients, freelancers, getAllUsers, createUser, updateUserStatus, deleteUser } = useData();
+  const { clients, freelancers, getAllUsers, updateUserStatus, deleteUser } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState<UnifiedUser | null>(null);
-  const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [newStatus, setNewStatus] = useState<'active' | 'suspended' | 'banned'>('active');
-  const [newUser, setNewUser] = useState({
-    name: '',
-    email: '',
-    role: 'freelancer' as 'freelancer' | 'admin' | 'agent' | 'superadmin',
-    phone: '',
-    company: '',
-    title: '',
-  });
   const [allUsers, setAllUsers] = useState<UnifiedUser[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('all');
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const isAdmin = currentUser?.role === 'admin';
@@ -138,13 +134,28 @@ export default function UserManagement() {
     agent: filteredUsers.filter((u) => u.role === 'agent'),
   };
 
-  const handleStatusChange = () => {
-    if (!selectedUser) return;
+  // Get current tab's users
+  const currentTabUsers = usersByRole[activeTab as keyof typeof usersByRole] || usersByRole.all;
+  
+  // Calculate pagination
+  const totalPages = Math.ceil(currentTabUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedUsers = currentTabUsers.slice(startIndex, endIndex);
 
-    updateUserStatus(selectedUser.id, newStatus);
+  // Reset to page 1 when tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setCurrentPage(1);
+  };
+
+  const handleStatusToggle = (user: UnifiedUser) => {
+    const newStatus = user.status === 'active' ? 'suspended' : 'active';
+    updateUserStatus(user.id, newStatus);
     toast.success(`User status updated to ${newStatus}`);
-    setShowStatusDialog(false);
-    setSelectedUser(null);
+    if (getAllUsers) {
+      setAllUsers(getAllUsers());
+    }
   };
 
   const handleDelete = () => {
@@ -159,105 +170,94 @@ export default function UserManagement() {
     }
   };
 
-  const handleCreateUser = () => {
-    if (!newUser.name || !newUser.email) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    // Validate permissions
-    if (isAdmin && (newUser.role === 'admin' || newUser.role === 'superadmin')) {
-      toast.error('You do not have permission to create admin or superadmin users');
-      return;
-    }
-
-    createUser({
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      phone: newUser.phone || undefined,
-      company: newUser.company || undefined,
-      title: newUser.title || undefined,
-    });
-
-    const roleLabel = getAvailableRoles().find(r => r.value === newUser.role)?.label || newUser.role;
-    toast.success(`${roleLabel} created successfully`);
-    setShowCreateDialog(false);
-    setNewUser({
-      name: '',
-      email: '',
-      role: 'freelancer',
-      phone: '',
-      company: '',
-      title: '',
-    });
-    
-    // Refresh user list
-    if (getAllUsers) {
-      setTimeout(() => {
-        setAllUsers(getAllUsers());
-      }, 100);
-    }
-  };
-
-  const UserCard = ({ user }: { user: UnifiedUser }) => (
-    <Card className="p-4 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="size-10 rounded-full bg-blue-100 flex items-center justify-center">
-              <User className="size-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="font-medium">{user.name}</h3>
-              <p className="text-sm text-gray-600">{user.email}</p>
-            </div>
+  // Define table columns
+  const columns: Column<UnifiedUser>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      render: (user) => (
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-full bg-blue-100 flex items-center justify-center">
+            <User className="size-5 text-blue-600" />
           </div>
-
-          <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
-            <div className="flex items-center gap-2">
-              <Badge className={roleColors[user.role]}>{user.role}</Badge>
-              <Badge className={statusColors[user.status]}>{user.status}</Badge>
-            </div>
-            {user.phone && (
-              <div className="flex items-center gap-1 text-gray-600">
-                <Phone className="size-3" />
-                <span>{user.phone}</span>
-              </div>
-            )}
-            {user.company && (
-              <div className="flex items-center gap-1 text-gray-600">
-                <Building className="size-3" />
-                <span>{user.company}</span>
-              </div>
-            )}
-            {user.title && (
-              <div className="flex items-center gap-1 text-gray-600">
-                <Briefcase className="size-3" />
-                <span>{user.title}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-1 text-gray-600">
-              <Calendar className="size-3" />
-              <span>Joined {new Date(user.created_at).toLocaleDateString()}</span>
-            </div>
-            {user.rating && (
-              <div className="flex items-center gap-1 text-gray-600">
-                <span>⭐ {user.rating.toFixed(1)}</span>
-              </div>
-            )}
+          <div>
+            <div className="font-medium">{user.name}</div>
+            <div className="text-sm text-gray-600">{user.email}</div>
           </div>
         </div>
-
-        <div className="flex gap-2">
+      ),
+    },
+    {
+      key: 'role',
+      header: 'Role',
+      render: (user) => (
+        <Badge className={roleColors[user.role]}>{user.role}</Badge>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (user) => (
+        <Badge className={statusColors[user.status]}>{user.status}</Badge>
+      ),
+    },
+    {
+      key: 'phone',
+      header: 'Phone',
+      render: (user) => (
+        <div className="flex items-center gap-1 text-gray-600">
+          {user.phone ? (
+            <>
+              <Phone className="size-3" />
+              <span>{user.phone}</span>
+            </>
+          ) : (
+            <span className="text-gray-400">-</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'company',
+      header: 'Company/Title',
+      render: (user) => (
+        <div className="flex items-center gap-1 text-gray-600">
+          {user.company ? (
+            <>
+              <Building className="size-3" />
+              <span>{user.company}</span>
+            </>
+          ) : user.title ? (
+            <>
+              <Briefcase className="size-3" />
+              <span>{user.title}</span>
+            </>
+          ) : (
+            <span className="text-gray-400">-</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'created_at',
+      header: 'Joined',
+      render: (user) => (
+        <div className="flex items-center gap-1 text-gray-600">
+          <Calendar className="size-3" />
+          <span>{new Date(user.created_at).toLocaleDateString()}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (user) => (
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              setSelectedUser(user);
-              setNewStatus(user.status);
-              setShowStatusDialog(true);
-            }}
+            onClick={() => handleStatusToggle(user)}
+            title={user.status === 'active' ? 'Suspend User' : 'Activate User'}
           >
             {user.status === 'active' ? <Ban className="size-4" /> : <CheckCircle className="size-4" />}
           </Button>
@@ -275,9 +275,10 @@ export default function UserManagement() {
             </Button>
           )}
         </div>
-      </div>
-    </Card>
-  );
+      ),
+    },
+  ];
+
 
   return (
     <DashboardLayout>
@@ -290,7 +291,7 @@ export default function UserManagement() {
               {isSuperAdmin ? 'Manage all platform users' : 'View and manage user accounts'}
             </p>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)}>
+          <Button onClick={() => navigate('/admin/users/create')}>
             <Plus className="size-4 mr-2" />
             Create User
           </Button>
@@ -383,82 +384,67 @@ export default function UserManagement() {
         </Card>
 
         {/* Users List */}
-        <Tabs defaultValue="all" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="all">All ({usersByRole.all.length})</TabsTrigger>
-            <TabsTrigger value="client">Clients ({usersByRole.client.length})</TabsTrigger>
-            <TabsTrigger value="freelancer">Freelancers ({usersByRole.freelancer.length})</TabsTrigger>
-            <TabsTrigger value="admin">Admins ({usersByRole.admin.length})</TabsTrigger>
-            <TabsTrigger value="agent">Agents ({usersByRole.agent.length})</TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <TabsList>
+              <TabsTrigger value="all">All ({usersByRole.all.length})</TabsTrigger>
+              <TabsTrigger value="client">Clients ({usersByRole.client.length})</TabsTrigger>
+              <TabsTrigger value="freelancer">Freelancers ({usersByRole.freelancer.length})</TabsTrigger>
+              <TabsTrigger value="admin">Admins ({usersByRole.admin.length})</TabsTrigger>
+              <TabsTrigger value="agent">Agents ({usersByRole.agent.length})</TabsTrigger>
+            </TabsList>
+            
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={setItemsPerPage}
+            />
+          </div>
 
           <TabsContent value="all" className="space-y-4">
-            {filteredUsers.length === 0 ? (
-              <Card className="p-8 text-center">
-                <User className="size-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No users found</h3>
-                <p className="text-gray-600">Try adjusting your filters</p>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {filteredUsers.map((user) => (
-                  <UserCard key={user.id} user={user} />
-                ))}
-              </div>
-            )}
+            <DataTable
+              data={paginatedUsers}
+              columns={columns}
+              emptyMessage="No users found"
+              emptyIcon={<User className="size-12 text-gray-400 mx-auto mb-4" />}
+              onRowClick={(user) => {
+                if (user.role === 'client') {
+                  navigate(`/admin/users/${user.id}/client`);
+                } else if (user.role === 'freelancer') {
+                  navigate(`/admin/users/${user.id}/freelancer`);
+                } else if (user.role === 'agent') {
+                  navigate(`/admin/users/${user.id}/agent`);
+                } else if (user.role === 'admin' || user.role === 'superadmin') {
+                  navigate(`/admin/users/${user.id}/admin`);
+                }
+              }}
+            />
           </TabsContent>
 
           {(['client', 'freelancer', 'admin', 'agent'] as const).map((role) => (
             <TabsContent key={role} value={role} className="space-y-4">
-              {usersByRole[role].length === 0 ? (
-                <Card className="p-8 text-center">
-                  <User className="size-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No {role}s found</h3>
-                  <p className="text-gray-600">Try adjusting your filters</p>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {usersByRole[role].map((user) => (
-                    <UserCard key={user.id} user={user} />
-                  ))}
-                </div>
-              )}
+              <DataTable
+                data={paginatedUsers}
+                columns={columns}
+                emptyMessage={`No ${role}s found`}
+                emptyIcon={<User className="size-12 text-gray-400 mx-auto mb-4" />}
+                onRowClick={(user) => {
+                  if (user.role === 'client') {
+                    navigate(`/admin/users/${user.id}/client`);
+                  } else if (user.role === 'freelancer') {
+                    navigate(`/admin/users/${user.id}/freelancer`);
+                  } else if (user.role === 'agent') {
+                    navigate(`/admin/users/${user.id}/agent`);
+                  } else if (user.role === 'admin' || user.role === 'superadmin') {
+                    navigate(`/admin/users/${user.id}/admin`);
+                  }
+                }}
+              />
             </TabsContent>
           ))}
         </Tabs>
-
-        {/* Status Change Dialog */}
-        <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Change User Status</DialogTitle>
-              <DialogDescription>
-                Update the status for {selectedUser?.name}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>New Status</Label>
-                <Select value={newStatus} onValueChange={(val: any) => setNewStatus(val)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                    <SelectItem value="banned">Banned</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowStatusDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleStatusChange}>Update Status</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* Delete Dialog */}
         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -480,107 +466,6 @@ export default function UserManagement() {
           </DialogContent>
         </Dialog>
 
-        {/* Create User Dialog */}
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Create New User</DialogTitle>
-              <DialogDescription>
-                {isSuperAdmin
-                  ? 'Create a new superadmin, admin, agent, or freelancer account'
-                  : 'Create a new agent or freelancer account'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Name *</Label>
-                  <Input
-                    id="name"
-                    placeholder="Enter full name"
-                    value={newUser.name}
-                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter email address"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="role">Role *</Label>
-                  <Select
-                    value={newUser.role}
-                    onValueChange={(val: 'freelancer' | 'admin' | 'agent' | 'superadmin') =>
-                      setNewUser({ ...newUser, role: val })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getAvailableRoles().map((role) => (
-                        <SelectItem key={role.value} value={role.value}>
-                          {role.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="Enter phone number"
-                    value={newUser.phone}
-                    onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {newUser.role === 'freelancer' && (
-                <div>
-                  <Label htmlFor="title">Title/Position</Label>
-                  <Input
-                    id="title"
-                    placeholder="e.g., Full Stack Developer"
-                    value={newUser.title}
-                    onChange={(e) => setNewUser({ ...newUser, title: e.target.value })}
-                  />
-                </div>
-              )}
-
-              {(newUser.role === 'admin' || newUser.role === 'agent') && (
-                <div>
-                  <Label htmlFor="company">Company/Department</Label>
-                  <Input
-                    id="company"
-                    placeholder="Enter company or department"
-                    value={newUser.company}
-                    onChange={(e) => setNewUser({ ...newUser, company: e.target.value })}
-                  />
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateUser}>
-                Create User
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );

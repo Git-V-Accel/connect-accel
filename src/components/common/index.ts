@@ -33,3 +33,8 @@ export type { RichTextViewerProps } from './RichTextViewer';
 export { ThemeSwitch } from './ThemeSwitch';
 export type { ThemeSwitchProps } from './ThemeSwitch';
 
+export { default as PaginationControls } from './PaginationControls';
+
+export { default as DataTable } from './DataTable';
+export type { Column } from './DataTable';
+

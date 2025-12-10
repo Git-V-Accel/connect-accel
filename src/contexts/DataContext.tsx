@@ -292,6 +292,8 @@ interface DataContextType {
     phone?: string;
     company?: string;
     title?: string;
+    hourlyRate?: number;
+    bio?: string;
   }) => void;
   updateUserStatus: (userId: string, status: 'active' | 'suspended' | 'banned') => void;
   deleteUser: (userId: string) => void;
@@ -889,6 +891,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     phone?: string;
     company?: string;
     title?: string;
+    hourlyRate?: number;
+    bio?: string;
   }) => {
     const newUserId = `${userData.role}_${Date.now()}`;
     const newUser = {
@@ -901,6 +905,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       company: userData.company,
       created_at: new Date().toISOString(),
       title: userData.title,
+      bio: userData.bio,
       ...(userData.role === 'freelancer' && { rating: 0 }),
     };
 
@@ -915,9 +920,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
             name: userData.name,
             email: userData.email,
             title: userData.title || 'Freelancer',
-            bio: '',
+            bio: userData.bio || '',
             skills: [],
-            hourly_rate: 0,
+            hourly_rate: userData.hourlyRate || 0,
             rating: 0,
             total_reviews: 0,
             availability: 'available' as const,

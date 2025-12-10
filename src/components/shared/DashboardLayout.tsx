@@ -177,6 +177,16 @@ export default function DashboardLayout({
             path: "/admin/users",
           },
           {
+            label: "Agents",
+            icon: <Shield className="size-5" />,
+            path: "/admin/agents",
+          },
+          {
+            label: "Clients",
+            icon: <User className="size-5" />,
+            path: "/admin/clients",
+          },
+          {
             label: "Reports",
             icon: <BarChart className="size-5" />,
             path: "/admin/reports",
@@ -199,6 +209,16 @@ export default function DashboardLayout({
             label: "Users",
             icon: <Users className="size-5" />,
             path: "/superadmin/users",
+          },
+          {
+            label: "Agents",
+            icon: <Shield className="size-5" />,
+            path: "/admin/agents",
+          },
+          {
+            label: "Clients",
+            icon: <User className="size-5" />,
+            path: "/admin/clients",
           },
           {
             label: "Configuration",
@@ -258,6 +278,11 @@ export default function DashboardLayout({
             label: "Consultations",
             icon: <Users className="size-5" />,
             path: "/agent/consultations",
+          },
+          {
+            label: "Clients",
+            icon: <User className="size-5" />,
+            path: "/admin/clients",
           },
           {
             label: "Reports",
