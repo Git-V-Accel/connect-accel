@@ -1,0 +1,880 @@
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const User = require('../models/User');
+const Notification = require('../models/Notification');
+const emailService = require('../services/emailService');
+const sendEmail = require('../utils/sendEmail');
+const { otpVerificationTemplate } = require('../templates/emailTemplates');
+const socketService = require('../services/socketService');
+const { USER_ROLES, JWT_CONFIG, PASSWORD_RESET_CONFIG, MESSAGES, STATUS_CODES, NOTIFICATION_TYPES, USER_STATUS, FRONTEND_CONFIG } = require('../constants');
+const { generateUserId } = require('../utils/userIdGenerator');
+const { generateOTPWithExpiry } = require('../utils/otpGenerator');
+const { getRedisClient } = require('../config/redis');
+
+// Generate JWT Access Token
+const generateToken = (id) => {
+  return jwt.sign({ id }, JWT_CONFIG.SECRET_KEY, {
+    expiresIn: JWT_CONFIG.EXPIRES_IN,
+  });
+};
+
+// Generate JWT Refresh Token
+const generateRefreshToken = (id) => {
+  return jwt.sign({ id }, JWT_CONFIG.REFRESH_SECRET_KEY, {
+    expiresIn: JWT_CONFIG.REFRESH_EXPIRES_IN,
+  });
+};
+
+// Store refresh token in Redis (or in-memory fallback)
+const { isRedisAvailable } = require('../config/redis');
+const inMemoryTokens = new Map(); // Fallback storage
+
+const storeRefreshToken = async (userId, refreshToken) => {
+  try {
+    if (isRedisAvailable()) {
+      const redis = getRedisClient();
+      const key = `refresh_token:${userId}`;
+      await redis.setex(key, 7 * 24 * 60 * 60, refreshToken); // 7 days
+    } else {
+      // Fallback to in-memory storage
+      inMemoryTokens.set(userId, refreshToken);
+      // Auto-expire after 7 days
+      setTimeout(() => inMemoryTokens.delete(userId), 7 * 24 * 60 * 60 * 1000);
+    }
+  } catch (error) {
+    // Fallback to in-memory storage
+    inMemoryTokens.set(userId, refreshToken);
+    setTimeout(() => inMemoryTokens.delete(userId), 7 * 24 * 60 * 60 * 1000);
+  }
+};
+
+// Verify and get refresh token from Redis (or in-memory)
+const getRefreshToken = async (userId) => {
+  try {
+    if (isRedisAvailable()) {
+      const redis = getRedisClient();
+      const key = `refresh_token:${userId}`;
+      return await redis.get(key);
+    } else {
+      // Fallback to in-memory storage
+      return inMemoryTokens.get(userId) || null;
+    }
+  } catch (error) {
+    // Fallback to in-memory storage
+    return inMemoryTokens.get(userId) || null;
+  }
+};
+
+// Revoke refresh token
+const revokeRefreshToken = async (userId) => {
+  try {
+    if (isRedisAvailable()) {
+      const redis = getRedisClient();
+      const key = `refresh_token:${userId}`;
+      await redis.del(key);
+    } else {
+      // Fallback to in-memory storage
+      inMemoryTokens.delete(userId);
+    }
+  } catch (error) {
+    // Fallback to in-memory storage
+    inMemoryTokens.delete(userId);
+  }
+};
+
+// Set HTTP-only cookie
+const setRefreshTokenCookie = (res, refreshToken) => {
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: '/',
+  });
+};
+
+// @desc    Register user
+// @route   POST /api/auth/register
+// @access  Public
+const register = async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
+
+    // Validation
+    if (!name || !email || !password) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.PROVIDE_NAME_EMAIL_PASSWORD
+      });
+    }
+
+    // Check if user exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.USER_EXISTS
+      });
+    }
+
+    // Generate userID for client (signup is only for clients)
+    const userID = await generateUserId(USER_ROLES.CLIENT);
+
+    // Generate OTP for email verification (6 digits, expires in 10 minutes)
+    const { otpCode, otpExpire } = generateOTPWithExpiry(10);
+
+    // Create user with inactive status and OTP
+    const user = await User.create({
+      userID,
+      name,
+      email,
+      password,
+      phone: phone || undefined, // Phone is optional but included if provided
+      role: USER_ROLES.CLIENT, // Explicitly set role as client for signups
+      status: USER_STATUS.INACTIVE, // Set to inactive until OTP is verified
+      isEmailVerified: false,
+      otpCode,
+      otpExpire
+    });
+
+    // Send OTP email
+    const otpMessage = otpVerificationTemplate(otpCode, {
+      userName: user.name,
+      isResend: false
+    });
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'Email Verification OTP - V-Accel',
+        message: otpMessage
+      });
+
+    res.status(STATUS_CODES.CREATED).json({
+      success: true,
+        message: MESSAGES.OTP_SENT,
+        email: user.email, // Return email for frontend to show OTP verification
+        requiresVerification: true
+      });
+    } catch (error) {
+      console.error('Email sending error during registration:', error);
+      
+      // If email sending fails, delete the user
+      await User.findByIdAndDelete(user._id);
+      
+      return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: MESSAGES.EMAIL_SEND_FAILED
+      });
+    }
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR_REGISTRATION
+    });
+  }
+};
+
+// @desc    Login user
+// @route   POST /api/auth/login
+// @access  Public
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validation
+    if (!email || !password) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.PROVIDE_EMAIL_PASSWORD
+      });
+    }
+
+    // Check for user and include password
+    const user = await User.findOne({ email }).select('+password');
+
+    if (!user) {
+      return res.status(STATUS_CODES.UNAUTHORIZED).json({
+        success: false,
+        message: MESSAGES.INVALID_CREDENTIALS
+      });
+    }
+
+    // Check password
+    const isMatch = await user.comparePassword(password);
+
+    if (!isMatch) {
+      return res.status(STATUS_CODES.UNAUTHORIZED).json({
+        success: false,
+        message: MESSAGES.INVALID_CREDENTIALS
+      });
+    }
+
+    // Block inactive accounts
+    if (user.status === 'inactive') {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'Your account is inactive. Please contact an administrator.'
+      });
+    }
+
+    // For client users, check if email is verified
+    if (user.role === USER_ROLES.CLIENT && !user.isEmailVerified) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: MESSAGES.EMAIL_NOT_VERIFIED,
+        requiresVerification: true,
+        email: user.email
+      });
+    }
+
+    // Generate tokens
+    const token = generateToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    // Store refresh token
+    await storeRefreshToken(user._id.toString(), refreshToken);
+
+    // Set refresh token cookie
+    setRefreshTokenCookie(res, refreshToken);
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: MESSAGES.LOGIN_SUCCESS,
+      token,
+      user: {
+        id: user._id,
+        userID: user.userID,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR_LOGIN
+    });
+  }
+};
+
+// @desc    Refresh access token
+// @route   POST /api/auth/refresh
+// @access  Public
+const refreshToken = async (req, res) => {
+  try {
+    // Get refresh token from cookie or body
+    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(STATUS_CODES.UNAUTHORIZED).json({
+        success: false,
+        message: 'Refresh token not provided'
+      });
+    }
+
+    // Verify refresh token
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, JWT_CONFIG.REFRESH_SECRET_KEY);
+    } catch (error) {
+      return res.status(STATUS_CODES.UNAUTHORIZED).json({
+        success: false,
+        message: 'Invalid or expired refresh token'
+      });
+    }
+
+    // Check if refresh token exists in Redis
+    const storedToken = await getRefreshToken(decoded.id);
+    if (!storedToken || storedToken !== refreshToken) {
+      return res.status(STATUS_CODES.UNAUTHORIZED).json({
+        success: false,
+        message: 'Refresh token not found or revoked'
+      });
+    }
+
+    // Get user
+    const user = await User.findById(decoded.id).select('-password');
+    if (!user) {
+      return res.status(STATUS_CODES.UNAUTHORIZED).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Block inactive accounts
+    if (user.status === 'inactive') {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'Your account is inactive. Please contact an administrator.'
+      });
+    }
+
+    // Generate new access token
+    const newToken = generateToken(user._id);
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      token: newToken,
+      user: {
+        id: user._id,
+        userID: user.userID,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      }
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Logout user
+// @route   POST /api/auth/logout
+// @access  Private
+const logout = async (req, res) => {
+  try {
+    // Revoke refresh token
+    if (req.user?.id) {
+      await revokeRefreshToken(req.user.id);
+    }
+
+    // Clear refresh token cookie
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+    });
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Send OTP for password change
+// @route   POST /api/auth/change-password/send-otp
+// @access  Private
+const sendPasswordChangeOTP = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
+    // Generate OTP for password change (6 digits, expires in 10 minutes)
+    const { otpCode, otpExpire } = generateOTPWithExpiry(10);
+
+    // Store OTP in user document
+    user.otpCode = otpCode;
+    user.otpExpire = otpExpire;
+    await user.save();
+
+    // Send OTP email
+    const otpMessage = otpVerificationTemplate(otpCode, {
+      userName: user.name,
+      isResend: false
+    });
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'Password Change Verification - V-Accel',
+        message: otpMessage
+      });
+
+      res.status(STATUS_CODES.OK).json({
+        success: true,
+        message: MESSAGES.OTP_SENT
+      });
+    } catch (error) {
+      console.error('Email sending error during password change OTP:', error);
+      
+      // Rollback OTP
+      user.otpCode = undefined;
+      user.otpExpire = undefined;
+      await user.save();
+
+      return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: MESSAGES.EMAIL_SEND_FAILED
+      });
+    }
+  } catch (error) {
+    console.error('Send password change OTP error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Change password
+// @route   PUT /api/auth/change-password
+// @access  Private
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword, otpCode } = req.body;
+
+    // Validation
+    if (!currentPassword || !newPassword) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.PROVIDE_CURRENT_NEW_PASSWORD
+      });
+    }
+
+    if (!otpCode) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.PROVIDE_OTP
+      });
+    }
+
+    // Get user with password
+    const user = await User.findById(req.user.id).select('+password');
+
+    if (!user) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
+    // Check current password
+    const isMatch = await user.comparePassword(currentPassword);
+
+    if (!isMatch) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.CURRENT_PASSWORD_INCORRECT
+      });
+    }
+
+    // Verify OTP
+    if (!user.otpCode || !user.otpExpire) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'OTP not found. Please request a new OTP.'
+      });
+    }
+
+    // Check if OTP is expired
+    if (Date.now() > user.otpExpire.getTime()) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.OTP_EXPIRED
+      });
+    }
+
+    // Verify OTP
+    if (user.otpCode !== otpCode) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.INVALID_OTP
+      });
+    }
+
+    // Clear OTP after successful verification
+    user.otpCode = undefined;
+    user.otpExpire = undefined;
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    // Send email notification
+    try {
+      await emailService.sendPasswordChangedEmail({
+        to: user.email,
+        userName: user.name,
+      });
+    } catch (emailError) {
+      console.error('Failed to send password change email:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    // Create notification
+    try {
+      const notification = new Notification({
+        user: user._id,
+        type: NOTIFICATION_TYPES.SYSTEM,
+        title: 'Password Changed Successfully',
+        message: `Your password was successfully changed on ${new Date().toLocaleString()}. If you did not make this change, please contact support immediately.`,
+      });
+      await notification.save();
+
+      // Send real-time notification via Socket.IO
+      socketService.emitNotification(user._id.toString(), {
+        _id: notification._id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        isRead: notification.isRead,
+        createdAt: notification.createdAt,
+      });
+    } catch (notificationError) {
+      console.error('Failed to create password change notification:', notificationError);
+      // Don't fail the request if notification fails
+    }
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: MESSAGES.PASSWORD_CHANGED
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Forgot password
+// @route   POST /api/auth/forgot-password
+// @access  Public
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.PROVIDE_EMAIL
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: MESSAGES.EMAIL_NOT_FOUND
+      });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(PASSWORD_RESET_CONFIG.TOKEN_LENGTH).toString('hex');
+
+    // Hash token and set to resetPasswordToken field
+    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    user.resetPasswordExpire = Date.now() + PASSWORD_RESET_CONFIG.TOKEN_EXPIRE_TIME;
+
+    await user.save();
+
+    // Create reset URL - point to frontend route
+    // Use FRONTEND_URL from environment if available, otherwise construct from request
+    const frontendUrl = FRONTEND_CONFIG.URL || `${req.protocol}://${req.get('host')}`;
+    const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+
+    const message = `
+      <h2>Password Reset Request</h2>
+      <p>You have requested a password reset for your V-Accel account.</p>
+      <p>Please click the link below to reset your password:</p>
+      <a href="${resetUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
+      <p>This link will expire in 10 minutes.</p>
+      <p>If you did not request this password reset, please ignore this email.</p>
+      <br>
+      <p>Best regards,<br>V-Accel Team</p>
+    `;
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'Password Reset Request - V-Accel',
+        message
+      });
+
+      res.status(STATUS_CODES.OK).json({
+        success: true,
+        message: MESSAGES.PASSWORD_RESET_EMAIL_SENT
+      });
+    } catch (error) {
+      console.error('Email sending error:', error);
+      console.error('Email error details:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      
+      // Rollback token changes
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save();
+
+      // Return more specific error message if available
+      const errorMessage = error.message || MESSAGES.EMAIL_SEND_FAILED;
+
+      return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: errorMessage
+      });
+    }
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR_PASSWORD_RESET
+    });
+  }
+};
+
+// @desc    Reset password
+// @route   PUT /api/auth/reset-password/:resettoken
+// @access  Public
+const resetPassword = async (req, res) => {
+  try {
+    // Get hashed token
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(req.params.resettoken)
+      .digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.INVALID_TOKEN
+      });
+    }
+
+    // Set new password
+    user.password = req.body.password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+
+    await user.save();
+
+    // Generate tokens
+    const token = generateToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    // Store refresh token
+    await storeRefreshToken(user._id.toString(), refreshToken);
+
+    // Set refresh token cookie
+    setRefreshTokenCookie(res, refreshToken);
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: MESSAGES.PASSWORD_RESET_SUCCESS,
+      token,
+      user: {
+        id: user._id,
+        userID: user.userID,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      }
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Verify OTP and activate user
+// @route   POST /api/auth/verify-otp
+// @access  Public
+const verifyOTP = async (req, res) => {
+  try {
+    const { email, otpCode } = req.body;
+
+    // Validation
+    if (!email || !otpCode) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.PROVIDE_OTP
+      });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: MESSAGES.EMAIL_NOT_FOUND
+      });
+    }
+
+    // Check if OTP exists
+    if (!user.otpCode || !user.otpExpire) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.INVALID_OTP
+      });
+    }
+
+    // Check if OTP is expired
+    if (Date.now() > user.otpExpire.getTime()) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.OTP_EXPIRED
+      });
+    }
+
+    // Verify OTP
+    if (user.otpCode !== otpCode) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.INVALID_OTP
+      });
+    }
+
+    // Activate user and clear OTP
+    user.isEmailVerified = true;
+    user.status = USER_STATUS.ACTIVE;
+    user.otpCode = undefined;
+    user.otpExpire = undefined;
+
+    await user.save();
+
+    // Generate tokens
+    const token = generateToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    // Store refresh token
+    await storeRefreshToken(user._id.toString(), refreshToken);
+
+    // Set refresh token cookie
+    setRefreshTokenCookie(res, refreshToken);
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: MESSAGES.OTP_VERIFIED,
+      token,
+      user: {
+        id: user._id,
+        userID: user.userID,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      }
+    });
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Resend OTP
+// @route   POST /api/auth/resend-otp
+// @access  Public
+const resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Validation
+    if (!email) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: MESSAGES.PROVIDE_EMAIL
+      });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: MESSAGES.EMAIL_NOT_FOUND
+      });
+    }
+
+    // Check if user is already verified
+    if (user.isEmailVerified && user.status === USER_STATUS.ACTIVE) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'Email is already verified. You can login now.'
+      });
+    }
+
+    // Generate new OTP
+    const { otpCode, otpExpire } = generateOTPWithExpiry(10);
+
+    // Update user with new OTP
+    user.otpCode = otpCode;
+    user.otpExpire = otpExpire;
+    await user.save();
+
+    // Send OTP email
+    const otpMessage = otpVerificationTemplate(otpCode, {
+      userName: user.name,
+      isResend: true
+    });
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'OTP Verification - V-Accel',
+        message: otpMessage
+      });
+
+      res.status(STATUS_CODES.OK).json({
+        success: true,
+        message: MESSAGES.OTP_RESENT
+      });
+    } catch (error) {
+      console.error('Email sending error during OTP resend:', error);
+      
+      return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: MESSAGES.EMAIL_SEND_FAILED
+      });
+    }
+  } catch (error) {
+    console.error('Resend OTP error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+module.exports = {
+  register,
+  login,
+  refreshToken,
+  logout,
+  changePassword,
+  sendPasswordChangeOTP,
+  forgotPassword,
+  resetPassword,
+  verifyOTP,
+  resendOTP
+};
