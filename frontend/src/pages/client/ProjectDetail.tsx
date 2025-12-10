@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
@@ -13,11 +13,13 @@ import { useData } from '../../contexts/DataContext';
 import { 
   ArrowLeft, Calendar, DollarSign, User, Clock, CheckCircle2, XCircle, 
   AlertCircle, MessageSquare, FileText, ExternalLink, Download, Upload,
-  Flag, Settings
+  Settings, Edit,
+  IndianRupee
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { statusLabels } from '../../constants/projectConstants';
 
 const statusColors = {
   draft: 'bg-gray-100 text-gray-700',
@@ -42,28 +44,53 @@ const milestoneStatusColors = {
 export default function ProjectDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getProject, getMilestonesByProject, getPaymentsByProject, updateMilestone, createPayment, createDispute } = useData();
+  const { getProject, getMilestonesByProject, getPaymentsByProject, updateMilestone, createPayment } = useData();
   
+  const [project, setProject] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [showDisputeDialog, setShowDisputeDialog] = useState(false);
   const [selectedMilestone, setSelectedMilestone] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [disputeSubject, setDisputeSubject] = useState('');
-  const [disputeDescription, setDisputeDescription] = useState('');
+
+  useEffect(() => {
+    const loadProject = async () => {
+      if (!id) return;
+      setLoading(true);
+      try {
+        const projectData = await getProject(id);
+        setProject(projectData);
+      } catch (error) {
+        console.error('Failed to load project:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProject();
+  }, [id, getProject]);
 
   if (!id) return null;
 
-  const project = getProject(id);
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <p className="text-gray-600">Loading project...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (!project) {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <h2 className="text-2xl font-medium mb-2">Project not found</h2>
-          <p className="text-gray-600 mb-6">The project you're looking for doesn't exist.</p>
           <Button onClick={() => navigate('/client/projects')}>
             <ArrowLeft className="size-4 mr-2" />
           </Button>
+          <h2 className="text-2xl font-medium mb-2">Project not found</h2>
+          <p className="text-gray-600 mb-6">The project you're looking for doesn't exist.</p>
+          
         </div>
       </DashboardLayout>
     );
@@ -79,64 +106,65 @@ export default function ProjectDetail() {
     .filter(p => p.type === 'milestone' && p.status === 'completed')
     .reduce((sum, p) => sum + p.amount, 0);
 
-  const handleApproveMilestone = () => {
+  const handleApproveMilestone = async () => {
     if (!selectedMilestone) return;
     
     const milestone = milestones.find(m => m.id === selectedMilestone);
     if (!milestone) return;
 
-    updateMilestone(selectedMilestone, {
-      status: 'approved',
-      approval_date: new Date().toISOString(),
-    });
-
-    createPayment({
-      project_id: id,
-      milestone_id: selectedMilestone,
-      from_user_id: project.client_id,
-      to_user_id: project.freelancer_id || '',
-      amount: milestone.amount,
-      type: 'milestone',
-      status: 'completed',
-      completed_at: new Date().toISOString(),
-    });
-
-    toast.success('Milestone approved and payment released!');
-    setShowApproveDialog(false);
-    setSelectedMilestone(null);
+    try {
+      await updateMilestone(selectedMilestone, {
+        status: 'approved',
+        approval_date: new Date().toISOString(),
+      });
+      
+      // Create payment record
+      createPayment({
+        project_id: id,
+        milestone_id: selectedMilestone,
+        from_user_id: project.client_id,
+        to_user_id: project.freelancer_id || '',
+        amount: milestone.amount,
+        type: 'milestone',
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      });
+      
+      // Reload project to get updated milestone data
+      if (id) {
+        const updatedProject = await getProject(id);
+        setProject(updatedProject);
+      }
+      
+      toast.success('Milestone approved and payment released!');
+      setShowApproveDialog(false);
+      setSelectedMilestone(null);
+    } catch (error) {
+      console.error('Failed to approve milestone:', error);
+    }
   };
 
-  const handleRejectMilestone = () => {
+  const handleRejectMilestone = async () => {
     if (!selectedMilestone || !rejectionReason) return;
 
-    updateMilestone(selectedMilestone, {
-      status: 'rejected',
-    });
-
-    toast.success('Milestone rejected. Freelancer has been notified.');
-    setShowRejectDialog(false);
-    setSelectedMilestone(null);
-    setRejectionReason('');
-  };
-
-  const handleRaiseDispute = () => {
-    if (!disputeSubject || !disputeDescription) return;
-
-    createDispute({
-      project_id: id,
-      raised_by: project.client_id,
-      raised_by_name: project.client_name,
-      raised_by_role: 'client',
-      subject: disputeSubject,
-      description: disputeDescription,
-      status: 'open',
-      priority: 'medium',
-    });
-
-    toast.success('Dispute raised. Our admin team will review it shortly.');
-    setShowDisputeDialog(false);
-    setDisputeSubject('');
-    setDisputeDescription('');
+    try {
+      await updateMilestone(selectedMilestone, {
+        status: 'rejected',
+      });
+      
+      // Reload project to get updated milestone data
+      if (id) {
+        const updatedProject = await getProject(id);
+        setProject(updatedProject);
+      }
+      
+      toast.success('Milestone rejected. Freelancer has been notified.');
+      setShowRejectDialog(false);
+      setSelectedMilestone(null);
+      setRejectionReason('');
+    } catch (error) {
+      console.error('Failed to reject milestone:', error);
+    }
   };
 
   return (
@@ -144,7 +172,6 @@ export default function ProjectDetail() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between">
-          <div className="flex-1">
             <Button variant="ghost" size="sm" onClick={() => navigate('/client/projects')} className="mb-4">
               <ArrowLeft className="size-4 mr-2" />
             </Button>
@@ -154,10 +181,9 @@ export default function ProjectDetail() {
                 <p className="text-gray-600">{project.description}</p>
               </div>
               <Badge className={statusColors[project.status]}>
-                {project.status.replace('_', ' ').toUpperCase()}
+                {statusLabels[project.status]}
               </Badge>
             </div>
-          </div>
         </div>
 
         {/* Key Stats */}
@@ -165,7 +191,7 @@ export default function ProjectDetail() {
           <Card className="p-4">
             <div className="flex items-center gap-3">
               <div className="bg-blue-50 p-3 rounded-lg">
-                <DollarSign className="size-5 text-blue-600" />
+                <IndianRupee className="size-5 text-blue-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Budget</p>
@@ -356,10 +382,14 @@ export default function ProjectDetail() {
                 <Card className="p-6">
                   <h3 className="text-lg font-medium mb-4">Actions</h3>
                   <div className="space-y-2">
-                    <Button variant="outline" className="w-full" size="sm" onClick={() => setShowDisputeDialog(true)}>
-                      <Flag className="size-4 mr-2" />
-                      Raise Dispute
-                    </Button>
+                    {project.status === 'active' && (
+                      <Button variant="outline" className="w-full" size="sm" asChild>
+                        <Link to={`/client/projects/${id}/edit`}>
+                          <Edit className="size-4 mr-2" />
+                          Edit Project
+                        </Link>
+                      </Button>
+                    )}
                     <Button variant="outline" className="w-full" size="sm" asChild>
                       <Link to="/support">
                         <AlertCircle className="size-4 mr-2" />
@@ -609,45 +639,6 @@ export default function ProjectDetail() {
           </DialogContent>
         </Dialog>
 
-        {/* Raise Dispute Dialog */}
-        <Dialog open={showDisputeDialog} onOpenChange={setShowDisputeDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Raise a Dispute</DialogTitle>
-              <DialogDescription>
-                Our admin team will review your concern and work to resolve it fairly.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="subject">Subject</Label>
-                <Input
-                  id="subject"
-                  placeholder="Brief description of the issue"
-                  value={disputeSubject}
-                  onChange={e => setDisputeSubject(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Provide detailed information about the issue..."
-                  value={disputeDescription}
-                  onChange={e => setDisputeDescription(e.target.value)}
-                  rows={4}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDisputeDialog(false)}>Cancel</Button>
-              <Button onClick={handleRaiseDispute} disabled={!disputeSubject || !disputeDescription}>
-                <Flag className="size-4 mr-2" />
-                Submit Dispute
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );

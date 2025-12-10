@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { useData } from '../../contexts/DataContext';
 import { Briefcase, Users, DollarSign, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
+import { statusColors, statusLabels } from '../../constants/projectConstants';
 
 export default function AdminDashboard() {
   const { projects, consultations, bids } = useData();
@@ -27,16 +28,6 @@ export default function AdminDashboard() {
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
-  const statusColors = {
-    draft: 'bg-gray-100 text-gray-700',
-    pending_review: 'bg-yellow-100 text-yellow-700',
-    in_bidding: 'bg-blue-100 text-blue-700',
-    assigned: 'bg-purple-100 text-purple-700',
-    in_progress: 'bg-green-100 text-green-700',
-    completed: 'bg-green-100 text-green-800',
-    cancelled: 'bg-red-100 text-red-700',
-    disputed: 'bg-orange-100 text-orange-700',
-  };
 
   return (
     <DashboardLayout>
@@ -96,7 +87,7 @@ export default function AdminDashboard() {
                         <p className="text-sm text-gray-600">Client: {project.client_name}</p>
                       </div>
                       <Badge className={statusColors[project.status]}>
-                        {project.status.replace('_', ' ').toUpperCase()}
+                        {statusLabels[project.status] || project.status.replace('_', ' ')}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between text-sm text-gray-600">

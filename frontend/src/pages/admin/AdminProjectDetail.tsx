@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import { statusLabels } from '../../constants/projectConstants';
 import { ArrowLeft, Edit2, Users, DollarSign, Calendar, TrendingUp, MessageSquare, AlertTriangle } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
@@ -103,7 +104,7 @@ export default function AdminProjectDetail() {
                 <h1 className="text-3xl mb-2">{project.title}</h1>
                 <div className="flex items-center gap-3">
                   <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(project.status)}`}>
-                    {project.status.replace('_', ' ').toUpperCase()}
+                    {statusLabels[project.status] || project.status.replace('_', ' ')}
                   </span>
                   <span className="text-sm text-gray-600">ID: {project.id}</span>
                 </div>

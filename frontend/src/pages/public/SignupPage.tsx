@@ -1,25 +1,25 @@
-import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group';
-import { Shield, Briefcase, User, Users } from 'lucide-react';
+import { Shield, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from '../../utils/toast';
+import OtpDialog from '../../components/common/OtpDialog';
 
 export default function SignupPage() {
-  const [searchParams] = useSearchParams();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState(searchParams.get('role') || 'client');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [showOTPVerification, setShowOTPVerification] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
   const { signup, verifyOTP, resendOTP } = useAuth();
   const navigate = useNavigate();
 
@@ -54,13 +54,13 @@ export default function SignupPage() {
     }
   };
 
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVerifyOTP = async (otp: string) => {
     setLoading(true);
 
     try {
-      await verifyOTP(verificationEmail, otpCode);
+      await verifyOTP(verificationEmail, otp);
       toast.success('Email verified successfully!');
+      setShowOTPVerification(false);
       navigate('/login');
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'OTP verification failed';
@@ -71,7 +71,7 @@ export default function SignupPage() {
   };
 
   const handleResendOTP = async () => {
-    setLoading(true);
+    setResendLoading(true);
     try {
       await resendOTP(verificationEmail);
       toast.success('OTP resent successfully!');
@@ -79,7 +79,7 @@ export default function SignupPage() {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to resend OTP';
       toast.error(errorMessage);
     } finally {
-      setLoading(false);
+      setResendLoading(false);
     }
   };
 
@@ -99,99 +99,8 @@ export default function SignupPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">
-          {showOTPVerification ? (
-            <form className="space-y-6" onSubmit={handleVerifyOTP}>
-              <div>
-                <h3 className="text-xl font-semibold mb-2">Verify Your Email</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  We've sent a verification code to <strong>{verificationEmail}</strong>
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="otp">Enter OTP</Label>
-                <Input
-                  id="otp"
-                  name="otp"
-                  type="text"
-                  maxLength={6}
-                  required
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                  className="mt-1 text-center text-2xl tracking-widest"
-                  placeholder="000000"
-                />
-                <p className="text-xs text-gray-500 mt-1">Enter the 6-digit code from your email</p>
-              </div>
-
-              <div>
-                <Button type="submit" className="w-full" disabled={loading || otpCode.length !== 6}>
-                  {loading ? 'Verifying...' : 'Verify Email'}
-                </Button>
-              </div>
-
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={handleResendOTP}
-                  disabled={loading}
-                  className="text-sm text-blue-600 hover:text-blue-500 disabled:text-gray-400"
-                >
-                  Resend OTP
-                </button>
-              </div>
-
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowOTPVerification(false);
-                    setOtpCode('');
-                  }}
-                  className="text-sm text-gray-600 hover:text-gray-900"
-                >
-                  Back to signup
-                </button>
-              </div>
-            </form>
-          ) : (
+          {!showOTPVerification && (
             <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <Label htmlFor="role">I want to:</Label>
-              <RadioGroup value={role} onValueChange={setRole} className="mt-2">
-                <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-gray-50">
-                  <RadioGroupItem value="client" id="client" />
-                  <label htmlFor="client" className="flex items-center gap-3 cursor-pointer flex-1">
-                    <User className="size-5 text-blue-600" />
-                    <div>
-                      <div>Hire for a project</div>
-                      <div className="text-sm text-gray-500">I'm a client looking for talent</div>
-                    </div>
-                  </label>
-                </div>
-                <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-gray-50">
-                  <RadioGroupItem value="freelancer" id="freelancer" />
-                  <label htmlFor="freelancer" className="flex items-center gap-3 cursor-pointer flex-1">
-                    <Briefcase className="size-5 text-indigo-600" />
-                    <div>
-                      <div>Work on projects</div>
-                      <div className="text-sm text-gray-500">I'm a freelancer looking for work</div>
-                    </div>
-                  </label>
-                </div>
-                <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-gray-50">
-                  <RadioGroupItem value="agent" id="agent" />
-                  <label htmlFor="agent" className="flex items-center gap-3 cursor-pointer flex-1">
-                    <Users className="size-5 text-purple-600" />
-                    <div>
-                      <div>Manage projects as Agent</div>
-                      <div className="text-sm text-gray-500">Connect clients with freelancers</div>
-                    </div>
-                  </label>
-                </div>
-              </RadioGroup>
-            </div>
-
             <div>
               <Label htmlFor="name">Full Name</Label>
               <Input
@@ -222,31 +131,57 @@ export default function SignupPage() {
 
             <div>
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1"
-              />
+              <div className="relative mt-1">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-5" />
+                  ) : (
+                    <Eye className="size-5" />
+                  )}
+                </button>
+              </div>
               <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
             </div>
 
             <div>
               <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-1"
-              />
+              <div className="relative mt-1">
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="size-5" />
+                  ) : (
+                    <Eye className="size-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-start">
@@ -313,6 +248,19 @@ export default function SignupPage() {
           )}
         </div>
       </div>
+
+      <OtpDialog
+        open={showOTPVerification}
+        onOpenChange={setShowOTPVerification}
+        email={verificationEmail}
+        title="Verify Your Email"
+        description="Enter the 6-digit verification code sent to your email address to complete registration."
+        otpLength={6}
+        loading={loading}
+        resendLoading={resendLoading}
+        onVerify={handleVerifyOTP}
+        onResend={handleResendOTP}
+      />
     </div>
   );
 }

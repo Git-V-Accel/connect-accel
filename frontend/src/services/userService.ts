@@ -53,6 +53,12 @@ export const listClients = async () => {
   return users.map(normalizeUser).filter((u) => u.role === 'client');
 };
 
+export const listFreelancers = async () => {
+  const res = await apiClient.get<{ users: UserResponse[] }>(`${API_CONFIG.API_URL}/users/freelancers`);
+  const users = (res.data as any)?.users || res.data;
+  return users.map(normalizeUser).filter((u) => u.role === 'freelancer');
+};
+
 export const listUsers = async () => {
   const res = await apiClient.get<{ users: UserResponse[] }>(`${API_CONFIG.API_URL}/users`);
   const users = (res.data as any)?.users || res.data;
@@ -60,8 +66,9 @@ export const listUsers = async () => {
 };
 
 export const getUserById = async (userId: string) => {
-  const res = await apiClient.get<UserResponse>(`${API_CONFIG.API_URL}/users/${userId}`);
-  return normalizeUser(res.data as any);
+  const res = await apiClient.get<{ success: boolean; user: UserResponse }>(`${API_CONFIG.API_URL}/users/${userId}`);
+  const userData = (res.data as any)?.user || res.data;
+  return normalizeUser(userData);
 };
 
 export const createUser = async (data: UserPayload) => {

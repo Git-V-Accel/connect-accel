@@ -158,7 +158,7 @@ export default function FreelancerDirectory() {
             variant="outline"
             size="sm"
             onClick={() => {
-              navigate(`/admin/freelancers/${freelancer.id}`);
+              navigate(`/admin/users/${freelancer.id}/freelancer`);
             }}
           >
             <Eye className="size-4 mr-2" />

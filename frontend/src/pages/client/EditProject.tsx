@@ -11,16 +11,18 @@ import { Badge } from '../../components/ui/badge';
 import { Progress } from '../../components/ui/progress';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Calendar, DollarSign, FileText, Settings, Plus, X, Phone } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { categories, commonSkills, projectTypes, projectPriorities } from '../../constants/projectConstants';
 
-export default function CreateProject() {
+export default function EditProject() {
   const { user } = useAuth();
-  const { createProject } = useData();
+  const { getProject, updateProject } = useData();
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   
+  const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(1);
   const [visitedSteps, setVisitedSteps] = useState<Set<number>>(new Set([1]));
   const formContentRef = useRef<HTMLDivElement>(null);
@@ -40,6 +42,49 @@ export default function CreateProject() {
     negotiable: false,
     skills_required: [] as string[],
   });
+
+  // Load project data
+  useEffect(() => {
+    const loadProject = async () => {
+      if (!id) {
+        toast.error('Project ID is required');
+        navigate('/client/projects');
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const project = await getProject(id);
+        
+        if (!project) {
+          toast.error('Project not found');
+          navigate('/client/projects');
+          return;
+        }
+
+        // Pre-fill form with project data
+        setFormData({
+          title: project.title || '',
+          description: project.description || '',
+          category: project.category || '',
+          project_type: '', // This might not be in the project model
+          priority: project.priority || 'medium',
+          client_budget: project.budget?.toString() || project.client_budget?.toString() || '',
+          duration_weeks: project.duration_weeks?.toString() || (project.timeline ? project.timeline.replace(' weeks', '').replace(' weeks', '') : ''),
+          negotiable: project.isNegotiableBudget || false,
+          skills_required: project.skills_required || [],
+        });
+      } catch (error: any) {
+        console.error('Failed to load project:', error);
+        toast.error('Failed to load project');
+        navigate('/client/projects');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProject();
+  }, [id, getProject, navigate]);
 
   const updateFormData = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -75,7 +120,7 @@ export default function CreateProject() {
   const canProceed = () => {
     switch (step) {
       case 1:
-        return formData.title && formData.description && formData.category && formData.project_type;
+        return formData.title && formData.description && formData.category;
       case 2:
         return formData.client_budget && formData.duration_weeks && formData.priority;
       case 3:
@@ -90,12 +135,10 @@ export default function CreateProject() {
   const changeStep = (newStep: number, skipValidation = false) => {
     if (isTransitioning) return;
     
-    // Validation: can only go forward if current step is valid
     if (newStep > step && !skipValidation && !canProceed()) {
       return;
     }
     
-    // Can go back to any visited step, or forward if validation passes
     if (newStep <= step || visitedSteps.has(newStep) || (newStep === step + 1 && canProceed())) {
       setIsTransitioning(true);
       setStep(newStep);
@@ -103,12 +146,12 @@ export default function CreateProject() {
       
       setTimeout(() => {
         setIsTransitioning(false);
-      }, 300); // Match CSS transition duration
+      }, 300);
     }
   };
 
   const handleStepChange = (newStep: number) => {
-    changeStep(newStep, true); // Allow clicking on visited steps
+    changeStep(newStep, true);
   };
 
   const handleNext = () => {
@@ -123,7 +166,6 @@ export default function CreateProject() {
     }
   };
 
-  // Throttled scroll handler
   const handleWheel = (e: WheelEvent) => {
     if (isTransitioning || scrollTimeoutRef.current) return;
     
@@ -131,24 +173,21 @@ export default function CreateProject() {
     
     scrollTimeoutRef.current = setTimeout(() => {
       scrollTimeoutRef.current = null;
-    }, 500); // Throttle: 500ms between scroll actions
+    }, 500);
     
     const deltaY = e.deltaY;
     
     if (deltaY > 0) {
-      // Scrolling down - go to next step
       if (canProceed() && step < 4) {
         handleNext();
       }
     } else if (deltaY < 0) {
-      // Scrolling up - go to previous step
       if (step > 1) {
         handleBack();
       }
     }
   };
 
-  // Touch swipe handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartRef.current = {
       x: e.touches[0].clientX,
@@ -170,19 +209,15 @@ export default function CreateProject() {
     const deltaY = touchEnd.y - touchStartRef.current.y;
     const deltaTime = touchEnd.time - touchStartRef.current.time;
     
-    // Minimum swipe distance and maximum time
     const minSwipeDistance = 50;
     const maxSwipeTime = 300;
     
-    // Check if it's a vertical swipe (more vertical than horizontal)
     if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > minSwipeDistance && deltaTime < maxSwipeTime) {
       if (deltaY < 0) {
-        // Swipe up - go to next step
         if (canProceed() && step < 4) {
           handleNext();
         }
       } else {
-        // Swipe down - go to previous step
         if (step > 1) {
           handleBack();
         }
@@ -192,7 +227,6 @@ export default function CreateProject() {
     touchStartRef.current = null;
   };
 
-  // Add wheel event listener
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -209,34 +243,28 @@ export default function CreateProject() {
   }, [step, isTransitioning]);
 
   const handleSubmit = async () => {
-    if (!user) return;
+    if (!user || !id) return;
 
     try {
       const budget = parseInt(formData.client_budget);
-      const project = await createProject({
+      await updateProject(id, {
         title: formData.title,
         description: formData.description,
-        client_id: user.id,
-        client_name: user.name,
-        status: 'pending_review',
         category: formData.category,
         skills_required: formData.skills_required,
         budget: budget,
         client_budget: budget,
         duration_weeks: parseInt(formData.duration_weeks),
         priority: formData.priority as 'low' | 'medium' | 'high',
-        complexity: 'moderate', // Default value, can be updated later
-        requirements: false, // Default value
         timeline: `${formData.duration_weeks} weeks`,
         isNegotiableBudget: formData.negotiable,
       });
 
-      toast.success('Project submitted successfully! Our team will review it shortly.');
+      toast.success('Project updated successfully!');
       
-      navigate('/client/projects');
+      navigate(`/client/projects/${id}`);
     } catch (error: any) {
-      // Error is already handled in DataContext with toast
-      console.error('Failed to create project:', error);
+      console.error('Failed to update project:', error);
     }
   };
 
@@ -247,7 +275,7 @@ export default function CreateProject() {
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl mb-2">Project Details</h2>
-              <p className="text-gray-600">Tell us about your project</p>
+              <p className="text-gray-600">Update your project information</p>
             </div>
 
             <div className="space-y-4">
@@ -290,7 +318,7 @@ export default function CreateProject() {
               </div>
 
               <div>
-                <Label>Project Type *</Label>
+                <Label>Project Type</Label>
                 <div className="grid gap-3 mt-2">
                   {projectTypes.map(type => (
                     <Card
@@ -324,7 +352,7 @@ export default function CreateProject() {
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl mb-2">Budget & Timeline</h2>
-              <p className="text-gray-600">Set your budget and expected timeline</p>
+              <p className="text-gray-600">Update your budget and expected timeline</p>
             </div>
 
             <div className="space-y-4">
@@ -354,7 +382,7 @@ export default function CreateProject() {
                   />
                 </div>
               </div>
- <Card className="p-4">
+              <Card className="p-4">
                 <div className="flex items-start gap-3">
                   <Checkbox
                     id="negotiable"
@@ -397,8 +425,6 @@ export default function CreateProject() {
                   ))}
                 </div>
               </div>
-
-             
             </div>
           </div>
         );
@@ -408,7 +434,7 @@ export default function CreateProject() {
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl mb-2">Required Tech-Stacks</h2>
-              <p className="text-gray-600">Select the technologies and skills needed for your project</p>
+              <p className="text-gray-600">Update the technologies and skills needed for your project</p>
             </div>
 
             <div className="space-y-4">
@@ -418,7 +444,6 @@ export default function CreateProject() {
                   Select from the list below or create new skills
                 </p>
                 
-                {/* Add New Skill Input */}
                 <div className="flex gap-2 mb-4">
                   <Input
                     placeholder="Enter a new skill (e.g., Next.js, Tailwind CSS)"
@@ -438,7 +463,6 @@ export default function CreateProject() {
                   </Button>
                 </div>
 
-                {/* Selected Skills Display */}
                 {formData.skills_required.length > 0 && (
                   <div className="mb-4">
                     <p className="text-sm font-medium mb-2">Selected Skills:</p>
@@ -458,7 +482,6 @@ export default function CreateProject() {
                   </div>
                 )}
 
-                {/* Predefined Skills */}
                 <div>
                   <p className="text-sm text-gray-500 mb-2">Select from common skills:</p>
                   <div className="flex flex-wrap gap-2">
@@ -491,8 +514,8 @@ export default function CreateProject() {
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl mb-2">Review & Submit</h2>
-              <p className="text-gray-600">Review your project details before submitting</p>
+              <h2 className="text-2xl mb-2">Review & Update</h2>
+              <p className="text-gray-600">Review your project details before updating</p>
             </div>
 
             <Card className="p-6 space-y-4">
@@ -545,32 +568,6 @@ export default function CreateProject() {
                 </div>
               </div>
             </Card>
-
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium mb-2">What happens next?</h4>
-              <ol className="text-sm text-gray-600 space-y-2">
-                <li className="flex gap-2">
-                  <span className="font-medium">1.</span>
-                  <span>Our admin team reviews your project (within 24 hours)</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-medium">2.</span>
-                  <span>We refine the scope and create milestones</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-medium">3.</span>
-                  <span>Handpicked freelancers submit proposals</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-medium">4.</span>
-                  <span>We recommend the best match and you approve</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-medium">5.</span>
-                  <span>Work begins with milestone-based payments</span>
-                </li>
-              </ol>
-            </div>
           </div>
         );
 
@@ -586,22 +583,28 @@ export default function CreateProject() {
     { number: 4, title: 'Review', icon: <Check className="size-4" /> },
   ];
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <p className="text-gray-600">Loading project...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="max-w-8xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/client/projects')}>
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/client/projects/${id}`)}>
             <ArrowLeft className="size-4 mr-2" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl">Create New Project</h1>
-            <p className="text-gray-600">Submit a project and get matched with expert freelancers</p>
+            <h1 className="text-3xl">Edit Project</h1>
+            <p className="text-gray-600">Update your project details</p>
           </div>
-          <Button variant="default" onClick={() => alert('Consultation request Send successfully')}>
-            <Phone className="size-4 mr-2" />
-            Consultation
-          </Button>
         </div>
 
         {/* Progress Steps */}
@@ -658,13 +661,10 @@ export default function CreateProject() {
             <div className="relative h-full">
               {[1, 2, 3, 4]
                 .filter((stepNum) => {
-                  // Only show steps that are unlocked (visited or current step)
                   return visitedSteps.has(stepNum) || stepNum === step;
                 })
                 .map((stepNum) => {
                   const isCurrentStep = stepNum === step;
-                  const unlockedSteps = [1, 2, 3, 4].filter(s => visitedSteps.has(s) || s === step);
-                  const currentIndex = unlockedSteps.indexOf(step);
                   
                   return (
                     <div
@@ -683,7 +683,6 @@ export default function CreateProject() {
                     >
                       <div className="space-y-6">
                         {renderStep(stepNum)}
-                        {/* Navigation Buttons - only show for current step */}
                         {isCurrentStep && (
                           <div className="flex items-center justify-between pt-4 border-t">
                             <Button
@@ -705,7 +704,7 @@ export default function CreateProject() {
                               </Button>
                             ) : (
                               <Button onClick={handleSubmit} size="lg" disabled={isTransitioning}>
-                                Submit Project
+                                Update Project
                                 <Check className="size-4 ml-2" />
                               </Button>
                             )}
@@ -718,9 +717,8 @@ export default function CreateProject() {
             </div>
           </Card>
         </div>
-
-       
       </div>
     </DashboardLayout>
   );
 }
+

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
@@ -7,21 +7,68 @@ import { Badge } from '../../components/ui/badge';
 import { ArrowLeft, User, Mail, Phone, Building, Calendar, DollarSign, Briefcase, TrendingUp, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import * as userService from '../../services/userService';
+import { toast } from '../../utils/toast';
+
+interface UnifiedUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'client' | 'freelancer' | 'admin' | 'superadmin' | 'agent';
+  status: 'active' | 'inactive';
+  phone?: string;
+  company?: string;
+  created_at: string;
+  last_login?: string;
+  title?: string;
+  rating?: number;
+}
 
 export default function UserDetail() {
   const { id, type } = useParams<{ id: string; type: string }>();
   const navigate = useNavigate();
-  const { getAllUsers, projects, bids, getProjectsByUser, getBidsByFreelancer, getMilestonesByProject, payments } = useData();
+  const { projects, bids, getProjectsByUser, getBidsByFreelancer, getMilestonesByProject, payments } = useData();
   const { user: currentUser } = useAuth();
+  const [user, setUser] = useState<UnifiedUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const allUsers = getAllUsers();
-  const user = allUsers.find(u => u.id === id);
+  useEffect(() => {
+    const loadUser = async () => {
+      if (!id) return;
+      
+      setLoading(true);
+      setError(null);
+      try {
+        const userData = await userService.getUserById(id);
+        setUser(userData as UnifiedUser);
+      } catch (err: any) {
+        const message = err?.response?.data?.message || err.message || 'Failed to load user';
+        setError(message);
+        toast.error(message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (!user) {
+    loadUser();
+  }, [id]);
+
+  if (loading) {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <p className="text-gray-600">User not found</p>
+          <p className="text-gray-600">Loading user...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error || !user) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <p className="text-gray-600">{error || 'User not found'}</p>
           <Button onClick={() => navigate('/admin/users')} className="mt-4">
             <ArrowLeft className="size-4 mr-2" />
             Back to Users
@@ -68,10 +115,9 @@ export default function UserDetail() {
       .reduce((sum, p) => sum + (p.budget || p.client_budget || 0), 0);
   }
 
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     active: 'bg-green-100 text-green-700',
-    suspended: 'bg-yellow-100 text-yellow-700',
-    banned: 'bg-red-100 text-red-700',
+    inactive: 'bg-yellow-100 text-yellow-700',
   };
 
   return (

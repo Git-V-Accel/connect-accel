@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useAuth } from './AuthContext';
 import { socketService } from '../services/socketService';
 import { SocketEvents } from '../constants/socketConstants';
+import * as projectService from '../services/projectService';
+import { toast } from '../utils/toast';
 
 // Types
 export interface Project {
@@ -220,15 +222,15 @@ interface DataContextType {
   notifications: Notification[];
   
   // Project methods
-  createProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => Project;
-  updateProject: (id: string, updates: Partial<Project>) => void;
-  getProject: (id: string) => Project | undefined;
+  createProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => Promise<Project>;
+  updateProject: (id: string, updates: Partial<Project>) => Promise<Project>;
+  getProject: (id: string) => Promise<Project | undefined>;
   getProjectsByUser: (userId: string, role: string) => Project[];
   getProjectsByAgent: (agentId: string) => Project[];
   
   // Milestone methods
-  createMilestone: (milestone: Omit<Milestone, 'id'>) => Milestone;
-  updateMilestone: (id: string, updates: Partial<Milestone>) => void;
+  createMilestone: (milestone: Omit<Milestone, 'id'>) => Promise<Milestone>;
+  updateMilestone: (id: string, updates: Partial<Milestone>) => Promise<Milestone>;
   deleteMilestone: (id: string) => void;
   getMilestonesByProject: (projectId: string) => Milestone[];
   
@@ -330,29 +332,40 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
   });
 
+  // Load projects from backend when user is available
   useEffect(() => {
-    if (user) {
-      const stored = localStorage.getItem('connect_accel_data');
-      if (!stored) {
-        // Initialize with empty data structure if no stored data
-        const emptyData = {
-          projects: [],
-          milestones: [],
-          bids: [],
-          bidInvitations: [],
-          consultations: [],
-          payments: [],
-          disputes: [],
-          messages: [],
-          conversations: [],
-          notifications: [],
-          freelancers: [],
-          clients: [],
-        };
-        setData(emptyData);
-        localStorage.setItem('connect_accel_data', JSON.stringify(emptyData));
+    const loadProjects = async () => {
+      if (!user) return;
+      
+      try {
+        const result = await projectService.listProjects();
+        const normalizedProjects = result.projects.map(projectService.normalizeProject);
+        
+        // Extract milestones from all projects
+        const allMilestones: Milestone[] = [];
+        result.projects.forEach((project: any) => {
+          if (project.milestones && Array.isArray(project.milestones)) {
+            project.milestones.forEach((milestone: any, index: number) => {
+              const normalizedMilestone = projectService.normalizeMilestone(milestone);
+              normalizedMilestone.project_id = project._id || project.id || '';
+              normalizedMilestone.order = index;
+              allMilestones.push(normalizedMilestone);
+            });
+          }
+        });
+        
+        setData((prev: any) => ({
+          ...prev,
+          projects: normalizedProjects,
+          milestones: allMilestones,
+        }));
+      } catch (error: any) {
+        console.error('Failed to load projects:', error);
+        // Keep existing data if fetch fails
       }
-    }
+    };
+
+    loadProjects();
   }, [user]);
 
   useEffect(() => {
@@ -362,101 +375,65 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [data, user]);
 
   // Project methods
-  const createProject = (projectData: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
-    const newProject: Project = {
-      ...projectData,
-      id: 'proj_' + Math.random().toString(36).substr(2, 9),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    
-    setData((prev: any) => {
-      const updatedData = { ...prev, projects: [...prev.projects, newProject] };
+  const createProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      const payload: projectService.CreateProjectPayload = {
+        title: projectData.title,
+        clientTitle: projectData.clientTitle,
+        description: projectData.description,
+        budget: projectData.budget || projectData.client_budget || 0,
+        isNegotiableBudget: projectData.isNegotiableBudget,
+        timeline: projectData.timeline || `${projectData.duration_weeks} weeks`,
+        category: projectData.category,
+        skills: projectData.skills_required,
+        priority: projectData.priority,
+        complexity: projectData.complexity,
+      };
+
+      const createdProject = await projectService.createProject(payload);
+      const normalizedProject = projectService.normalizeProject(createdProject);
       
-      // Emit socket notification to all admins and superadmins
-      if (socketService.isConnected()) {
-        // Get all users using the existing getAllUsers function
-        // We'll call it after setData, so we need to compute it here
-        const allUsers: any[] = [];
-        
-        // Add clients
-        updatedData.clients.forEach((c: any) => {
-          allUsers.push({
-            id: c.id,
-            name: c.name,
-            email: c.email,
-            role: 'client',
-            status: 'active',
-            created_at: c.created_at,
-          });
-        });
-        
-        // Add freelancers
-        updatedData.freelancers.forEach((f: any) => {
-          allUsers.push({
-            id: f.id,
-            name: f.name,
-            email: f.email,
-            role: f.role || 'freelancer',
-            status: 'active',
-            created_at: f.created_at,
-          });
-        });
-        
-        // Add created users from localStorage
-        const createdUsers = JSON.parse(localStorage.getItem('connect_accel_created_users') || '[]');
-        createdUsers.forEach((u: any) => {
-          allUsers.push({
-            id: u.id,
-            name: u.name,
-            email: u.email,
-            role: u.role,
-            status: u.status || 'active',
-            created_at: u.created_at,
-          });
-        });
-        
-        // Filter for admins and superadmins
-        const allAdmins = allUsers.filter((u: any) => u.role === 'admin' || u.role === 'superadmin');
-        
-        // Emit notification to each admin/superadmin
-        allAdmins.forEach((admin: any) => {
-          const notification = {
-            id: 'notif_' + Math.random().toString(36).substr(2, 9),
-            user_id: admin.id,
-            type: 'project' as const,
-            title: 'New Project Submitted',
-            description: `Client "${projectData.client_name}" has submitted a new project: "${projectData.title}"`,
-            link: `/admin/projects/${newProject.id}`,
-            read: false,
-            created_at: new Date().toISOString(),
-          };
-          
-          // Emit socket event
-          socketService.getSocket()?.emit('notification:create', notification);
-          
-          // Also add to local notifications
-          updatedData.notifications.push(notification);
-        });
-      }
+      setData((prev: any) => ({
+        ...prev,
+        projects: [...prev.projects, normalizedProject],
+      }));
       
-      return updatedData;
-    });
-    
-    return newProject;
+      return normalizedProject;
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error.message || 'Failed to create project';
+      toast.error(errorMessage);
+      throw error;
+    }
   };
 
-  const updateProject = (id: string, updates: Partial<Project>) => {
-    setData((prev: any) => {
-      const updatedProjects = prev.projects.map((p: Project) =>
-        p.id === id ? { ...p, ...updates, updated_at: new Date().toISOString() } : p
-      );
+  const updateProject = async (id: string, updates: Partial<Project>) => {
+    try {
+      const payload: projectService.UpdateProjectPayload = {};
+      if (updates.title) payload.title = updates.title;
+      if (updates.clientTitle !== undefined) payload.clientTitle = updates.clientTitle;
+      if (updates.description) payload.description = updates.description;
+      if (updates.budget !== undefined) payload.budget = updates.budget;
+      if (updates.isNegotiableBudget !== undefined) payload.isNegotiableBudget = updates.isNegotiableBudget;
+      if (updates.timeline) payload.timeline = updates.timeline;
+      if (updates.category) payload.category = updates.category;
+      if (updates.skills_required) payload.skills = updates.skills_required;
+      if (updates.priority) payload.priority = updates.priority;
+      if (updates.complexity) payload.complexity = updates.complexity;
+      if (updates.status) payload.status = updates.status as any;
+
+      const updatedProject = await projectService.updateProject(id, payload);
+      const normalizedProject = projectService.normalizeProject(updatedProject);
       
-      // Create notifications for project updates
-      const project = prev.projects.find((p: Project) => p.id === id);
-      const newNotifications = [...prev.notifications];
-      
-      if (project) {
+      setData((prev: any) => {
+        const updatedProjects = prev.projects.map((p: Project) =>
+          p.id === id ? normalizedProject : p
+        );
+        
+        // Create notifications for project updates
+        const project = prev.projects.find((p: Project) => p.id === id);
+        const newNotifications = [...prev.notifications];
+        
+        if (project) {
         // Notify client when admin changes anything in the project
         if (socketService.isConnected() && user && (user.role === 'admin' || user.role === 'superadmin')) {
           // Determine what changed
@@ -552,16 +529,65 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
       }
       
-      return {
-        ...prev,
-        projects: updatedProjects,
-        notifications: newNotifications,
-      };
-    });
+        return {
+          ...prev,
+          projects: updatedProjects,
+          notifications: newNotifications,
+        };
+      });
+      
+      return normalizedProject;
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error.message || 'Failed to update project';
+      toast.error(errorMessage);
+      throw error;
+    }
   };
 
-  const getProject = (id: string) => {
-    return data.projects.find((p: Project) => p.id === id);
+  const getProject = async (id: string): Promise<Project | undefined> => {
+    // First check local data
+    const localProject = data.projects.find((p: Project) => p.id === id);
+    if (localProject) return localProject;
+
+    // If not found, fetch from backend
+    try {
+      const project = await projectService.getProjectById(id);
+      const normalizedProject = projectService.normalizeProject(project);
+      
+      // Extract milestones from project if they exist
+      const projectMilestones: Milestone[] = [];
+      if (project.milestones && Array.isArray(project.milestones)) {
+        project.milestones.forEach((milestone: any, index: number) => {
+          const normalizedMilestone = projectService.normalizeMilestone(milestone);
+          normalizedMilestone.project_id = id;
+          normalizedMilestone.order = index;
+          projectMilestones.push(normalizedMilestone);
+        });
+      }
+      
+      setData((prev: any) => {
+        const existingIndex = prev.projects.findIndex((p: Project) => p.id === id);
+        const updatedProjects = existingIndex >= 0 ? [...prev.projects] : [...prev.projects, normalizedProject];
+        if (existingIndex >= 0) {
+          updatedProjects[existingIndex] = normalizedProject;
+        }
+        
+        // Merge milestones - avoid duplicates
+        const existingMilestoneIds = new Set(prev.milestones.map((m: Milestone) => m.id));
+        const newMilestones = projectMilestones.filter((m: Milestone) => !existingMilestoneIds.has(m.id));
+        
+        return { 
+          ...prev, 
+          projects: updatedProjects,
+          milestones: [...prev.milestones, ...newMilestones]
+        };
+      });
+      
+      return normalizedProject;
+    } catch (error: any) {
+      console.error('Failed to fetch project:', error);
+      return undefined;
+    }
   };
 
   const getProjectsByUser = (userId: string, role: string) => {
@@ -580,22 +606,65 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   // Milestone methods
-  const createMilestone = (milestoneData: Omit<Milestone, 'id'>) => {
-    const newMilestone: Milestone = {
-      ...milestoneData,
-      id: 'milestone_' + Math.random().toString(36).substr(2, 9),
-    };
-    setData((prev: any) => ({ ...prev, milestones: [...prev.milestones, newMilestone] }));
-    return newMilestone;
+  const createMilestone = async (milestoneData: Omit<Milestone, 'id'>) => {
+    try {
+      const payload: projectService.CreateMilestonePayload = {
+        title: milestoneData.title,
+        description: milestoneData.description,
+        dueDate: milestoneData.due_date,
+        amount: milestoneData.amount,
+        notes: milestoneData.submission_notes,
+      };
+
+      const createdMilestone = await projectService.addMilestone(milestoneData.project_id, payload);
+      const normalizedMilestone = projectService.normalizeMilestone(createdMilestone);
+      normalizedMilestone.project_id = milestoneData.project_id;
+      normalizedMilestone.order = data.milestones.filter((m: Milestone) => m.project_id === milestoneData.project_id).length;
+      
+      setData((prev: any) => ({ 
+        ...prev, 
+        milestones: [...prev.milestones, normalizedMilestone] 
+      }));
+      
+      return normalizedMilestone;
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error.message || 'Failed to create milestone';
+      toast.error(errorMessage);
+      throw error;
+    }
   };
 
-  const updateMilestone = (id: string, updates: Partial<Milestone>) => {
-    setData((prev: any) => ({
-      ...prev,
-      milestones: prev.milestones.map((m: Milestone) =>
-        m.id === id ? { ...m, ...updates } : m
-      ),
-    }));
+  const updateMilestone = async (id: string, updates: Partial<Milestone>) => {
+    try {
+      const milestone = data.milestones.find((m: Milestone) => m.id === id);
+      if (!milestone) throw new Error('Milestone not found');
+
+      const payload: Partial<projectService.CreateMilestonePayload & { status?: string }> = {};
+      if (updates.title) payload.title = updates.title;
+      if (updates.description) payload.description = updates.description;
+      if (updates.due_date) payload.dueDate = updates.due_date;
+      if (updates.amount !== undefined) payload.amount = updates.amount;
+      if (updates.status) payload.status = updates.status;
+      if (updates.submission_notes) payload.notes = updates.submission_notes;
+
+      const updatedMilestone = await projectService.updateMilestone(milestone.project_id, id, payload);
+      const normalizedMilestone = projectService.normalizeMilestone(updatedMilestone);
+      normalizedMilestone.project_id = milestone.project_id;
+      normalizedMilestone.order = milestone.order;
+      
+      setData((prev: any) => ({
+        ...prev,
+        milestones: prev.milestones.map((m: Milestone) =>
+          m.id === id ? normalizedMilestone : m
+        ),
+      }));
+      
+      return normalizedMilestone;
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error.message || 'Failed to update milestone';
+      toast.error(errorMessage);
+      throw error;
+    }
   };
 
   const deleteMilestone = (id: string) => {
@@ -606,6 +675,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const getMilestonesByProject = (projectId: string) => {
+    // First check if project has milestones embedded
+    const project = data.projects.find((p: Project) => p.id === projectId);
+    if (project && (project as any).milestones && Array.isArray((project as any).milestones)) {
+      return (project as any).milestones.map((m: any, index: number) => ({
+        id: m._id || m.id || '',
+        project_id: projectId,
+        title: m.title,
+        description: m.description,
+        amount: m.amount,
+        due_date: m.dueDate || m.due_date,
+        status: m.status,
+        order: index,
+        submission_date: m.submission_date,
+        submission_notes: m.notes || m.submission_notes,
+        approval_date: m.approval_date,
+      }));
+    }
+    // Fallback to separate milestones array
     return data.milestones.filter((m: Milestone) => m.project_id === projectId);
   };
 

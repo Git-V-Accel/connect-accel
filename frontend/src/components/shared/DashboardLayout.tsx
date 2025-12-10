@@ -191,6 +191,11 @@ export default function DashboardLayout({
           },
           {
             label: "Freelancers",
+            icon: <Briefcase className="size-5" />,
+            path: "/admin/freelancers-management",
+          },
+          {
+            label: "Freelancer Directory",
             icon: <Users className="size-5" />,
             path: "/admin/freelancers",
           },
@@ -239,6 +244,16 @@ export default function DashboardLayout({
             path: "/superadmin/users",
           },
           {
+            label: "Projects",
+            icon: <FolderKanban className="size-5" />,
+            path: "/admin/projects",
+          },
+          {
+            label: "Freelancers",
+            icon: <Briefcase className="size-5" />,
+            path: "/admin/freelancers-management",
+          },
+          {
             label: "Agents",
             icon: <Shield className="size-5" />,
             path: "/admin/agents",
@@ -252,11 +267,6 @@ export default function DashboardLayout({
             label: "Financials",
             icon: <DollarSign className="size-5" />,
             path: "/superadmin/financials",
-          },
-          {
-            label: "Disputes",
-            icon: <AlertCircle className="size-5" />,
-            path: "/superadmin/disputes",
           },
           {
             label: "Audit Logs",

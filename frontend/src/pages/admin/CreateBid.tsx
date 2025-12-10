@@ -8,7 +8,7 @@ import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { Label } from "../../components/ui/label";
 import { useData } from "../../contexts/DataContext";
-import { projectTypes } from "../../constants/projectConstants";
+import { projectTypes, statusColors, statusLabels } from "../../constants/projectConstants";
 import {
   ArrowLeft,
   DollarSign,
@@ -209,7 +209,7 @@ export default function CreateBid() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl">{project.title}</h2>
                 <Badge className={statusColors[project.status]}>
-                  {project.status.replace("_", " ").toUpperCase()}
+                  {statusLabels[project.status] || project.status.replace("_", " ")}
                 </Badge>
               </div>
 

@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import { useData } from '../../contexts/DataContext';
+import { statusColors, statusLabels } from '../../constants/projectConstants';
 import {
   Search,
   Filter,
@@ -38,16 +39,6 @@ export default function AdminProjects() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date_desc');
 
-  const statusColors = {
-    draft: 'bg-gray-100 text-gray-700',
-    pending_review: 'bg-yellow-100 text-yellow-700',
-    in_bidding: 'bg-blue-100 text-blue-700',
-    assigned: 'bg-purple-100 text-purple-700',
-    in_progress: 'bg-green-100 text-green-700',
-    completed: 'bg-green-100 text-green-800',
-    cancelled: 'bg-red-100 text-red-700',
-    disputed: 'bg-orange-100 text-orange-700',
-  };
 
   const filterProjects = (statusValue: string) => {
     let filtered = projects;
@@ -115,7 +106,7 @@ export default function AdminProjects() {
             </div>
           </div>
           <Badge className={statusColors[project.status]}>
-            {project.status.replace('_', ' ').toUpperCase()}
+            {statusLabels[project.status] || project.status.replace('_', ' ')}
           </Badge>
         </div>
 

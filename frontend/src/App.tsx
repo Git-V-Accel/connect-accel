@@ -20,6 +20,7 @@ import PricingPage from "./pages/public/PricingPage";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientProjects from "./pages/client/ClientProjects";
 import CreateProject from "./pages/client/CreateProject";
+import EditProject from "./pages/client/EditProject";
 import ProjectDetail from "./pages/client/ProjectDetail";
 import ClientPayments from "./pages/client/ClientPayments";
 import ClientSettings from "./pages/client/ClientSettings";
@@ -60,6 +61,7 @@ import CreateBid from "./pages/admin/CreateBid";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AgentManagement from "./pages/admin/AgentManagement";
 import ClientsManagement from "./pages/admin/ClientsManagement";
+import FreelancerManagement from "./pages/admin/FreelancerManagement";
 import UserDetail from "./pages/admin/UserDetail";
 
 // Agent portal
@@ -81,7 +83,6 @@ import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
 import UserManagement from "./pages/superadmin/UserManagement";
 import CreateUser from "./pages/superadmin/CreateUser";
 import FinancialReports from "./pages/superadmin/FinancialReports";
-import DisputeEscalations from "./pages/superadmin/DisputeEscalations";
 import AuditLogs from "./pages/superadmin/AuditLogs";
 import Analytics from "./pages/superadmin/Analytics";
 
@@ -89,7 +90,6 @@ import Analytics from "./pages/superadmin/Analytics";
 import MessagesPage from "./pages/shared/MessagesPage";
 import NotificationsPage from "./pages/shared/NotificationsPage";
 import SupportPage from "./pages/shared/SupportPage";
-import DisputeDetail from "./pages/shared/DisputeDetail";
 import ConsultationDetail from "./pages/shared/ConsultationDetail";
 import SettingsRouter from "./pages/shared/Settings";
 
@@ -132,6 +132,7 @@ function AppRoutes() {
       <Route path="/client/dashboard" element={<ProtectedRoute allowedRoles={['client']}><ClientDashboard /></ProtectedRoute>} />
       <Route path="/client/projects" element={<ProtectedRoute allowedRoles={['client']}><ClientProjects /></ProtectedRoute>} />
       <Route path="/client/projects/new" element={<ProtectedRoute allowedRoles={['client']}><CreateProject /></ProtectedRoute>} />
+      <Route path="/client/projects/:id/edit" element={<ProtectedRoute allowedRoles={['client']}><EditProject /></ProtectedRoute>} />
       <Route path="/client/projects/:id" element={<ProtectedRoute allowedRoles={['client']}><ProjectDetail /></ProtectedRoute>} />
       <Route path="/client/payments" element={<ProtectedRoute allowedRoles={['client']}><ClientPayments /></ProtectedRoute>} />
       <Route path="/client/settings" element={<ProtectedRoute allowedRoles={['client']}><ClientSettings /></ProtectedRoute>} />
@@ -175,6 +176,7 @@ function AppRoutes() {
       <Route path="/admin/users/:id/:type" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><UserDetail /></ProtectedRoute>} />
       <Route path="/admin/agents" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AgentManagement /></ProtectedRoute>} />
       <Route path="/admin/clients" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'agent']}><ClientsManagement /></ProtectedRoute>} />
+      <Route path="/admin/freelancers-management" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><FreelancerManagement /></ProtectedRoute>} />
 
       {/* Agent routes */}
       <Route path="/agent/dashboard" element={<ProtectedRoute allowedRoles={['agent']}><AgentDashboard /></ProtectedRoute>} />
@@ -197,7 +199,6 @@ function AppRoutes() {
       <Route path="/admin/users/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><CreateUser /></ProtectedRoute>} />
       <Route path="/superadmin/settings" element={<ProtectedRoute allowedRoles={['superadmin']}><AdminSettings /></ProtectedRoute>} />
       <Route path="/superadmin/financials" element={<ProtectedRoute allowedRoles={['superadmin']}><FinancialReports /></ProtectedRoute>} />
-      <Route path="/superadmin/disputes" element={<ProtectedRoute allowedRoles={['superadmin']}><DisputeEscalations /></ProtectedRoute>} />
       <Route path="/superadmin/audit" element={<ProtectedRoute allowedRoles={['superadmin']}><AuditLogs /></ProtectedRoute>} />
       <Route path="/superadmin/analytics" element={<ProtectedRoute allowedRoles={['superadmin']}><Analytics /></ProtectedRoute>} />
 
@@ -205,7 +206,6 @@ function AppRoutes() {
       <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
       <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
-      <Route path="/dispute/:id" element={<ProtectedRoute><DisputeDetail /></ProtectedRoute>} />
       <Route path="/consultation/:id" element={<ProtectedRoute><ConsultationDetail /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsRouter /></ProtectedRoute>} />
 

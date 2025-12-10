@@ -136,10 +136,9 @@ export default function UserManagement() {
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (u.company && u.company.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    const matchesRole = roleFilter === 'all' || u.role === roleFilter;
     const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
 
-    return matchesSearch && matchesRole && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
   const usersByRole = {
@@ -370,7 +369,7 @@ export default function UserManagement() {
 
         {/* Filters */}
         <Card className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
               <Input
@@ -380,18 +379,6 @@ export default function UserManagement() {
                 className="pl-10"
               />
             </div>
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Roles" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="client">Clients</SelectItem>
-                <SelectItem value="freelancer">Freelancers</SelectItem>
-                <SelectItem value="admin">Admins</SelectItem>
-                <SelectItem value="agent">Agents</SelectItem>
-              </SelectContent>
-            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="All Status" />

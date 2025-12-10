@@ -4,6 +4,7 @@ import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 // Progress bar will be inline for simplicity
 import { Calendar, DollarSign, User, Clock } from 'lucide-react';
+import { statusColors as defaultStatusColors, statusLabels as defaultStatusLabels } from '../../constants/projectConstants';
 
 export interface ProjectCardData {
   id: string;
@@ -33,28 +34,6 @@ interface ProjectCardProps {
   statusLabels?: Record<string, string>;
   variant?: 'default' | 'compact';
 }
-
-const defaultStatusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  pending_review: 'bg-yellow-100 text-yellow-700',
-  in_bidding: 'bg-blue-100 text-blue-700',
-  assigned: 'bg-purple-100 text-purple-700',
-  in_progress: 'bg-green-100 text-green-700',
-  completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-700',
-  disputed: 'bg-orange-100 text-orange-700',
-};
-
-const defaultStatusLabels: Record<string, string> = {
-  draft: 'Draft',
-  pending_review: 'Pending Review',
-  in_bidding: 'In Bidding',
-  assigned: 'Assigned',
-  in_progress: 'In Progress',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  disputed: 'Disputed',
-};
 
 export function ProjectCard({
   project,
