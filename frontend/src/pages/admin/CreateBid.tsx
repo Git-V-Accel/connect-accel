@@ -247,7 +247,7 @@ export default function CreateBid() {
                   </div>
                   <div>
                     <Label className="text-gray-600">Timeline</Label>
-                    <p className="mt-1">{project.timeline || "N/A"}</p>
+                    <p className="mt-1">{project.duration_weeks ? `${project.duration_weeks} weeks` : "N/A"}</p>
                   </div>
                 </div>
 

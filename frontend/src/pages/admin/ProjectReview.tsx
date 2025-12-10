@@ -153,7 +153,6 @@ export default function ProjectReview() {
   const handleApproveProject = () => {
     updateProject(project.id, {
       status: "in_bidding",
-      admin_approved: true,
     });
     toast.success("Project approved and moved to bidding!");
     setIsApproveDialogOpen(false);

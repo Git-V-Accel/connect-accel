@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { generateMockData } from '../data/mockData';
+import { socketService } from '../services/socketService';
+import { SocketEvents } from '../constants/socketConstants';
 
 // Types
 export interface Project {
@@ -336,7 +338,80 @@ export function DataProvider({ children }: { children: ReactNode }) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    setData((prev: any) => ({ ...prev, projects: [...prev.projects, newProject] }));
+    
+    setData((prev: any) => {
+      const updatedData = { ...prev, projects: [...prev.projects, newProject] };
+      
+      // Emit socket notification to all admins and superadmins
+      if (socketService.isConnected()) {
+        // Get all users using the existing getAllUsers function
+        // We'll call it after setData, so we need to compute it here
+        const allUsers: any[] = [];
+        
+        // Add clients
+        updatedData.clients.forEach((c: any) => {
+          allUsers.push({
+            id: c.id,
+            name: c.name,
+            email: c.email,
+            role: 'client',
+            status: 'active',
+            created_at: c.created_at,
+          });
+        });
+        
+        // Add freelancers
+        updatedData.freelancers.forEach((f: any) => {
+          allUsers.push({
+            id: f.id,
+            name: f.name,
+            email: f.email,
+            role: f.role || 'freelancer',
+            status: 'active',
+            created_at: f.created_at,
+          });
+        });
+        
+        // Add created users from localStorage
+        const createdUsers = JSON.parse(localStorage.getItem('connect_accel_created_users') || '[]');
+        createdUsers.forEach((u: any) => {
+          allUsers.push({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            status: u.status || 'active',
+            created_at: u.created_at,
+          });
+        });
+        
+        // Filter for admins and superadmins
+        const allAdmins = allUsers.filter((u: any) => u.role === 'admin' || u.role === 'superadmin');
+        
+        // Emit notification to each admin/superadmin
+        allAdmins.forEach((admin: any) => {
+          const notification = {
+            id: 'notif_' + Math.random().toString(36).substr(2, 9),
+            user_id: admin.id,
+            type: 'project' as const,
+            title: 'New Project Submitted',
+            description: `Client "${projectData.client_name}" has submitted a new project: "${projectData.title}"`,
+            link: `/admin/projects/${newProject.id}`,
+            read: false,
+            created_at: new Date().toISOString(),
+          };
+          
+          // Emit socket event
+          socketService.getSocket()?.emit('notification:create', notification);
+          
+          // Also add to local notifications
+          updatedData.notifications.push(notification);
+        });
+      }
+      
+      return updatedData;
+    });
+    
     return newProject;
   };
 
@@ -350,54 +425,99 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const project = prev.projects.find((p: Project) => p.id === id);
       const newNotifications = [...prev.notifications];
       
-      if (project && updates.status) {
-        // Notify client when project status changes
-        if (updates.status === 'in_bidding') {
-          newNotifications.push({
+      if (project) {
+        // Notify client when admin changes anything in the project
+        if (socketService.isConnected() && user && (user.role === 'admin' || user.role === 'superadmin')) {
+          // Determine what changed
+          let notificationTitle = 'Project Updated';
+          let notificationDescription = `Your project "${project.title}" has been updated.`;
+          
+          if (updates.status) {
+            if (updates.status === 'in_bidding') {
+              notificationTitle = 'Project Approved!';
+              notificationDescription = `Your project "${project.title}" has been approved and is now open for bidding.`;
+            } else if (updates.status === 'in_progress') {
+              notificationTitle = 'Project Started!';
+              notificationDescription = `Your project "${project.title}" has been started.`;
+            } else if (updates.status === 'completed') {
+              notificationTitle = 'Project Completed!';
+              notificationDescription = `Your project "${project.title}" has been completed.`;
+            } else if (updates.status === 'cancelled') {
+              notificationTitle = 'Project Cancelled';
+              notificationDescription = `Your project "${project.title}" has been cancelled.`;
+            }
+          } else if (updates.title || updates.description || updates.budget || updates.duration_weeks) {
+            notificationTitle = 'Project Details Updated';
+            notificationDescription = `Admin has updated details of your project "${project.title}".`;
+          }
+          
+          const notification = {
             id: 'notif_' + Math.random().toString(36).substr(2, 9),
             user_id: project.client_id,
-            type: 'project',
-            title: 'Project Approved!',
-            description: `Your project "${project.title}" has been approved and is now open for bidding.`,
+            type: 'project' as const,
+            title: notificationTitle,
+            description: notificationDescription,
             link: `/client/projects/${id}`,
             read: false,
             created_at: new Date().toISOString(),
-          });
-        } else if (updates.status === 'assigned') {
-          // Notify both client and freelancer
-          newNotifications.push({
-            id: 'notif_' + Math.random().toString(36).substr(2, 9),
-            user_id: project.client_id,
-            type: 'project',
-            title: 'Freelancer Assigned!',
-            description: `A freelancer has been assigned to your project "${project.title}".`,
-            link: `/client/projects/${id}`,
-            read: false,
-            created_at: new Date().toISOString(),
-          });
-          if ((updates as any).assigned_freelancer_id) {
+          };
+          
+          // Emit socket event to the specific client
+          socketService.getSocket()?.emit('notification:create', notification);
+          
+          // Also add to local notifications
+          newNotifications.push(notification);
+        }
+        
+        // Legacy status-based notifications (for backward compatibility when socket is not connected)
+        if (updates.status && !socketService.isConnected()) {
+          if (updates.status === 'in_bidding') {
             newNotifications.push({
               id: 'notif_' + Math.random().toString(36).substr(2, 9),
-              user_id: (updates as any).assigned_freelancer_id,
+              user_id: project.client_id,
               type: 'project',
-              title: 'Project Assigned to You!',
-              description: `You've been assigned to project "${project.title}". Time to get started!`,
-              link: `/freelancer/projects/${id}`,
+              title: 'Project Approved!',
+              description: `Your project "${project.title}" has been approved and is now open for bidding.`,
+              link: `/client/projects/${id}`,
+              read: false,
+              created_at: new Date().toISOString(),
+            });
+          } else if (updates.status === 'assigned') {
+            // Notify both client and freelancer
+            newNotifications.push({
+              id: 'notif_' + Math.random().toString(36).substr(2, 9),
+              user_id: project.client_id,
+              type: 'project',
+              title: 'Freelancer Assigned!',
+              description: `A freelancer has been assigned to your project "${project.title}".`,
+              link: `/client/projects/${id}`,
+              read: false,
+              created_at: new Date().toISOString(),
+            });
+            if ((updates as any).assigned_freelancer_id) {
+              newNotifications.push({
+                id: 'notif_' + Math.random().toString(36).substr(2, 9),
+                user_id: (updates as any).assigned_freelancer_id,
+                type: 'project',
+                title: 'Project Assigned to You!',
+                description: `You've been assigned to project "${project.title}". Time to get started!`,
+                link: `/freelancer/projects/${id}`,
+                read: false,
+                created_at: new Date().toISOString(),
+              });
+            }
+          } else if (updates.status === 'cancelled') {
+            newNotifications.push({
+              id: 'notif_' + Math.random().toString(36).substr(2, 9),
+              user_id: project.client_id,
+              type: 'project',
+              title: 'Project Update',
+              description: `Your project "${project.title}" has been cancelled. ${(updates as any).rejection_reason || ''}`,
+              link: `/client/projects/${id}`,
               read: false,
               created_at: new Date().toISOString(),
             });
           }
-        } else if (updates.status === 'cancelled') {
-          newNotifications.push({
-            id: 'notif_' + Math.random().toString(36).substr(2, 9),
-            user_id: project.client_id,
-            type: 'project',
-            title: 'Project Update',
-            description: `Your project "${project.title}" has been cancelled. ${(updates as any).rejection_reason || ''}`,
-            link: `/client/projects/${id}`,
-            read: false,
-            created_at: new Date().toISOString(),
-          });
         }
       }
       

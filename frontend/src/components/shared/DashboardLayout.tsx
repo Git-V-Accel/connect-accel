@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
@@ -6,6 +6,8 @@ import { Button } from "../ui/button";
 import { ThemeSwitch } from "../common/ThemeSwitch";
 import { useTheme } from "next-themes";
 import { NotificationsDrawer } from "./NotificationsDrawer";
+import { useSocket } from "../../hooks/useSocket";
+import { SocketEvents } from "../../constants/socketConstants";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -45,13 +47,39 @@ export default function DashboardLayout({
   children?: ReactNode;
 }) {
   const { user, logout } = useAuth();
-  const { getUserNotifications } = useData();
+  const { getUserNotifications, createNotification } = useData();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { onNotification } = useSocket();
+
+  // Listen for real-time notifications via socket
+  useEffect(() => {
+    if (!user) return;
+
+    // Listen for new notifications
+    const unsubscribe = onNotification(
+      SocketEvents.NOTIFICATION_CREATED,
+      (notification) => {
+        // Only process notifications for the current user
+        if (notification.user_id === user.id) {
+          // Add notification to local state
+          createNotification({
+            user_id: notification.user_id,
+            type: notification.type,
+            title: notification.title,
+            description: notification.description,
+            link: notification.link,
+          });
+        }
+      }
+    );
+
+    return unsubscribe;
+  }, [user, onNotification, createNotification]);
 
   const unreadCount = user ? getUserNotifications(user.id).filter(n => !n.read).length : 0;
 

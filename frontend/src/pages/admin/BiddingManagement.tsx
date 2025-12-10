@@ -84,8 +84,8 @@ export default function BiddingManagement() {
     // Update project status
     updateProject(project.id, {
       status: 'assigned',
-      assigned_freelancer_id: selectedBid.freelancer_id,
-      assigned_bid_id: selectedBid.id,
+      freelancer_id: selectedBid.freelancer_id,
+      freelancer_name: selectedBid.freelancer_name,
     });
 
     toast.success('Bid accepted and freelancer assigned!');

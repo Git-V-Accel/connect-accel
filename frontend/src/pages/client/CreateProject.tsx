@@ -225,6 +225,7 @@ export default function CreateProject() {
       duration_weeks: parseInt(formData.duration_weeks),
       priority: formData.priority as 'low' | 'medium' | 'high',
       complexity: 'moderate', // Default value, can be updated later
+      requirements: false, // Default value
     });
 
     toast.success('Project submitted successfully! Our team will review it shortly.');
