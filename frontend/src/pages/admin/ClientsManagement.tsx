@@ -24,6 +24,7 @@ import {
 } from '../../components/ui/dialog';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
+import * as userService from '../../services/userService';
 import {
   Search,
   Filter,
@@ -45,7 +46,7 @@ interface Client {
   name: string;
   email: string;
   role: 'client';
-  status: 'active' | 'suspended' | 'banned';
+  status: 'active' | 'inactive';
   phone?: string;
   company?: string;
   created_at: string;
@@ -55,7 +56,7 @@ interface Client {
 export default function ClientsManagement() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  const { clients, getAllUsers, updateUserStatus, deleteUser, projects, getProjectsByUser } = useData();
+  const { projects, getProjectsByUser } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -63,31 +64,36 @@ export default function ClientsManagement() {
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const isAdmin = currentUser?.role === 'admin';
-  const isAgent = currentUser?.role === 'agent';
+
+  const loadClients = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const clients = await userService.listClients();
+      setAllClients(clients as Client[]);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message || 'Failed to load clients';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (getAllUsers) {
-      const allUsers = getAllUsers();
-      let clients = allUsers.filter((u) => u.role === 'client') as Client[];
-      
-      // If agent, filter to only show clients from their projects
-      if (isAgent && currentUser?.id) {
-        const agentProjects = projects.filter(p => p.assigned_agent_id === currentUser.id || p.admin_id === currentUser.id);
-        const clientIds = Array.from(new Set(agentProjects.map(p => p.client_id)));
-        clients = clients.filter(c => clientIds.includes(c.id));
-      }
-      
-      setAllClients(clients);
+    if (isAdmin || isSuperAdmin) {
+      loadClients();
     }
-  }, [getAllUsers, projects, isAgent, currentUser?.id]);
+  }, [isAdmin, isSuperAdmin]);
 
   const statusColors = {
     active: 'bg-green-100 text-green-700',
-    suspended: 'bg-yellow-100 text-yellow-700',
-    banned: 'bg-red-100 text-red-700',
+    inactive: 'bg-yellow-100 text-yellow-700',
   };
 
   const filteredClients = allClients.filter((client) => {
@@ -107,42 +113,36 @@ export default function ClientsManagement() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedClients = filteredClients.slice(startIndex, endIndex);
 
-  const handleStatusToggle = (client: Client) => {
-    const newStatus = client.status === 'active' ? 'suspended' : 'active';
-    updateUserStatus(client.id, newStatus);
-    toast.success(`Client status updated to ${newStatus}`);
-    if (getAllUsers) {
-      const allUsers = getAllUsers();
-      let clients = allUsers.filter((u) => u.role === 'client') as Client[];
-      
-      if (isAgent && currentUser?.id) {
-        const agentProjects = projects.filter(p => p.assigned_agent_id === currentUser.id || p.admin_id === currentUser.id);
-        const clientIds = Array.from(new Set(agentProjects.map(p => p.client_id)));
-        clients = clients.filter(c => clientIds.includes(c.id));
-      }
-      
-      setAllClients(clients);
+  const handleStatusToggle = async (client: Client) => {
+    const newStatus = client.status === 'active' ? 'inactive' : 'active';
+    setLoading(true);
+    try {
+      await userService.updateUserStatus(client.id, newStatus as any);
+      toast.success(`Client status updated to ${newStatus}`);
+      await loadClients();
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message || 'Failed to update status';
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedClient) return;
 
-    deleteUser(selectedClient.id);
-    toast.success('Client deleted successfully');
-    setShowDeleteDialog(false);
-    setSelectedClient(null);
-    if (getAllUsers) {
-      const allUsers = getAllUsers();
-      let clients = allUsers.filter((u) => u.role === 'client') as Client[];
-      
-      if (isAgent && currentUser?.id) {
-        const agentProjects = projects.filter(p => p.assigned_agent_id === currentUser.id || p.admin_id === currentUser.id);
-        const clientIds = Array.from(new Set(agentProjects.map(p => p.client_id)));
-        clients = clients.filter(c => clientIds.includes(c.id));
-      }
-      
-      setAllClients(clients);
+    setLoading(true);
+    try {
+      await userService.deleteUser(selectedClient.id);
+      toast.success('Client deleted successfully');
+      setShowDeleteDialog(false);
+      setSelectedClient(null);
+      await loadClients();
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message || 'Failed to delete client';
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -290,7 +290,7 @@ export default function ClientsManagement() {
           <div>
             <h1 className="text-3xl mb-2">Clients Management</h1>
             <p className="text-gray-600">
-              {isAgent ? 'Manage clients from your assigned projects' : 'Manage and monitor all platform clients'}
+              Manage and monitor all platform clients
             </p>
           </div>
         </div>
@@ -320,9 +320,9 @@ export default function ClientsManagement() {
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Suspended</p>
+                <p className="text-sm text-gray-600">Inactive</p>
                 <p className="text-2xl font-medium">
-                  {allClients.filter((c) => c.status === 'suspended').length}
+                  {allClients.filter((c) => c.status === 'inactive').length}
                 </p>
               </div>
               <Ban className="size-8 text-yellow-500" />
@@ -360,8 +360,7 @@ export default function ClientsManagement() {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
-                <SelectItem value="banned">Banned</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
             <div className="flex items-center gap-2">

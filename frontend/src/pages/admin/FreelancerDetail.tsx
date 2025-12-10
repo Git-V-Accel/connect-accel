@@ -4,62 +4,12 @@ import { useData } from '../../contexts/DataContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { ArrowLeft, Star, Briefcase, DollarSign, CheckCircle, Award, Mail, Phone, MapPin } from 'lucide-react';
 
-// Mock freelancer data - in real app this would come from database
-const mockFreelancers: Record<string, any> = {
-  freelancer_1: {
-    id: 'freelancer_1',
-    name: 'Ravi Kumar',
-    email: 'ravi@example.com',
-    phone: '+91 98765 43210',
-    location: 'Bangalore, India',
-    rating: 4.8,
-    total_reviews: 45,
-    hourly_rate: 2500,
-    experience_years: 5,
-    total_earnings: 450000,
-    completion_rate: 95,
-    on_time_rate: 92,
-    skills: ['React', 'Node.js', 'MongoDB', 'Stripe', 'TypeScript', 'AWS'],
-    bio: 'Full-stack developer with 5 years of experience building scalable web applications. Specialized in React and Node.js ecosystems.',
-    portfolio: [
-      { title: 'E-commerce Platform', description: 'Built a full-featured e-commerce platform with 10k+ products' },
-      { title: 'SaaS Dashboard', description: 'Created analytics dashboard for B2B SaaS company' },
-    ],
-    certifications: ['AWS Certified Developer', 'MongoDB Certified'],
-    languages: ['English (Fluent)', 'Hindi (Native)'],
-    availability: 'Full-time',
-  },
-  freelancer_2: {
-    id: 'freelancer_2',
-    name: 'Priya Singh',
-    email: 'priya@example.com',
-    phone: '+91 98765 43211',
-    location: 'Mumbai, India',
-    rating: 4.9,
-    total_reviews: 38,
-    hourly_rate: 3000,
-    experience_years: 6,
-    total_earnings: 520000,
-    completion_rate: 98,
-    on_time_rate: 95,
-    skills: ['Python', 'Django', 'PostgreSQL', 'API Development', 'Docker'],
-    bio: 'Backend specialist with expertise in building robust APIs and microservices architecture.',
-    portfolio: [
-      { title: 'Payment Gateway Integration', description: 'Integrated multiple payment providers' },
-      { title: 'Microservices Platform', description: 'Built scalable microservices architecture' },
-    ],
-    certifications: ['Google Cloud Professional', 'Python Advanced Certification'],
-    languages: ['English (Fluent)', 'Hindi (Native)', 'Marathi (Native)'],
-    availability: 'Part-time',
-  },
-};
-
 export default function FreelancerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { projects, bids } = useData();
+  const { projects, bids, freelancers } = useData();
   
-  const freelancer = mockFreelancers[id || ''];
+  const freelancer = freelancers.find(f => f.id === id);
   
   // Get freelancer's projects and bids
   const freelancerProjects = projects.filter(p => p.freelancer_id === id);
@@ -100,7 +50,7 @@ export default function FreelancerDetail() {
 
             <div className="bg-white rounded-lg border p-6">
               <div className="flex items-start justify-between">
-                <div className="flex gap-4">
+                  <div className="flex gap-4">
                   <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl">
                     {freelancer.name.split(' ').map((n: string) => n[0]).join('')}
                   </div>
@@ -113,12 +63,8 @@ export default function FreelancerDetail() {
                         <span>({freelancer.total_reviews} reviews)</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {freelancer.location}
-                      </div>
-                      <div className="flex items-center gap-1">
                         <Briefcase className="w-4 h-4" />
-                        {freelancer.experience_years} years
+                        {freelancer.title}
                       </div>
                     </div>
                   </div>
@@ -127,7 +73,7 @@ export default function FreelancerDetail() {
                 <div className="text-right">
                   <p className="text-sm text-gray-600">Hourly Rate</p>
                   <p className="text-2xl text-blue-600">₹{freelancer.hourly_rate.toLocaleString()}</p>
-                  <span className="text-xs text-gray-500">{freelancer.availability}</span>
+                  <span className="text-xs text-gray-500 capitalize">{freelancer.availability}</span>
                 </div>
               </div>
             </div>
@@ -135,14 +81,6 @@ export default function FreelancerDetail() {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div className="bg-white rounded-lg border p-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">Total Earnings</span>
-                <DollarSign className="w-5 h-5 text-green-600" />
-              </div>
-              <p className="text-2xl">₹{freelancer.total_earnings.toLocaleString()}</p>
-            </div>
-
             <div className="bg-white rounded-lg border p-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-gray-600">Active Projects</span>
@@ -153,18 +91,18 @@ export default function FreelancerDetail() {
 
             <div className="bg-white rounded-lg border p-6">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">Completion Rate</span>
+                <span className="text-sm text-gray-600">Total Reviews</span>
                 <CheckCircle className="w-5 h-5 text-purple-600" />
               </div>
-              <p className="text-2xl">{freelancer.completion_rate}%</p>
+              <p className="text-2xl">{freelancer.total_reviews}</p>
             </div>
 
             <div className="bg-white rounded-lg border p-6">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">On-Time Rate</span>
+                <span className="text-sm text-gray-600">Rating</span>
                 <Award className="w-5 h-5 text-orange-600" />
               </div>
-              <p className="text-2xl">{freelancer.on_time_rate}%</p>
+              <p className="text-2xl">{freelancer.rating}</p>
             </div>
           </div>
 
@@ -190,17 +128,19 @@ export default function FreelancerDetail() {
               </div>
 
               {/* Portfolio */}
-              <div className="bg-white rounded-lg border p-6">
-                <h2 className="text-xl mb-4">Portfolio</h2>
-                <div className="space-y-4">
-                  {freelancer.portfolio.map((item: any, index: number) => (
-                    <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="font-medium mb-1">{item.title}</h3>
-                      <p className="text-sm text-gray-600">{item.description}</p>
-                    </div>
-                  ))}
+              {freelancer.portfolio && freelancer.portfolio.length > 0 && (
+                <div className="bg-white rounded-lg border p-6">
+                  <h2 className="text-xl mb-4">Portfolio</h2>
+                  <div className="space-y-4">
+                    {freelancer.portfolio.map((item: any, index: number) => (
+                      <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                        <h3 className="font-medium mb-1">{item.title}</h3>
+                        <p className="text-sm text-gray-600">{item.description}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Projects History */}
               <div className="bg-white rounded-lg border p-6">
@@ -273,73 +213,31 @@ export default function FreelancerDetail() {
                       {freelancer.email}
                     </a>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-4 h-4 text-gray-400" />
-                    <a href={`tel:${freelancer.phone}`} className="text-sm">
-                      {freelancer.phone}
-                    </a>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm">{freelancer.location}</span>
-                  </div>
                 </div>
               </div>
 
               {/* Certifications */}
-              <div className="bg-white rounded-lg border p-6">
-                <h3 className="text-lg mb-4 flex items-center gap-2">
-                  <Award className="w-5 h-5" />
-                  Certifications
-                </h3>
-                <ul className="space-y-2">
-                  {freelancer.certifications.map((cert: string, index: number) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm">{cert}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Languages */}
-              <div className="bg-white rounded-lg border p-6">
-                <h3 className="text-lg mb-4">Languages</h3>
-                <ul className="space-y-2">
-                  {freelancer.languages.map((lang: string, index: number) => (
-                    <li key={index} className="text-sm text-gray-600">{lang}</li>
-                  ))}
-                </ul>
-              </div>
+              {freelancer.certifications && freelancer.certifications.length > 0 && (
+                <div className="bg-white rounded-lg border p-6">
+                  <h3 className="text-lg mb-4 flex items-center gap-2">
+                    <Award className="w-5 h-5" />
+                    Certifications
+                  </h3>
+                  <ul className="space-y-2">
+                    {freelancer.certifications.map((cert: any, index: number) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm">{cert.name || cert}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Performance Metrics */}
               <div className="bg-white rounded-lg border p-6">
                 <h3 className="text-lg mb-4">Performance</h3>
                 <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600">Completion Rate</span>
-                      <span className="font-medium">{freelancer.completion_rate}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-green-600 h-2 rounded-full"
-                        style={{ width: `${freelancer.completion_rate}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600">On-Time Delivery</span>
-                      <span className="font-medium">{freelancer.on_time_rate}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: `${freelancer.on_time_rate}%` }}
-                      />
-                    </div>
-                  </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-gray-600">Client Satisfaction</span>

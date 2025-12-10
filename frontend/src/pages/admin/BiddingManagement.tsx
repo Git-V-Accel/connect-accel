@@ -125,16 +125,12 @@ export default function BiddingManagement() {
   };
 
   const BidCard = ({ bid }: { bid: any }) => {
-    // Mock freelancer data
-    const freelancer = {
-      name: 'John Doe',
-      rating: 4.8,
-      completedProjects: 45,
-      skills: ['React', 'Node.js', 'MongoDB', 'AWS'],
-      hourlyRate: 1200,
-      responseTime: '2 hours',
-      successRate: 98,
-    };
+    const { freelancers } = useData();
+    const freelancer = freelancers.find(f => f.id === bid.freelancer_id);
+    
+    if (!freelancer) {
+      return null;
+    }
 
     return (
       <Card className="p-6 hover:shadow-lg transition-shadow">
@@ -154,11 +150,11 @@ export default function BiddingManagement() {
                   </span>
                   <span className="flex items-center gap-1">
                     <Briefcase className="size-4" />
-                    {freelancer.completedProjects} projects
+                    {freelancer.total_reviews} reviews
                   </span>
                   <span className="flex items-center gap-1">
                     <Award className="size-4" />
-                    {freelancer.successRate}% success
+                    {freelancer.title}
                   </span>
                 </div>
               </div>

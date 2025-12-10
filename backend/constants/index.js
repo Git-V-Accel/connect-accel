@@ -1,10 +1,11 @@
 require('dotenv').config();
 // User Roles
 const USER_ROLES = {
-  SUPERADMIN: 'super_admin',
+  SUPERADMIN: 'superadmin',
   ADMIN: 'admin',
   FREELANCER: 'freelancer',
   CLIENT: 'client',
+  AGENT: 'agent',
 };
 const JWT_SECRET = process.env.JWT_SECRET;
 const EMAIL_HOST = process.env.EMAIL_HOST;
@@ -247,7 +248,7 @@ const USER_STATUS_ARRAY = Object.values(USER_STATUS);
 
 // Admin Role
 const ADMIN_ROLE = {
-  SUPER_ADMIN: 'super_admin',
+  superadmin: 'superadmin',
   ADMIN: 'admin',
 };
 const ADMIN_ROLE_ARRAY = Object.values(ADMIN_ROLE);

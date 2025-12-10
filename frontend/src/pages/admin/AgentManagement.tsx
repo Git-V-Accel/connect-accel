@@ -271,17 +271,7 @@ export default function AgentManagement() {
               <Ban className="size-8 text-yellow-500" />
             </div>
           </Card>
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Banned</p>
-                <p className="text-2xl font-medium">
-                  {allAgents.filter((a) => a.status === 'banned').length}
-                </p>
-              </div>
-              <Trash2 className="size-8 text-red-500" />
-            </div>
-          </Card>
+          
         </div>
 
         {/* Filters */}
@@ -303,8 +293,7 @@ export default function AgentManagement() {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
-                <SelectItem value="banned">Banned</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
             <div className="flex items-center gap-2">

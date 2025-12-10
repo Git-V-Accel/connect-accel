@@ -49,7 +49,7 @@ router.get('/', protect, isSuperadmin, getAllUsers);
 router.get(
   '/freelancers',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'superadmin'),
   getFreelancers
 );
 
@@ -59,7 +59,7 @@ router.get(
 router.get(
   '/clients',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'superadmin'),
   getClients
 );
 
@@ -69,7 +69,7 @@ router.get(
 router.get(
   '/admins',
   protect,
-  authorize('admin', 'super_admin'),
+  authorize('admin', 'superadmin'),
   getAdmins
 );
 

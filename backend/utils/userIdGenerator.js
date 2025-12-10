@@ -3,7 +3,7 @@ const { USER_ROLES } = require('../constants');
 
 /**
  * Generate a unique user ID based on user role
- * @param {string} role - User role (super_admin, admin, freelancer, client)
+ * @param {string} role - User role (superadmin, admin, freelancer, client)
  * @returns {Promise<string>} - Generated user ID
  */
 const generateUserId = async (role) => {

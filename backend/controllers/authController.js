@@ -333,13 +333,39 @@ const logout = async (req, res) => {
 // @access  Private
 const sendPasswordChangeOTP = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const { currentPassword } = req.body;
+
+    // Validation
+    if (!currentPassword) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'Current password is required'
+      });
+    }
+
+    // Get user with password
+    const user = await User.findById(req.user.id).select('+password');
 
     if (!user) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
         message: MESSAGES.USER_NOT_FOUND
       });
+    }
+
+    // Validate current password
+    const isMatch = await user.comparePassword(currentPassword);
+
+    if (!isMatch) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Ensure user has a userID (for legacy users that might not have one)
+    if (!user.userID) {
+      user.userID = await generateUserId(user.role);
     }
 
     // Generate OTP for password change (6 digits, expires in 10 minutes)
@@ -394,13 +420,13 @@ const sendPasswordChangeOTP = async (req, res) => {
 // @access  Private
 const changePassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword, otpCode } = req.body;
+    const { newPassword, otpCode } = req.body;
 
     // Validation
-    if (!currentPassword || !newPassword) {
+    if (!newPassword) {
       return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
-        message: MESSAGES.PROVIDE_CURRENT_NEW_PASSWORD
+        message: 'New password is required'
       });
     }
 
@@ -411,23 +437,13 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Get user with password
-    const user = await User.findById(req.user.id).select('+password');
+    // Get user (current password was already validated when OTP was sent)
+    const user = await User.findById(req.user.id);
 
     if (!user) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
         message: MESSAGES.USER_NOT_FOUND
-      });
-    }
-
-    // Check current password
-    const isMatch = await user.comparePassword(currentPassword);
-
-    if (!isMatch) {
-      return res.status(STATUS_CODES.BAD_REQUEST).json({
-        success: false,
-        message: MESSAGES.CURRENT_PASSWORD_INCORRECT
       });
     }
 

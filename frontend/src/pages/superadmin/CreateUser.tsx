@@ -14,18 +14,20 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { useAuth } from "../../contexts/AuthContext";
-import { useData } from "../../contexts/DataContext";
+import * as userService from "../../services/userService";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "../../utils/toast";
 
 export default function CreateUser() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  const { createUser, getAllUsers } = useData();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [newUser, setNewUser] = useState({
     firstName: "",
     lastName: "",
     email: "",
+    confirmEmail: "",
     phone: "",
     company: "",
     role: "freelancer" as "freelancer" | "admin" | "agent" | "superadmin",
@@ -56,9 +58,14 @@ export default function CreateUser() {
     return [];
   };
 
-  const handleCreateUser = () => {
-    if (!newUser.firstName || !newUser.lastName || !newUser.email) {
+  const handleCreateUser = async () => {
+    if (!newUser.firstName || !newUser.lastName || !newUser.email || !newUser.confirmEmail) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (newUser.email !== newUser.confirmEmail) {
+      toast.error("Email and Confirm Email do not match");
       return;
     }
 
@@ -76,24 +83,33 @@ export default function CreateUser() {
     // Combine first and last name
     const fullName = `${newUser.firstName} ${newUser.lastName}`.trim();
 
-    createUser({
-      name: fullName,
-      email: newUser.email,
-      role: newUser.role,
-      phone: newUser.phone || undefined,
-      company: newUser.company || undefined,
-      title: newUser.role === "freelancer" ? newUser.experience || undefined : undefined,
-      hourlyRate: newUser.role === "freelancer" && newUser.hourlyRate ? Number(newUser.hourlyRate) : undefined,
-      bio: newUser.bio || undefined,
-    });
+    setLoading(true);
+    setError(null);
+    try {
+      await userService.createUser({
+        name: fullName,
+        email: newUser.email,
+        role: newUser.role as any,
+        phone: newUser.phone || undefined,
+        company: newUser.company || undefined,
+        confirmEmail: newUser.confirmEmail,
+      });
 
-    const roleLabel =
-      getAvailableRoles().find((r) => r.value === newUser.role)?.label ||
-      newUser.role;
-    toast.success(`${roleLabel} created successfully`);
+      const roleLabel =
+        getAvailableRoles().find((r) => r.value === newUser.role)?.label ||
+        newUser.role;
+      toast.success(`${roleLabel} created successfully`);
 
-    // Navigate back to user management
-    navigate("/admin/users");
+      // Navigate back to user management
+      navigate("/admin/users");
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message || err.message || "Failed to create user";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -158,6 +174,18 @@ export default function CreateUser() {
                   value={newUser.email}
                   onChange={(e) =>
                     setNewUser({ ...newUser, email: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="confirmEmail">Confirm Email *</Label>
+                <Input
+                  id="confirmEmail"
+                  type="email"
+                  placeholder="Re-enter email address"
+                  value={newUser.confirmEmail}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, confirmEmail: e.target.value })
                   }
                 />
               </div>
@@ -261,7 +289,9 @@ export default function CreateUser() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleCreateUser}>Create User</Button>
+              <Button onClick={handleCreateUser} disabled={loading}>
+                {loading ? "Creating..." : "Create User"}
+              </Button>
             </div>
           </div>
         </Card>

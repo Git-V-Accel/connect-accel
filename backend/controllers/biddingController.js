@@ -264,7 +264,7 @@ const getBiddingsByAdminBid = async (req, res) => {
     }
 
     const isAdminBidOwner = adminBid.bidderId.toString() === req.user.id;
-    const isElevatedAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    const isElevatedAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     let freelancerHasAccess = false;
 
     if (req.user.role === 'freelancer') {
@@ -299,7 +299,7 @@ const getBiddingsByFreelancer = async (req, res) => {
     const { freelancerId } = req.params;
 
     // Check if user can access these biddings
-    if (req.user.id !== freelancerId && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    if (req.user.id !== freelancerId && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return sendResponse(res, false, null, 'Access denied', 403);
     }
 
@@ -333,7 +333,7 @@ const getBiddingDetails = async (req, res) => {
     // Check access permissions
     const isBidder = bidding.freelancerId._id.toString() === req.user.id;
     const isAdminBidOwner = bidding.adminBidId.bidderId.toString() === req.user.id;
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
 
     if (!isBidder && !isAdminBidOwner && !isAdmin) {
       return sendResponse(res, false, null, 'Access denied', 403);
@@ -361,7 +361,7 @@ const updateBiddingStatus = async (req, res) => {
     // Check if user can update this bidding status
     const adminBid = await Bid.findById(bidding.adminBidId);
     const isAdminBidOwner = adminBid.bidderId.toString() === req.user.id;
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
 
     if (!isAdminBidOwner && !isAdmin) {
       return sendResponse(res, false, null, 'Access denied', 403);
@@ -483,8 +483,8 @@ const updateShortlistStatus = async (req, res) => {
     const { biddingId } = req.params;
     const { isShortlisted } = req.body;
 
-    // Check if user is admin or super_admin
-    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    // Check if user is admin or superadmin
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return sendResponse(res, false, null, 'Access denied. Admin or Super Admin role required.', 403);
     }
 
@@ -555,8 +555,8 @@ const updateAcceptanceStatus = async (req, res) => {
     const { biddingId } = req.params;
     const { isAccepted } = req.body;
 
-    // Check if user is admin or super_admin
-    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    // Check if user is admin or superadmin
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return sendResponse(res, false, null, 'Access denied. Admin or Super Admin role required.', 403);
     }
 
@@ -697,8 +697,8 @@ const updateDeclineStatus = async (req, res) => {
     const { biddingId } = req.params;
     const { isDeclined } = req.body;
 
-    // Check if user is admin or super_admin
-    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    // Check if user is admin or superadmin
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return sendResponse(res, false, null, 'Access denied. Admin or Super Admin role required.', 403);
     }
 
@@ -790,8 +790,8 @@ const getShortlistedProposals = async (req, res) => {
   try {
     const { projectId } = req.params;
 
-    // Check if user is admin or super_admin
-    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    // Check if user is admin or superadmin
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return sendResponse(res, false, null, 'Access denied. Admin or Super Admin role required.', 403);
     }
 

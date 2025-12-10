@@ -34,9 +34,9 @@ const formatProjectResponse = (project, user) => {
 // Helper function to create notifications for admin users
 const createAdminNotifications = async (notificationData) => {
   try {
-    // Find all admin and super_admin users
+    // Find all admin and superadmin users
     const adminUsers = await User.find({ 
-      role: { $in: ['admin', 'super_admin'] } 
+      role: { $in: ['admin', 'superadmin'] } 
     }).select('_id');
 
     // Create notifications for each admin user
@@ -84,19 +84,19 @@ const getProjects = async (req, res) => {
         }
       ];
     }
-    // Admin and super_admin can see all projects
+    // Admin and superadmin can see all projects
     
     // Optional filtering for admin views
     if (
       assignedFreelancerId &&
-      (req.user.role === 'admin' || req.user.role === 'super_admin')
+      (req.user.role === 'admin' || req.user.role === 'superadmin')
     ) {
       query.assignedFreelancerId = assignedFreelancerId;
     }
 
     if (
       clientId &&
-      (req.user.role === 'admin' || req.user.role === 'super_admin')
+      (req.user.role === 'admin' || req.user.role === 'superadmin')
     ) {
       query.client = clientId;
     }
@@ -812,7 +812,7 @@ const releaseFunds = async (req, res) => {
       return res.status(STATUS_CODES.NOT_FOUND).json({ success: false, message: MESSAGES.PROJECT_NOT_FOUND });
     }
     // Only admin or project owner can release funds
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     const isOwner = String(project.client) === String(req.user.id);
     if (!isAdmin && !isOwner) {
       return res.status(STATUS_CODES.FORBIDDEN).json({ success: false, message: 'Not authorized to release funds' });
@@ -854,7 +854,7 @@ const addMilestone = async (req, res) => {
     }
 
     // Authorization: Admins or project client can add milestones
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     const isProjectOwner = String(project.client) === String(req.user.id);
     if (!isAdmin && !isProjectOwner) {
       return res.status(STATUS_CODES.FORBIDDEN).json({
@@ -913,7 +913,7 @@ const requestPayment = async (req, res) => {
     const { id, milestoneId } = req.params;
     const project = await Project.findById(id);
     if (!project) return res.status(STATUS_CODES.NOT_FOUND).json({ success: false, message: MESSAGES.PROJECT_NOT_FOUND });
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     if (!isAdmin) return res.status(STATUS_CODES.FORBIDDEN).json({ success: false, message: 'Only admins can request payment' });
     const milestone = project.milestones.id(milestoneId);
     if (!milestone) return res.status(STATUS_CODES.NOT_FOUND).json({ success: false, message: 'Milestone not found' });
@@ -932,7 +932,7 @@ const markPaymentProcessing = async (req, res) => {
     const { id, milestoneId } = req.params;
     const project = await Project.findById(id);
     if (!project) return res.status(STATUS_CODES.NOT_FOUND).json({ success: false, message: MESSAGES.PROJECT_NOT_FOUND });
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     if (!isAdmin) return res.status(STATUS_CODES.FORBIDDEN).json({ success: false, message: 'Only admins can mark processing' });
     const milestone = project.milestones.id(milestoneId);
     if (!milestone) return res.status(STATUS_CODES.NOT_FOUND).json({ success: false, message: 'Milestone not found' });
@@ -950,7 +950,7 @@ const markPaymentFailed = async (req, res) => {
     const { id, milestoneId } = req.params;
     const project = await Project.findById(id);
     if (!project) return res.status(STATUS_CODES.NOT_FOUND).json({ success: false, message: MESSAGES.PROJECT_NOT_FOUND });
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     if (!isAdmin) return res.status(STATUS_CODES.FORBIDDEN).json({ success: false, message: 'Only admins can mark failed' });
     const milestone = project.milestones.id(milestoneId);
     if (!milestone) return res.status(STATUS_CODES.NOT_FOUND).json({ success: false, message: 'Milestone not found' });
@@ -968,7 +968,7 @@ const cancelPayment = async (req, res) => {
     const { id, milestoneId } = req.params;
     const project = await Project.findById(id);
     if (!project) return res.status(STATUS_CODES.NOT_FOUND).json({ success: false, message: MESSAGES.PROJECT_NOT_FOUND });
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     if (!isAdmin) return res.status(STATUS_CODES.FORBIDDEN).json({ success: false, message: 'Only admins can cancel payment' });
     const milestone = project.milestones.id(milestoneId);
     if (!milestone) return res.status(STATUS_CODES.NOT_FOUND).json({ success: false, message: 'Milestone not found' });
@@ -988,7 +988,7 @@ const updateMilestoneStatus = async (req, res) => {
     if (!status) return res.status(STATUS_CODES.BAD_REQUEST).json({ success: false, message: 'Missing status' });
     const project = await Project.findById(id);
     if (!project) return res.status(STATUS_CODES.NOT_FOUND).json({ success: false, message: MESSAGES.PROJECT_NOT_FOUND });
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     const isOwner = String(project.client) === String(req.user.id);
     if (!isAdmin && !isOwner) return res.status(STATUS_CODES.FORBIDDEN).json({ success: false, message: 'Not authorized' });
     const milestone = project.milestones.id(milestoneId);
@@ -1009,7 +1009,7 @@ const updateMilestone = async (req, res) => {
     const { title, description, dueDate, amount, notes } = req.body || {};
     const project = await Project.findById(id);
     if (!project) return res.status(STATUS_CODES.NOT_FOUND).json({ success: false, message: MESSAGES.PROJECT_NOT_FOUND });
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     const isOwner = String(project.client) === String(req.user.id);
     if (!isAdmin && !isOwner) return res.status(STATUS_CODES.FORBIDDEN).json({ success: false, message: 'Not authorized' });
     const milestone = project.milestones.id(milestoneId);
@@ -1043,7 +1043,7 @@ const markProjectForBidding = async (req, res) => {
     }
 
     // Only admins can mark projects for bidding
-    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return res.status(STATUS_CODES.FORBIDDEN).json({
         success: false,
         data: null,
@@ -1120,9 +1120,9 @@ const requestConsultation = async (req, res) => {
       `;
     }
     
-    // Find all admin and super_admin users
+    // Find all admin and superadmin users
     const adminUsers = await User.find({ 
-      role: { $in: ['admin', 'super_admin'] } 
+      role: { $in: ['admin', 'superadmin'] } 
     }).select('_id name email');
     
     if (adminUsers.length === 0) {

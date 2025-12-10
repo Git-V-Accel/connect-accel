@@ -12,6 +12,7 @@ import { useAuth } from "./contexts/AuthContext";
 import LandingPage from "./pages/public/LandingPage";
 import LoginPage from "./pages/public/LoginPage";
 import SignupPage from "./pages/public/SignupPage";
+import ForgotPassword from "./pages/public/ForgotPassword";
 import HowItWorksPage from "./pages/public/HowItWorksPage";
 import PricingPage from "./pages/public/PricingPage";
 
@@ -79,7 +80,6 @@ import AgentSettings from "./pages/agent/AgentSettings";
 import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
 import UserManagement from "./pages/superadmin/UserManagement";
 import CreateUser from "./pages/superadmin/CreateUser";
-import SystemConfiguration from "./pages/superadmin/SystemConfiguration";
 import FinancialReports from "./pages/superadmin/FinancialReports";
 import DisputeEscalations from "./pages/superadmin/DisputeEscalations";
 import AuditLogs from "./pages/superadmin/AuditLogs";
@@ -124,6 +124,7 @@ function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={user ? <Navigate to={getRoleBasedRoute(user.role)} /> : <LoginPage />} />
       <Route path="/signup" element={user ? <Navigate to={getRoleBasedRoute(user.role)} /> : <SignupPage />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/how-it-works" element={<HowItWorksPage />} />
       <Route path="/pricing" element={<PricingPage />} />
 
@@ -195,7 +196,6 @@ function AppRoutes() {
       <Route path="/superadmin/users" element={<ProtectedRoute allowedRoles={['superadmin']}><UserManagement /></ProtectedRoute>} />
       <Route path="/admin/users/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><CreateUser /></ProtectedRoute>} />
       <Route path="/superadmin/settings" element={<ProtectedRoute allowedRoles={['superadmin']}><AdminSettings /></ProtectedRoute>} />
-      <Route path="/superadmin/system-configuration" element={<ProtectedRoute allowedRoles={['superadmin']}><SystemConfiguration /></ProtectedRoute>} />
       <Route path="/superadmin/financials" element={<ProtectedRoute allowedRoles={['superadmin']}><FinancialReports /></ProtectedRoute>} />
       <Route path="/superadmin/disputes" element={<ProtectedRoute allowedRoles={['superadmin']}><DisputeEscalations /></ProtectedRoute>} />
       <Route path="/superadmin/audit" element={<ProtectedRoute allowedRoles={['superadmin']}><AuditLogs /></ProtectedRoute>} />

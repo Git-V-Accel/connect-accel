@@ -36,7 +36,6 @@ export const PAGES_TO_CREATE = {
   superadmin: [
     { path: '/pages/superadmin/SuperAdminDashboard.tsx', title: 'Super Admin Dashboard' },
     { path: '/pages/superadmin/UserManagement.tsx', title: 'User Management' },
-    { path: '/pages/superadmin/SystemConfiguration.tsx', title: 'System Configuration' },
     { path: '/pages/superadmin/FinancialReports.tsx', title: 'Financial Reports' },
     { path: '/pages/superadmin/DisputeEscalations.tsx', title: 'Dispute Escalations' },
     { path: '/pages/superadmin/AuditLogs.tsx', title: 'Audit Logs' },

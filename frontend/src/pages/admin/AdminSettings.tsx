@@ -4,6 +4,8 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { PasswordInput, RichTextEditor, RichTextViewer } from '../../components/common';
+import OtpDialog from '../../components/common/OtpDialog';
+import * as authService from '../../services/authService';
 import { Switch } from '../../components/ui/switch';
 import { toast } from '../../utils/toast';
 import { User, Bell, Monitor, Shield, Save, Edit, X } from 'lucide-react';
@@ -46,6 +48,9 @@ export default function AdminSettings() {
     new_password: '',
     confirm_password: '',
   });
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpResendLoading, setOtpResendLoading] = useState(false);
 
   const handleSaveProfile = () => {
     if (!profileData.name || !profileData.email) {
@@ -57,8 +62,8 @@ export default function AdminSettings() {
 
   const handleSaveNotifications = () => toast.success('Notification settings saved');
   const handleSaveAppearance = () => toast.success('Appearance saved');
-  const handleChangePassword = () => {
-    if (!passwordData.current_password || !passwordData.new_password) {
+  const handleSendOtp = async () => {
+    if (!passwordData.current_password || !passwordData.new_password || !passwordData.confirm_password) {
       toast.error('Please fill all password fields');
       return;
     }
@@ -66,8 +71,55 @@ export default function AdminSettings() {
       toast.error('New passwords do not match');
       return;
     }
-    toast.success('Password updated');
-    setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+    setOtpLoading(true);
+    try {
+      // First validate current password, then send OTP
+      await authService.sendPasswordChangeOTP(passwordData.current_password);
+      setOtpOpen(true);
+      toast.success('OTP sent to your email');
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message || 'Failed to send OTP';
+      toast.error(message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyChangePassword = async (otpCode: string) => {
+    setOtpLoading(true);
+    try {
+      // Current password was already validated when OTP was sent
+      await authService.changePassword(
+        passwordData.new_password,
+        otpCode
+      );
+      toast.success('Password updated successfully');
+      setOtpOpen(false);
+      setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message || 'Failed to change password';
+      toast.error(message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!passwordData.current_password) {
+      toast.error('Please enter your current password first');
+      return;
+    }
+    setOtpResendLoading(true);
+    try {
+      // Validate current password again when resending OTP
+      await authService.sendPasswordChangeOTP(passwordData.current_password);
+      toast.success('OTP resent to your email');
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message || 'Failed to resend OTP';
+      toast.error(message);
+    } finally {
+      setOtpResendLoading(false);
+    }
   };
 
   const tabs = [
@@ -293,7 +345,7 @@ export default function AdminSettings() {
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <div>
               <h2 className="text-xl mb-1">Security</h2>
-              <p className="text-sm text-gray-600">Change password</p>
+              <p className="text-sm text-gray-600">Change password (OTP required)</p>
             </div>
             <div className="space-y-4 max-w-md">
               <div>
@@ -324,13 +376,25 @@ export default function AdminSettings() {
                   className="mt-1"
                 />
               </div>
-              <Button onClick={handleChangePassword}>
+              <Button onClick={handleSendOtp} disabled={otpLoading}>
                 <Shield className="w-4 h-4 mr-2" />
-                Update Password
+                {otpLoading ? 'Sending OTP...' : 'Send OTP to Change Password'}
               </Button>
             </div>
           </div>
         )}
+
+        <OtpDialog
+          open={otpOpen}
+          onOpenChange={setOtpOpen}
+          title="Verify Your Email"
+          description="Enter the 6-digit verification code sent to your email to change your password."
+          otpLength={6}
+          loading={otpLoading}
+          resendLoading={otpResendLoading}
+          onVerify={handleVerifyChangePassword}
+          onResend={handleResendOtp}
+        />
       </div>
     </DashboardLayout>
   );

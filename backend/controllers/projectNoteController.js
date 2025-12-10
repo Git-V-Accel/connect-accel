@@ -69,7 +69,7 @@ const getProjectNotes = async (req, res) => {
       });
     }
 
-    // Check permissions - only admin, super_admin, or assigned freelancer can see notes
+    // Check permissions - only admin, superadmin, or assigned freelancer can see notes
     const isAdmin = req.user.role === USER_ROLES.ADMIN || req.user.role === USER_ROLES.SUPERADMIN;
     const isFreelancerRole = req.user.role === 'freelancer';
     const isAssignedFreelancer = isFreelancerRole && isAssignedFreelancerForProject(project, req.user.id);
@@ -128,7 +128,7 @@ const addProjectNote = async (req, res) => {
       });
     }
 
-    // Check permissions - only admin, super_admin, or assigned freelancer can add notes
+    // Check permissions - only admin, superadmin, or assigned freelancer can add notes
     const isAdmin = req.user.role === USER_ROLES.ADMIN || req.user.role === USER_ROLES.SUPERADMIN;
     const isFreelancerRole = req.user.role === 'freelancer';
     const isAssignedFreelancer = isFreelancerRole && isAssignedFreelancerForProject(project, req.user.id);

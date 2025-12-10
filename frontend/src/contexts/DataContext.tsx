@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { generateMockData } from '../data/mockData';
 import { socketService } from '../services/socketService';
 import { SocketEvents } from '../constants/socketConstants';
 
@@ -307,19 +306,51 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [data, setData] = useState(() => {
     const stored = localStorage.getItem('connect_accel_data');
-    if (stored && user) {
-      return JSON.parse(stored);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        // If parsing fails, return empty data structure
+      }
     }
-    return user ? generateMockData(user.id, user.role) : generateMockData('', '');
+    // Initialize with empty data structure
+    return {
+      projects: [],
+      milestones: [],
+      bids: [],
+      bidInvitations: [],
+      consultations: [],
+      payments: [],
+      disputes: [],
+      messages: [],
+      conversations: [],
+      notifications: [],
+      freelancers: [],
+      clients: [],
+    };
   });
 
   useEffect(() => {
     if (user) {
       const stored = localStorage.getItem('connect_accel_data');
       if (!stored) {
-        const mockData = generateMockData(user.id, user.role);
-        setData(mockData);
-        localStorage.setItem('connect_accel_data', JSON.stringify(mockData));
+        // Initialize with empty data structure if no stored data
+        const emptyData = {
+          projects: [],
+          milestones: [],
+          bids: [],
+          bidInvitations: [],
+          consultations: [],
+          payments: [],
+          disputes: [],
+          messages: [],
+          conversations: [],
+          notifications: [],
+          freelancers: [],
+          clients: [],
+        };
+        setData(emptyData);
+        localStorage.setItem('connect_accel_data', JSON.stringify(emptyData));
       }
     }
   }, [user]);
@@ -939,46 +970,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const storedCreatedUsers = localStorage.getItem('connect_accel_created_users');
     const createdUsers = storedCreatedUsers ? JSON.parse(storedCreatedUsers) : [];
 
-    const adminUsers = [
-      {
-        id: 'admin_1',
-        name: 'Sarah Admin',
-        email: 'sarah@connectaccel.com',
-        role: 'admin' as const,
-        status: 'active' as const,
-        created_at: '2024-01-01T10:00:00Z',
-        last_login: new Date().toISOString(),
-      },
-      {
-        id: 'admin_2',
-        name: 'Mike Admin',
-        email: 'mike@connectaccel.com',
-        role: 'admin' as const,
-        status: 'active' as const,
-        created_at: '2024-02-15T10:00:00Z',
-        last_login: new Date().toISOString(),
-      },
-      {
-        id: 'superadmin_1',
-        name: 'Super Admin',
-        email: 'superadmin@connectaccel.com',
-        role: 'superadmin' as const,
-        status: 'active' as const,
-        created_at: '2023-12-01T10:00:00Z',
-        last_login: new Date().toISOString(),
-      },
-      {
-        id: 'agent_1',
-        name: 'John Agent',
-        email: 'john@connectaccel.com',
-        role: 'agent' as const,
-        status: 'active' as const,
-        created_at: '2024-03-01T10:00:00Z',
-        last_login: new Date().toISOString(),
-      },
-      ...createdUsers,
-    ];
-
     const clientUsers = data.clients.map((c: Client) => ({
       id: c.id,
       name: c.name,
@@ -1001,7 +992,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       rating: f.rating,
     }));
 
-    return [...adminUsers, ...clientUsers, ...freelancerUsers];
+    return [...createdUsers, ...clientUsers, ...freelancerUsers];
   };
 
   const createUser = (userData: {

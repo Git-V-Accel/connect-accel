@@ -6,20 +6,10 @@ import DashboardLayout from '../../components/shared/DashboardLayout';
 import { ArrowLeft, Send, UserPlus, Search, X } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
-// Mock freelancer data
-const mockFreelancers = [
-  { id: 'freelancer_1', name: 'Ravi Kumar', rating: 4.8, skills: ['React', 'Node.js', 'MongoDB', 'TypeScript'], hourly_rate: 2500, availability: 'Full-time' },
-  { id: 'freelancer_2', name: 'Priya Singh', rating: 4.9, skills: ['Python', 'Django', 'PostgreSQL', 'API Development'], hourly_rate: 3000, availability: 'Part-time' },
-  { id: 'freelancer_3', name: 'Amit Patel', rating: 4.6, skills: ['Vue.js', 'Laravel', 'MySQL', 'AWS'], hourly_rate: 2800, availability: 'Full-time' },
-  { id: 'freelancer_4', name: 'Neha Sharma', rating: 4.9, skills: ['Angular', 'Spring Boot', 'MySQL', 'Docker'], hourly_rate: 3200, availability: 'Full-time' },
-  { id: 'freelancer_5', name: 'Rohit Verma', rating: 4.7, skills: ['React Native', 'Firebase', 'iOS', 'Android'], hourly_rate: 2700, availability: 'Part-time' },
-  { id: 'freelancer_6', name: 'Anjali Gupta', rating: 4.8, skills: ['Python', 'NLP', 'TensorFlow', 'Machine Learning'], hourly_rate: 3500, availability: 'Full-time' },
-];
-
 export default function CreateBidInvitation() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { projects, createBidInvitation, createNotification } = useData();
+  const { projects, freelancers, createBidInvitation, createNotification } = useData();
   const role = user?.role || 'agent';
   
   const [selectedProject, setSelectedProject] = useState('');
@@ -57,7 +47,7 @@ export default function CreateBidInvitation() {
   };
 
   // Filter freelancers based on search and project skills
-  const filteredFreelancers = mockFreelancers.filter(f => {
+  const filteredFreelancers = freelancers.filter(f => {
     const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       f.skills.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
     
@@ -118,7 +108,7 @@ export default function CreateBidInvitation() {
 
     // Create bid invitations for each selected freelancer
     selectedFreelancers.forEach(freelancerId => {
-      const freelancer = mockFreelancers.find(f => f.id === freelancerId);
+      const freelancer = freelancers.find(f => f.id === freelancerId);
       if (freelancer) {
         createBidInvitation({
           project_id: selectedProject,
@@ -289,7 +279,7 @@ export default function CreateBidInvitation() {
                   <h3 className="text-sm font-medium mb-2 text-green-900">Selected Freelancers:</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedFreelancers.map(id => {
-                      const freelancer = mockFreelancers.find(f => f.id === id);
+                      const freelancer = freelancers.find(f => f.id === id);
                       return (
                         <span key={id} className="px-3 py-1 bg-white border border-green-200 rounded-full text-sm flex items-center gap-2">
                           {freelancer?.name}
@@ -335,7 +325,7 @@ export default function CreateBidInvitation() {
                         <div className="flex items-center gap-4 text-sm text-gray-600">
                           <span>₹{freelancer.hourly_rate}/hr</span>
                           <span>•</span>
-                          <span>{freelancer.availability}</span>
+                          <span className="capitalize">{freelancer.availability}</span>
                         </div>
                       </div>
                       <div>

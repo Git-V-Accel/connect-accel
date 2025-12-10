@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog';
 import { useAuth } from '../../contexts/AuthContext';
-import { useData } from '../../contexts/DataContext';
+import * as userService from '../../services/userService';
 import {
   Search,
   Filter,
@@ -62,7 +62,6 @@ interface UnifiedUser {
 export default function UserManagement() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  const { clients, freelancers, getAllUsers, updateUserStatus, deleteUser } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -72,6 +71,8 @@ export default function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('all');
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const isAdmin = currentUser?.role === 'admin';
@@ -94,11 +95,26 @@ export default function UserManagement() {
     return [];
   };
 
-  useEffect(() => {
-    if (getAllUsers) {
-      setAllUsers(getAllUsers());
+  const loadUsers = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const users = await userService.listUsers();
+      setAllUsers(users as any);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message || 'Failed to load users';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
-  }, [getAllUsers, clients, freelancers]);
+  };
+
+  useEffect(() => {
+    if (currentUser?.role === 'superadmin') {
+      loadUsers();
+    }
+  }, [currentUser]);
 
   const roleColors = {
     client: 'bg-blue-100 text-blue-700',
@@ -149,24 +165,37 @@ export default function UserManagement() {
     setCurrentPage(1);
   };
 
-  const handleStatusToggle = (user: UnifiedUser) => {
-    const newStatus = user.status === 'active' ? 'suspended' : 'active';
-    updateUserStatus(user.id, newStatus);
-    toast.success(`User status updated to ${newStatus}`);
-    if (getAllUsers) {
-      setAllUsers(getAllUsers());
+  const handleStatusToggle = async (user: UnifiedUser) => {
+    // Backend supports only 'active' and 'inactive'
+    const newStatus = user.status === 'active' ? 'inactive' : 'active';
+    setLoading(true);
+    try {
+      await userService.updateUserStatus(user.id, newStatus as any);
+      toast.success(`User status updated to ${newStatus}`);
+      await loadUsers();
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message || 'Failed to update status';
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedUser) return;
 
-    deleteUser(selectedUser.id);
-    toast.success('User deleted successfully');
-    setShowDeleteDialog(false);
-    setSelectedUser(null);
-    if (getAllUsers) {
-      setAllUsers(getAllUsers());
+    setLoading(true);
+    try {
+      await userService.deleteUser(selectedUser.id);
+      toast.success('User deleted successfully');
+      setShowDeleteDialog(false);
+      setSelectedUser(null);
+      await loadUsers();
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message || 'Failed to delete user';
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -370,8 +399,7 @@ export default function UserManagement() {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
-                <SelectItem value="banned">Banned</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
             <div className="flex items-center gap-2">
@@ -381,6 +409,9 @@ export default function UserManagement() {
               </span>
             </div>
           </div>
+
+        {loading && <div className="text-sm text-gray-600">Loading users...</div>}
+        {error && <div className="text-sm text-red-600">{error}</div>}
         </Card>
 
         {/* Users List */}

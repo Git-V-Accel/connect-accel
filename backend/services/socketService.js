@@ -186,7 +186,7 @@ class SocketService {
       console.log('All connected users:', allConnectedUsers.map(u => ({ id: u.userId, role: u.user?.role })));
       
       const adminUsers = allConnectedUsers.filter(socket => 
-        socket.user && (socket.user.role === 'admin' || socket.user.role === 'super_admin')
+        socket.user && (socket.user.role === 'admin' || socket.user.role === 'superadmin')
       );
       
       console.log('Admin users found:', adminUsers.map(u => ({ id: u.userId, role: u.user?.role })));

@@ -249,11 +249,6 @@ export default function DashboardLayout({
             path: "/admin/clients",
           },
           {
-            label: "Configuration",
-            icon: <Settings className="size-5" />,
-            path: "/superadmin/settings",
-          },
-          {
             label: "Financials",
             icon: <DollarSign className="size-5" />,
             path: "/superadmin/financials",

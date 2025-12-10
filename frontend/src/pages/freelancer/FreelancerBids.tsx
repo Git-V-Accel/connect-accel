@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useData } from '../../contexts/DataContext';
+import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
@@ -75,10 +77,12 @@ interface Bid {
 
 export default function FreelancerBids() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { projects, bids, getBidsByFreelancer } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [budgetFilter, setBudgetFilter] = useState('all');
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
   const [isBidDialogOpen, setIsBidDialogOpen] = useState(false);
 
   // Bid form state
@@ -86,138 +90,11 @@ export default function FreelancerBids() {
   const [deliveryTime, setDeliveryTime] = useState('');
   const [proposal, setProposal] = useState('');
 
-  // Mock data - Available projects
-  const [availableProjects] = useState<Project[]>([
-    {
-      id: 'P1',
-      title: 'E-commerce Website Development',
-      description: 'Need a full-stack developer to build a modern e-commerce platform with payment integration, user authentication, and admin dashboard. Must have experience with React and Node.js.',
-      budget: '₹1,50,000 - ₹2,50,000',
-      budgetType: 'fixed',
-      duration: '2-3 months',
-      postedDate: '2 hours ago',
-      category: 'Web Development',
-      skills: ['React', 'Node.js', 'MongoDB', 'Payment Integration'],
-      client: {
-        name: 'TechStore India',
-        rating: 4.8,
-        projectsPosted: 12,
-        location: 'Mumbai, India',
-      },
-      bidsCount: 8,
-      status: 'open',
-    },
-    {
-      id: 'P2',
-      title: 'Mobile App UI/UX Design',
-      description: 'Looking for a talented UI/UX designer to create modern, user-friendly designs for our fitness tracking mobile app. Need complete design system and prototypes.',
-      budget: '₹800/hour',
-      budgetType: 'hourly',
-      duration: '1 month',
-      postedDate: '5 hours ago',
-      category: 'UI/UX Design',
-      skills: ['Figma', 'Mobile Design', 'Prototyping', 'User Research'],
-      client: {
-        name: 'FitLife Solutions',
-        rating: 4.9,
-        projectsPosted: 8,
-        location: 'Bangalore, India',
-      },
-      bidsCount: 15,
-      status: 'open',
-    },
-    {
-      id: 'P3',
-      title: 'Data Analysis & Visualization Dashboard',
-      description: 'Create interactive dashboards for sales data analysis using Python and modern visualization libraries. Should include predictive analytics and reporting features.',
-      budget: '₹80,000 - ₹1,20,000',
-      budgetType: 'fixed',
-      duration: '1-2 months',
-      postedDate: '1 day ago',
-      category: 'Data Science',
-      skills: ['Python', 'Pandas', 'Tableau', 'Machine Learning'],
-      client: {
-        name: 'RetailPro Analytics',
-        rating: 4.6,
-        projectsPosted: 5,
-        location: 'Delhi, India',
-      },
-      bidsCount: 12,
-      status: 'open',
-    },
-    {
-      id: 'P4',
-      title: 'DevOps Pipeline Setup',
-      description: 'Need experienced DevOps engineer to set up CI/CD pipelines, containerization, and cloud infrastructure on AWS. Must have experience with Kubernetes and Docker.',
-      budget: '₹1,200/hour',
-      budgetType: 'hourly',
-      duration: '2-4 weeks',
-      postedDate: '3 hours ago',
-      category: 'DevOps',
-      skills: ['AWS', 'Docker', 'Kubernetes', 'Jenkins', 'Terraform'],
-      client: {
-        name: 'CloudTech Innovations',
-        rating: 5.0,
-        projectsPosted: 15,
-        location: 'Hyderabad, India',
-      },
-      bidsCount: 6,
-      status: 'open',
-    },
-    {
-      id: 'P5',
-      title: 'Content Writing for Tech Blog',
-      description: 'Looking for technical content writer to create high-quality blog posts about software development, cloud computing, and AI/ML topics. Need 8-10 articles per month.',
-      budget: '₹500/article',
-      budgetType: 'fixed',
-      duration: 'Ongoing',
-      postedDate: '2 days ago',
-      category: 'Content Writing',
-      skills: ['Technical Writing', 'SEO', 'Research', 'Editing'],
-      client: {
-        name: 'DevInsights',
-        rating: 4.7,
-        projectsPosted: 20,
-        location: 'Remote',
-      },
-      bidsCount: 22,
-      status: 'open',
-    },
-  ]);
-
-  // Mock data - My bids
-  const [myBids] = useState<Bid[]>([
-    {
-      id: 'B1',
-      projectId: 'P10',
-      projectTitle: 'React Native Mobile App Development',
-      bidAmount: '₹1,80,000',
-      deliveryTime: '6 weeks',
-      proposal: 'I have 5+ years of experience in React Native development...',
-      status: 'pending',
-      submittedDate: '1 day ago',
-    },
-    {
-      id: 'B2',
-      projectId: 'P11',
-      projectTitle: 'WordPress E-learning Platform',
-      bidAmount: '₹95,000',
-      deliveryTime: '4 weeks',
-      proposal: 'I specialize in WordPress development with custom plugins...',
-      status: 'accepted',
-      submittedDate: '3 days ago',
-    },
-    {
-      id: 'B3',
-      projectId: 'P12',
-      projectTitle: 'API Integration for SaaS Product',
-      bidAmount: '₹60,000',
-      deliveryTime: '2 weeks',
-      proposal: 'I have extensive experience with RESTful API development...',
-      status: 'rejected',
-      submittedDate: '5 days ago',
-    },
-  ]);
+  // Get available projects (in bidding status)
+  const availableProjects = projects.filter(p => p.status === 'in_bidding' || p.status === 'open');
+  
+  // Get my bids
+  const myBids = user ? getBidsByFreelancer(user.id) : [];
 
   const filteredProjects = availableProjects.filter((project) => {
     const matchesSearch =

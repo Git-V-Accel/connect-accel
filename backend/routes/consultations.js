@@ -7,7 +7,7 @@ const {
 } = require('../controllers/consultationController');
 
 // All consultation routes require authentication and admin/super admin role
-router.use(protect, authorize('admin', 'super_admin'));
+router.use(protect, authorize('admin', 'superadmin'));
 
 router.get('/', getConsultations);
 router.patch('/:id/assign', assignConsultation);

@@ -20,38 +20,19 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      toast.success('Logged in successfully!');
       // Navigation is handled by App.tsx based on role
-    } catch (error) {
-      toast.error('Invalid credentials');
+    } catch (error: any) {
+      // Error message is already shown by authService/toast
+      // Check if email verification is required
+      if (error.response?.data?.requiresVerification) {
+        // Could redirect to OTP verification page if needed
+        toast.error('Please verify your email before logging in. Check your email for OTP.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDemoLogin = async (role: string) => {
-    const demoCredentials: Record<string, { email: string; password: string }> = {
-      client: { email: 'client@demo.com', password: 'demo123' },
-      freelancer: { email: 'freelancer@demo.com', password: 'demo123' },
-      admin: { email: 'admin@demo.com', password: 'demo123' },
-      superadmin: { email: 'superadmin@demo.com', password: 'demo123' },
-      agent: { email: 'agent@demo.com', password: 'demo123' },
-    };
-
-    const creds = demoCredentials[role];
-    setEmail(creds.email);
-    setPassword(creds.password);
-    
-    setLoading(true);
-    try {
-      await login(creds.email, creds.password);
-      toast.success(`Logged in as ${role}!`);
-    } catch (error) {
-      toast.error('Demo login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -112,9 +93,9 @@ export default function LoginPage() {
               </div>
 
               <div className="text-sm">
-                <a href="#" className="text-blue-600 hover:text-blue-500">
+                <Link to="/forgot-password" className="text-blue-600 hover:text-blue-500">
                   Forgot password?
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -148,52 +129,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="mt-6 border-t border-gray-200 pt-6">
-            <p className="text-sm text-gray-600 mb-3">Demo Accounts (MVP):</p>
-            <div className="grid grid-cols-2 gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm"
-                onClick={() => handleDemoLogin('client')}
-              >
-                Client
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm"
-                onClick={() => handleDemoLogin('freelancer')}
-              >
-                Freelancer
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm"
-                onClick={() => handleDemoLogin('agent')}
-              >
-                Agent
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm"
-                onClick={() => handleDemoLogin('admin')}
-              >
-                Admin
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm"
-                onClick={() => handleDemoLogin('superadmin')}
-                className="col-span-2"
-              >
-                Super Admin
-              </Button>
-            </div>
-          </div>
 
           <p className="mt-6 text-center text-sm text-gray-600">
             Don't have an account?{' '}

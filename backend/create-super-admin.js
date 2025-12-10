@@ -45,7 +45,7 @@ async function createSuperAdmin() {
       email: superAdminEmail,
       password: 'Admin@123', // This will be hashed automatically by the User model middleware
       role: USER_ROLES.SUPERADMIN,
-      adminRole: 'super_admin',
+      adminRole: 'superadmin',
       company: 'V-Accel',
       phone: '9944796546',
       permissions: [

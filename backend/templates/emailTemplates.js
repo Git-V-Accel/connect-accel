@@ -322,7 +322,9 @@ const welcomeTemplate = (userName) => {
 const userCreationTemplate = (userName, email, temporaryPassword, role, loginUrl, userID) => {
   const roleDisplayName = role === 'admin' ? 'Administrator' : 
                          role === 'freelancer' ? 'Freelancer' : 
-                         role === 'client' ? 'Client' : 'User';
+                         role === 'client' ? 'Client' : 
+                         role === 'agent' ? 'Agent' : 'User';
+    
   
   return `
     <!DOCTYPE html>
@@ -384,7 +386,7 @@ const userCreationTemplate = (userName, email, temporaryPassword, role, loginUrl
             .button {
                 display: inline-block;
                 background-color: #4F46E5;
-                color: white;
+                color: #ffffff !important;
                 padding: 15px 30px;
                 text-decoration: none;
                 border-radius: 5px;
@@ -394,6 +396,7 @@ const userCreationTemplate = (userName, email, temporaryPassword, role, loginUrl
             }
             .button:hover {
                 background-color: #4338CA;
+                color: #ffffff;
             }
             .footer {
                 text-align: center;
@@ -431,7 +434,7 @@ const userCreationTemplate = (userName, email, temporaryPassword, role, loginUrl
             <div class="content">
                 <p>Hello ${userName},</p>
                 
-                <p>Welcome toConnect-Accel! Your account has been successfully created with the role of <strong>${roleDisplayName}</strong>.</p>
+                <p>Welcome to Connect-Accel! Your account has been successfully created with the role of <strong>${roleDisplayName}</strong>.</p>
                 
                 <div class="credentials-box">
                     <h3 style="margin-top: 0; color: #495057;">Your Account Information:</h3>
@@ -474,12 +477,12 @@ const userCreationTemplate = (userName, email, temporaryPassword, role, loginUrl
                 
                 <p>If you have any questions or need assistance, please contact our support team.</p>
                 
-                <p>Thank you for joiningConnect-Accel!</p>
+                <p>Thank you for joining Connect-Accel!</p>
             </div>
             
             <div class="footer">
-                <p>This email was sent fromConnect-Accel. If you have any questions, please contact our support team.</p>
-                <p>&copy; 2024Connect-Accel. All rights reserved.</p>
+                <p>This email was sent from Connect-Accel. If you have any questions, please contact our support team.</p>
+                <p>&copy; 2025 Connect-Accel. All rights reserved.</p>
             </div>
         </div>
     </body>
