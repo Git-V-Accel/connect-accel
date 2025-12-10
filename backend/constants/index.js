@@ -15,9 +15,6 @@ const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME;
 const EMAIL_FROM_EMAIL = process.env.EMAIL_FROM_EMAIL;
 const BACKEND_URL = process.env.BACKEND_URL;
 const FRONTEND_URL = process.env.FRONTEND_URL;
-const REDIS_HOST = process.env.REDIS_HOST;
-const REDIS_PORT = process.env.REDIS_PORT;
-const REDIS_PASSWORD = process.env.REDIS_PASSWORD;
 
 // User Role Array (for validation)
 const USER_ROLE_ARRAY = Object.values(USER_ROLES);
@@ -73,12 +70,6 @@ const FRONTEND_CONFIG = {
   URL: FRONTEND_URL 
 };
 
-// Redis Configuration
-const REDIS_CONFIG = {
-  HOST: REDIS_HOST || 'localhost',
-  PORT: REDIS_PORT ? parseInt(REDIS_PORT, 10) : 6379,
-  PASSWORD: REDIS_PASSWORD || undefined,
-};
 
 // Import messages from separate file
 const MESSAGES = require('./messages');
@@ -307,7 +298,6 @@ module.exports = {
   RATE_LIMIT_CONFIG,
   DATABASE_CONFIG,
   FRONTEND_CONFIG,
-  REDIS_CONFIG,
   MESSAGES,
   STATUS_CODES,
   ACTIVITY_TYPES,

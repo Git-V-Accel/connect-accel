@@ -46,34 +46,18 @@ async function sendEmail(to, subject, html) {
     return;
   }
   
-  // Use email queue for async processing (if available)
-  const { addEmailJob } = require('./emailQueue');
-  
-  try {
-    const job = await addEmailJob('sendEmail', { to, subject, html });
-    if (job) {
-      console.log('Email job queued:', { to, subject });
-      return;
-    }
-    // If queue is not available, fall through to direct send
-  } catch (error) {
-    console.warn('Failed to queue email, sending directly:', error.message);
-    // Fall through to direct send
-  }
-  
-  // Fallback to direct send if queue is not available or fails
   const from = process.env.MAIL_FROM || process.env.EMAIL_FROM_EMAIL || 'no-reply@connect-accel.com';
   try {
     const transporter = await getTransporter();
     const info = await transporter.sendMail({ from, to, subject, html });
-    console.log('Email sent directly:', { to, subject, messageId: info?.messageId });
+    console.log('Email sent:', { to, subject, messageId: info?.messageId });
     
     // If using Ethereal test account, log preview URL
     if (nodemailer.getTestMessageUrl && nodemailer.getTestMessageUrl(info)) {
       console.log('Preview URL:', nodemailer.getTestMessageUrl(info));
     }
   } catch (err) {
-    console.error('Direct email send failed:', { to, subject, error: err?.message || err });
+    console.error('Email send failed:', { to, subject, error: err?.message || err });
     throw err; // Re-throw so caller knows it failed
   }
 }
@@ -107,26 +91,7 @@ async function sendShortlistedEmail({ to, freelancerName, projectTitle }) {
     <p>We will notify you once the client takes a final decision.</p>
   `);
   
-  const { addEmailJob } = require('./emailQueue');
-  try {
-    const job = await addEmailJob('sendShortlistedEmail', { to, freelancerName, projectTitle });
-    if (job) {
-      console.log('[emailService] Shortlisted email job queued:', { to, projectTitle });
-      return;
-    }
-    // If job is null, queue is not available, fall through to direct send
-    console.log('[emailService] Email queue not available, sending shortlisted email directly');
-  } catch (error) {
-    console.warn('[emailService] Failed to queue shortlisted email, sending directly:', error.message);
-  }
-  
-  // Fallback to direct send if queue is not available
-  try {
-    await sendEmail(to, `You're shortlisted for ${projectTitle}`, html);
-  } catch (error) {
-    console.error('[emailService] Failed to send shortlisted email:', error.message || error);
-    throw error; // Re-throw so caller knows it failed
-  }
+  await sendEmail(to, `You're shortlisted for ${projectTitle}`, html);
 }
 
 async function sendAcceptedEmail({ to, freelancerName, projectTitle }) {
@@ -135,12 +100,7 @@ async function sendAcceptedEmail({ to, freelancerName, projectTitle }) {
     <p>Great news! Your proposal for <strong>${projectTitle}</strong> has been <strong>accepted</strong>.</p>
     <p>Our team will contact you shortly with next steps.</p>
   `);
-  const { addEmailJob } = require('./emailQueue');
-  const job = await addEmailJob('sendAcceptedEmail', { to, freelancerName, projectTitle });
-  if (!job) {
-    // Fallback to direct send
-    await sendEmail(to, `Your proposal was accepted - ${projectTitle}`, html);
-  }
+  await sendEmail(to, `Your proposal was accepted - ${projectTitle}`, html);
 }
 
 async function sendNotSelectedEmail({ to, freelancerName, projectTitle }) {
@@ -149,12 +109,7 @@ async function sendNotSelectedEmail({ to, freelancerName, projectTitle }) {
     <p>Thank you for submitting a proposal for <strong>${projectTitle}</strong>.</p>
     <p>This time, another freelancer has been selected. We encourage you to keep applying to other projects.</p>
   `);
-  const { addEmailJob } = require('./emailQueue');
-  const job = await addEmailJob('sendNotSelectedEmail', { to, freelancerName, projectTitle });
-  if (!job) {
-    // Fallback to direct send
-    await sendEmail(to, `Update on your proposal - ${projectTitle}`, html);
-  }
+  await sendEmail(to, `Update on your proposal - ${projectTitle}`, html);
 }
 
 async function sendConsultationRequestEmail({ to, adminName, clientName, clientEmail, clientPhone, clientCompany, projectDetails }) {
@@ -179,12 +134,7 @@ async function sendConsultationRequestEmail({ to, adminName, clientName, clientE
       <p style="margin:0;color:#1e40af;font-size:13px"><strong>Action Required:</strong> Contact the client to discuss their project requirements and provide guidance.</p>
     </div>
   `);
-  const { addEmailJob } = require('./emailQueue');
-  const job = await addEmailJob('sendConsultationRequestEmail', { to, adminName, clientName, clientEmail, clientPhone, clientCompany, projectDetails });
-  if (!job) {
-    // Fallback to direct send
-    await sendEmail(to, `Consultation Request from ${clientName || 'Client'}`, html);
-  }
+  await sendEmail(to, `Consultation Request from ${clientName || 'Client'}`, html);
 }
 
 async function sendPasswordChangedEmail({ to, userName }) {
@@ -206,26 +156,7 @@ async function sendPasswordChangedEmail({ to, userName }) {
     </div>
   `);
   
-  const { addEmailJob } = require('./emailQueue');
-  try {
-    const job = await addEmailJob('sendPasswordChangedEmail', { to, userName });
-    if (job) {
-      console.log('[emailService] Password changed email job queued:', { to });
-      return;
-    }
-    // If job is null, queue is not available, fall through to direct send
-    console.log('[emailService] Email queue not available, sending password changed email directly');
-  } catch (error) {
-    console.warn('[emailService] Failed to queue password changed email, sending directly:', error.message);
-  }
-  
-  // Fallback to direct send if queue is not available
-  try {
-    await sendEmail(to, 'Password Changed Successfully - Connect Accel', html);
-  } catch (error) {
-    console.error('[emailService] Failed to send password changed email:', error.message || error);
-    throw error; // Re-throw so caller knows it failed
-  }
+  await sendEmail(to, 'Password Changed Successfully - Connect Accel', html);
 }
 
 module.exports = {

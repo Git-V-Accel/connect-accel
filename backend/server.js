@@ -8,8 +8,6 @@ const cookieParser = require("cookie-parser");
 const connectDB = require("./config/database");
 const { SERVER_CONFIG, FRONTEND_CONFIG, RATE_LIMIT_CONFIG } = require("./constants");
 const socketService = require("./services/socketService");
-const { getRedisClient } = require("./config/redis");
-const { initializeEmailWorker } = require("./workers/emailWorker");
 const performanceLogger = require("./middleware/performance");
 const healthCheck = require("./middleware/healthCheck");
 
@@ -18,19 +16,6 @@ require("dotenv").config();
 
 // Connect to MongoDB
 connectDB();
-
-// Initialize Redis connection (optional - app will work without it)
-try {
-  const redis = getRedisClient();
-  // Connection is lazy, so it won't fail immediately if Redis is not available
-  console.log('Redis client initialized (connection is optional)');
-} catch (err) {
-  console.warn("Redis initialization warning:", err.message || err);
-  console.log("App will continue without Redis features");
-}
-
-// Initialize email worker
-initializeEmailWorker();
 
 const app = express();
 const PORT = SERVER_CONFIG.PORT;

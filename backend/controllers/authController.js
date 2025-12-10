@@ -9,8 +9,6 @@ const socketService = require('../services/socketService');
 const { USER_ROLES, JWT_CONFIG, PASSWORD_RESET_CONFIG, MESSAGES, STATUS_CODES, NOTIFICATION_TYPES, USER_STATUS, FRONTEND_CONFIG } = require('../constants');
 const { generateUserId } = require('../utils/userIdGenerator');
 const { generateOTPWithExpiry } = require('../utils/otpGenerator');
-const { getRedisClient } = require('../config/redis');
-
 // Generate JWT Access Token
 const generateToken = (id) => {
   return jwt.sign({ id }, JWT_CONFIG.SECRET_KEY, {
@@ -25,61 +23,23 @@ const generateRefreshToken = (id) => {
   });
 };
 
-// Store refresh token in Redis (or in-memory fallback)
-const { isRedisAvailable } = require('../config/redis');
-const inMemoryTokens = new Map(); // Fallback storage
+// Store refresh token in-memory
+const inMemoryTokens = new Map();
 
 const storeRefreshToken = async (userId, refreshToken) => {
-  try {
-    if (isRedisAvailable()) {
-      const redis = getRedisClient();
-      const key = `refresh_token:${userId}`;
-      await redis.setex(key, 7 * 24 * 60 * 60, refreshToken); // 7 days
-    } else {
-      // Fallback to in-memory storage
-      inMemoryTokens.set(userId, refreshToken);
-      // Auto-expire after 7 days
-      setTimeout(() => inMemoryTokens.delete(userId), 7 * 24 * 60 * 60 * 1000);
-    }
-  } catch (error) {
-    // Fallback to in-memory storage
-    inMemoryTokens.set(userId, refreshToken);
-    setTimeout(() => inMemoryTokens.delete(userId), 7 * 24 * 60 * 60 * 1000);
-  }
+  inMemoryTokens.set(userId, refreshToken);
+  // Auto-expire after 7 days
+  setTimeout(() => inMemoryTokens.delete(userId), 7 * 24 * 60 * 60 * 1000);
 };
 
-// Verify and get refresh token from Redis (or in-memory)
+// Get refresh token from in-memory storage
 const getRefreshToken = async (userId) => {
-  try {
-    if (isRedisAvailable()) {
-      const redis = getRedisClient();
-      const key = `refresh_token:${userId}`;
-      return await redis.get(key);
-    } else {
-      // Fallback to in-memory storage
-      return inMemoryTokens.get(userId) || null;
-    }
-  } catch (error) {
-    // Fallback to in-memory storage
-    return inMemoryTokens.get(userId) || null;
-  }
+  return inMemoryTokens.get(userId) || null;
 };
 
 // Revoke refresh token
 const revokeRefreshToken = async (userId) => {
-  try {
-    if (isRedisAvailable()) {
-      const redis = getRedisClient();
-      const key = `refresh_token:${userId}`;
-      await redis.del(key);
-    } else {
-      // Fallback to in-memory storage
-      inMemoryTokens.delete(userId);
-    }
-  } catch (error) {
-    // Fallback to in-memory storage
-    inMemoryTokens.delete(userId);
-  }
+  inMemoryTokens.delete(userId);
 };
 
 // Set HTTP-only cookie
@@ -287,7 +247,7 @@ const refreshToken = async (req, res) => {
       });
     }
 
-    // Check if refresh token exists in Redis
+    // Check if refresh token exists in storage
     const storedToken = await getRefreshToken(decoded.id);
     if (!storedToken || storedToken !== refreshToken) {
       return res.status(STATUS_CODES.UNAUTHORIZED).json({

@@ -10,8 +10,6 @@ class SocketService {
 
   initialize(server) {
     const { Server } = require('socket.io');
-    const { createAdapter } = require('@socket.io/redis-adapter');
-    const { getRedisClient } = require('../config/redis');
     
     this.io = new Server(server, {
       cors: {
@@ -20,24 +18,6 @@ class SocketService {
         credentials: true
       }
     });
-
-    // Use Redis adapter for Socket.IO scaling (optional)
-    try {
-      const { isRedisAvailable } = require('../config/redis');
-      if (isRedisAvailable()) {
-        const pubClient = getRedisClient();
-        const subClient = pubClient.duplicate();
-        // @socket.io/redis-adapter works with ioredis
-        const { createAdapter } = require('@socket.io/redis-adapter');
-        this.io.adapter(createAdapter(pubClient, subClient));
-        console.log('Socket.IO Redis adapter initialized');
-      } else {
-        console.log('Socket.IO running without Redis adapter (Redis not available)');
-      }
-    } catch (error) {
-      console.error('Failed to initialize Socket.IO Redis adapter:', error);
-      console.log('Socket.IO will run without Redis adapter');
-    }
 
     this.io.use(async (socket, next) => {
       try {

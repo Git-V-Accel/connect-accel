@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const { getRedisClient } = require('../config/redis');
 
 /**
  * Health check endpoint handler
@@ -28,28 +27,6 @@ const healthCheck = async (req, res) => {
     };
   } catch (error) {
     health.services.mongodb = {
-      status: 'ERROR',
-      error: error.message,
-    };
-  }
-
-  // Check Redis
-  try {
-    const { isRedisAvailable } = require('../config/redis');
-    if (isRedisAvailable()) {
-      const redis = getRedisClient();
-      await redis.ping();
-      health.services.redis = {
-        status: 'OK',
-      };
-    } else {
-      health.services.redis = {
-        status: 'UNAVAILABLE',
-        message: 'Redis is not connected (optional service)',
-      };
-    }
-  } catch (error) {
-    health.services.redis = {
       status: 'ERROR',
       error: error.message,
     };

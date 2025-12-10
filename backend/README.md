@@ -15,7 +15,6 @@ This is the backend API for theConnect-Accel application, built with Node.js, Ex
 
 - Node.js (v14 or higher)
 - MongoDB (local or cloud instance)
-- Redis (optional - for caching, queues, and real-time features)
 - Gmail account for email functionality
 
 ## Installation
@@ -63,12 +62,6 @@ FRONTEND_URL=http://localhost:3000
 # Email Templates
 EMAIL_FROM_NAME=Connect - Accel
 EMAIL_FROM_EMAIL=noreply@freelancerportal.com
-
-# Redis Configuration (Optional - for caching, queues, and real-time features)
-# If not provided, the app will work without Redis but with reduced functionality
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
 
 # JWT Refresh Token Secret (Optional - defaults to JWT_SECRET + '_refresh')
 JWT_REFRESH_SECRET=your-refresh-token-secret-key
