@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
-import { Textarea } from '../../components/ui/textarea';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
@@ -198,9 +198,7 @@ export default function ProjectDetailPage() {
           <TabsContent value="details" className="space-y-6">
             <Card className="p-6">
               <h3 className="text-xl mb-4">Project Description</h3>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                {project.description}
-              </p>
+              <RichTextViewer content={project.description || ''} />
             </Card>
 
             <Card className="p-6">

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
@@ -191,7 +192,9 @@ export default function AgentProjects() {
                           {project.status.replace('_', ' ')}
                         </span>
                       </div>
-                      <p className="text-gray-600 mb-3">{project.description}</p>
+                      <div className="text-gray-600 mb-3 line-clamp-3">
+                        <RichTextViewer content={project.description || ''} />
+                      </div>
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <div className="flex items-center gap-1">
                           <Users className="size-4" />

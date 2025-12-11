@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Textarea } from '../../components/ui/textarea';
+import { RichTextEditor } from '../../components/common/RichTextEditor';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Badge } from '../../components/ui/badge';
@@ -291,12 +291,12 @@ export default function EditProject() {
 
               <div>
                 <Label htmlFor="description">Project Description *</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe your project in detail. What are you trying to build? What problem does it solve?"
-                  rows={6}
+                <RichTextEditor
                   value={formData.description}
-                  onChange={e => updateFormData('description', e.target.value)}
+                  onChange={(value) => updateFormData('description', value)}
+                  placeholder="Describe your project in detail. What are you trying to build? What problem does it solve?"
+                  className="mt-1"
+                  minHeight="200px"
                 />
                 <p className="text-sm text-gray-500 mt-1">
                   Be as detailed as possible. This helps us match you with the right freelancers.

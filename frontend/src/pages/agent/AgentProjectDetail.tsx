@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { useData } from '../../contexts/DataContext';
 import { 
   ArrowLeft,
@@ -151,7 +152,7 @@ export default function AgentProjectDetail() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm mb-2">Description</h3>
-                  <p className="text-gray-600">{project.description}</p>
+                  <RichTextViewer content={project.description || ''} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

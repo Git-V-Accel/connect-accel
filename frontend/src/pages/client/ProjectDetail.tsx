@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { Textarea } from '../../components/ui/textarea';
 import { Progress } from '../../components/ui/progress';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
@@ -178,7 +179,7 @@ export default function ProjectDetail() {
             <div className="flex items-start justify-between">
               <div>
                 <h1 className="text-3xl mb-2">{project.title}</h1>
-                <p className="text-gray-600">{project.description}</p>
+                <RichTextViewer content={project.description || ''} />
               </div>
               <Badge className={statusColors[project.status]}>
                 {statusLabels[project.status]}

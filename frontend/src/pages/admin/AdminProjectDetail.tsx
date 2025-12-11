@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { statusLabels } from '../../constants/projectConstants';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { ArrowLeft, Edit2, Users, DollarSign, Calendar, TrendingUp, MessageSquare, AlertTriangle } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
@@ -182,7 +183,9 @@ export default function AdminProjectDetail() {
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm text-gray-600">Description</label>
-                    <p className="mt-1">{project.description}</p>
+                    <div className="mt-1">
+                      <RichTextViewer content={project.description || ''} />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

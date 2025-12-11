@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
@@ -112,7 +113,9 @@ export default function BrowseProjects() {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <h3 className="text-lg font-medium mb-2">{project.title}</h3>
-                  <p className="text-gray-600 mb-4 line-clamp-2">{project.description}</p>
+                  <div className="text-gray-600 mb-4 line-clamp-2">
+                    <RichTextViewer content={project.description || ''} />
+                  </div>
                   
                   <div className="flex flex-wrap gap-2 mb-4">
                     {project.skills_required.slice(0, 6).map(skill => (

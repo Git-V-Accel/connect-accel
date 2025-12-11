@@ -6,6 +6,8 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Input } from "../../components/ui/input";
+import { RichTextEditor } from "../../components/common/RichTextEditor";
+import { RichTextViewer } from "../../components/common/RichTextViewer";
 import { Textarea } from "../../components/ui/textarea";
 import { Label } from "../../components/ui/label";
 import {
@@ -577,17 +579,17 @@ export default function ProjectReview() {
                     <div>
                       <Label className="text-gray-600">Description</Label>
                       {isEditing ? (
-                        <Textarea
+                        <RichTextEditor
                           value={editedDescription}
-                          onChange={(e) => setEditedDescription(e.target.value)}
+                          onChange={(value) => setEditedDescription(value)}
                           placeholder="Describe the project..."
-                          rows={5}
                           className="mt-2"
+                          minHeight="200px"
                         />
                       ) : (
-                        <p className="mt-2 text-gray-900">
-                          {project.description}
-                        </p>
+                        <div className="mt-2">
+                          <RichTextViewer content={project.description || ''} />
+                        </div>
                       )}
                     </div>
 

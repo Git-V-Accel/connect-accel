@@ -5,7 +5,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
+import { RichTextEditor } from "../../components/common/RichTextEditor";
 import { Label } from "../../components/ui/label";
 import { useData } from "../../contexts/DataContext";
 import { projectTypes, statusColors, statusLabels } from "../../constants/projectConstants";
@@ -322,16 +322,14 @@ export default function CreateBid() {
 
                 <div>
                   <Label htmlFor="description">Project Description *</Label>
-                  <Textarea
-                    id="description"
+                  <RichTextEditor
                     value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
+                    onChange={(value) =>
+                      setFormData({ ...formData, description: value })
                     }
                     placeholder="Enter project description"
-                    rows={5}
                     className="mt-2"
-                    required
+                    minHeight="200px"
                   />
                 </div>
 
