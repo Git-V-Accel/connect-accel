@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -13,7 +13,9 @@ import {
   Save,
   Edit,
   X,
+  Plus,
 } from 'lucide-react';
+import { Badge } from '../../components/ui/badge';
 import { toast } from '../../utils/toast';
 import {
   Select,
@@ -23,20 +25,30 @@ import {
   SelectItem
 } from '../../components/ui/select';
 import { Switch } from '../../components/ui/switch';
+import * as settingsService from '../../services/settingsService';
+import * as userService from '../../services/userService';
+import { useAuth } from '../../contexts/AuthContext';
+import { commonSkills } from '../../constants/projectConstants';
 
 export default function ClientSettings() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'appearance' | 'security'>('profile');
+  const [loading, setLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
 
   const [profileData, setProfileData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
+    role: '',
     email: '',
     phone: '',
-    location: '',
     bio: '',
+    skills: [] as string[],
   });
 
-  const [isBioEditing, setIsBioEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [bioEditValue, setBioEditValue] = useState('');
+  const [skillInput, setSkillInput] = useState('');
 
   const [notificationSettings, setNotificationSettings] = useState({
     email_updates: true,
@@ -55,20 +67,149 @@ export default function ClientSettings() {
     confirm_password: '',
   });
 
-  const handleSaveProfile = () => {
-    if (!profileData.name || !profileData.email) {
-      toast.error('Name and email are required');
+  // Load settings and user profile data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setSettingsLoading(true);
+        
+        // Fetch both user profile and settings in parallel
+        const [userProfile, settings] = await Promise.all([
+          userService.getCurrentUser().catch(() => null), // Fallback to null if fails
+          settingsService.getSettings()
+        ]);
+        
+        // Populate profile data - prioritize user profile data, then settings
+        if (userProfile || settings.profile) {
+          // Split name into firstName and lastName if needed
+          const fullName = userProfile?.name || settings.profile?.name || user?.name || '';
+          const nameParts = fullName.trim().split(' ');
+          const firstName = settings.profile?.firstName || nameParts[0] || '';
+          const lastName = settings.profile?.lastName || nameParts.slice(1).join(' ') || '';
+          
+          setProfileData({
+            firstName: firstName,
+            lastName: lastName,
+            role: userProfile?.role || settings.profile?.role || user?.role || '',
+            email: userProfile?.email || settings.profile?.email || user?.email || '',
+            phone: userProfile?.phone || settings.profile?.phone || '',
+            company: settings.profile?.company || userProfile?.company || '',
+            bio: settings.profile?.bio || '',
+            skills: settings.profile?.skills || userProfile?.skills || [],
+          });
+          setBioEditValue(settings.profile?.bio || '');
+        }
+
+        // Populate notification settings
+        if (settings.notifications) {
+          setNotificationSettings({
+            email_updates: settings.notifications.email?.updates ?? true,
+            email_promotions: settings.notifications.email?.promotions ?? false,
+            push_updates: settings.notifications.push?.updates ?? true,
+            push_reminders: settings.notifications.push?.reminders ?? true,
+          });
+        }
+
+        // Populate appearance settings
+        if (settings.appearance) {
+          setAppearanceSettings({
+            theme: settings.appearance.theme || 'system',
+          });
+        }
+      } catch (error: any) {
+        console.error('Failed to load settings:', error);
+        toast.error('Failed to load settings');
+        
+        // Fallback to user data from AuthContext if API fails
+        if (user) {
+          const nameParts = (user.name || '').trim().split(' ');
+          setProfileData({
+            firstName: nameParts[0] || '',
+            lastName: nameParts.slice(1).join(' ') || '',
+            role: user.role || '',
+            email: user.email || '',
+            phone: user.phone || '',
+            company: '',
+            bio: '',
+            skills: [],
+          });
+        }
+      } finally {
+        setSettingsLoading(false);
+      }
+    };
+
+    if (user) {
+      loadData();
+    }
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    if (!profileData.firstName || !profileData.email) {
+      toast.error('First name and email are required');
       return;
     }
-    toast.success('Profile updated successfully!');
+
+    setLoading(true);
+    try {
+      // Combine firstName and lastName for the name field
+      const fullName = `${profileData.firstName} ${profileData.lastName}`.trim();
+      
+      await settingsService.updateSettingsSection('profile', {
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        name: fullName,
+        phone: profileData.phone,
+        company: profileData.company,
+        bio: bioEditValue || profileData.bio,
+        skills: profileData.skills,
+      });
+      toast.success('Profile updated successfully!');
+      setProfileData({ ...profileData, bio: bioEditValue });
+      setIsEditing(false);
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error.message || 'Failed to update profile';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveNotifications = () => {
-    toast.success('Notification preferences updated!');
+  const handleSaveNotifications = async () => {
+    setLoading(true);
+    try {
+      await settingsService.updateSettingsSection('notifications', {
+        email: {
+          updates: notificationSettings.email_updates,
+          promotions: notificationSettings.email_promotions,
+        },
+        push: {
+          updates: notificationSettings.push_updates,
+          reminders: notificationSettings.push_reminders,
+        },
+      });
+      toast.success('Notification preferences updated!');
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error.message || 'Failed to update notifications';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveAppearance = () => {
-    toast.success('Appearance settings saved');
+  const handleSaveAppearance = async () => {
+    setLoading(true);
+    try {
+      await settingsService.updateSettingsSection('appearance', {
+        theme: appearanceSettings.theme,
+      });
+      toast.success('Appearance settings saved');
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error.message || 'Failed to update appearance';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChangePassword = () => {
@@ -125,20 +266,59 @@ export default function ClientSettings() {
         {/* Profile */}
         {activeTab === 'profile' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-            <div>
-              <h2 className="text-xl mb-1">Profile Settings</h2>
-              <p className="text-sm text-gray-600">Update your basic information</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl mb-1">Profile Settings</h2>
+                <p className="text-sm text-gray-600">Update your basic information</p>
+              </div>
+              {!isEditing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setBioEditValue(profileData.bio);
+                    setIsEditing(true);
+                  }}
+                >
+                  <Edit className="size-4 mr-2" />
+                  Edit
+                </Button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <Label htmlFor="name">Full Name *</Label>
+                <Label htmlFor="firstName">First Name *</Label>
                 <Input
-                  id="name"
-                  value={profileData.name}
-                  onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                  id="firstName"
+                  value={profileData.firstName}
+                  onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })}
                   className="mt-1"
-                  placeholder="Jane Doe"
+                  placeholder="Jane"
+                  disabled={!isEditing || loading || settingsLoading}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  value={profileData.lastName}
+                  onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })}
+                  className="mt-1"
+                  placeholder="Doe"
+                  disabled={!isEditing || loading || settingsLoading}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="role">Role</Label>
+                <Input
+                  id="role"
+                  value={profileData.role}
+                  className="mt-1 bg-gray-50"
+                  disabled={true}
+                  readOnly
                 />
               </div>
 
@@ -148,9 +328,9 @@ export default function ClientSettings() {
                   id="email"
                   type="email"
                   value={profileData.email}
-                  onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                  className="mt-1"
-                  placeholder="jane@example.com"
+                  className="mt-1 bg-gray-50"
+                  disabled={true}
+                  readOnly
                 />
               </div>
 
@@ -162,41 +342,27 @@ export default function ClientSettings() {
                   onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                   className="mt-1"
                   placeholder="+1 (555) 000-0000"
+                  disabled={!isEditing || loading || settingsLoading}
                 />
               </div>
 
               <div>
-                <Label htmlFor="location">Location</Label>
+                <Label htmlFor="company">Company Name</Label>
                 <Input
-                  id="location"
-                  value={profileData.location}
-                  onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
+                  id="company"
+                  value={profileData.company}
+                  onChange={(e) => setProfileData({ ...profileData, company: e.target.value })}
                   className="mt-1"
-                  placeholder="City, Country"
+                  placeholder="Company Name"
+                  disabled={!isEditing || loading || settingsLoading}
                 />
               </div>
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label htmlFor="bio">Bio</Label>
-                {!isBioEditing && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setBioEditValue(profileData.bio);
-                      setIsBioEditing(true);
-                    }}
-                  >
-                    <Edit className="size-4 mr-2" />
-                    Edit
-                  </Button>
-                )}
-              </div>
-              {isBioEditing ? (
-                <div className="space-y-2">
+              <Label htmlFor="bio">Bio</Label>
+              {isEditing ? (
+                <div className="space-y-2 mt-1">
                   <RichTextEditor
                     value={bioEditValue}
                     onChange={setBioEditValue}
@@ -204,32 +370,6 @@ export default function ClientSettings() {
                     className="mt-1"
                     minHeight="150px"
                   />
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => {
-                        setProfileData({ ...profileData, bio: bioEditValue });
-                        setIsBioEditing(false);
-                        toast.success('Bio updated successfully');
-                      }}
-                    >
-                      <Save className="size-4 mr-2" />
-                      Save
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setBioEditValue(profileData.bio);
-                        setIsBioEditing(false);
-                      }}
-                    >
-                      <X className="size-4 mr-2" />
-                      Cancel
-                    </Button>
-                  </div>
                 </div>
               ) : (
                 <div className="mt-1 p-4 border border-gray-200 rounded-lg bg-gray-50 min-h-[150px]">
@@ -242,9 +382,105 @@ export default function ClientSettings() {
               )}
             </div>
 
-            <Button onClick={handleSaveProfile}>
+            <div>
+              <Label htmlFor="skills">Skills</Label>
+              <div className="flex gap-2 mb-3 mt-1">
+                <Input
+                  id="skills"
+                  placeholder="Enter a skill (e.g., React, Node.js)"
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const trimmedSkill = skillInput.trim();
+                      if (trimmedSkill && !profileData.skills.includes(trimmedSkill)) {
+                        setProfileData({
+                          ...profileData,
+                          skills: [...profileData.skills, trimmedSkill]
+                        });
+                        setSkillInput('');
+                      }
+                    }
+                  }}
+                  disabled={loading || settingsLoading}
+                />
+                <Button
+                  type="button"
+                  onClick={() => {
+                    const trimmedSkill = skillInput.trim();
+                    if (trimmedSkill && !profileData.skills.includes(trimmedSkill)) {
+                      setProfileData({
+                        ...profileData,
+                        skills: [...profileData.skills, trimmedSkill]
+                      });
+                      setSkillInput('');
+                    }
+                  }}
+                  disabled={loading || settingsLoading || !skillInput.trim()}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </div>
+              
+              {profileData.skills.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {profileData.skills.map((skill) => (
+                    <Badge
+                      key={skill}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-red-100 flex items-center gap-1"
+                      onClick={() => {
+                        if (!loading && !settingsLoading) {
+                          setProfileData({
+                            ...profileData,
+                            skills: profileData.skills.filter(s => s !== skill)
+                          });
+                        }
+                      }}
+                    >
+                      {skill}
+                      <X className="size-3" />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-sm text-gray-500 mb-2">Select from common skills:</p>
+              <div className="flex flex-wrap gap-2">
+                {commonSkills.map((skill) => {
+                  const isSelected = profileData.skills.includes(skill);
+                  return (
+                    <Badge
+                      key={skill}
+                      variant={isSelected ? 'default' : 'outline'}
+                      className="cursor-pointer hover:bg-blue-100 transition-colors"
+                      onClick={() => {
+                        if (!loading && !settingsLoading) {
+                          if (isSelected) {
+                            setProfileData({
+                              ...profileData,
+                              skills: profileData.skills.filter(s => s !== skill)
+                            });
+                          } else {
+                            setProfileData({
+                              ...profileData,
+                              skills: [...profileData.skills, skill]
+                            });
+                          }
+                        }
+                      }}
+                    >
+                      {skill}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Button onClick={handleSaveProfile} disabled={loading || settingsLoading}>
               <Save className="size-4 mr-2" />
-              Save Changes
+              {loading ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         )}
@@ -300,9 +536,9 @@ export default function ClientSettings() {
                 ))}
               </div>
 
-              <Button onClick={handleSaveNotifications}>
+              <Button onClick={handleSaveNotifications} disabled={loading || settingsLoading}>
                 <Save className="size-4 mr-2" />
-                Save Preferences
+                {loading ? 'Saving...' : 'Save Preferences'}
               </Button>
             </div>
           </div>
@@ -334,9 +570,9 @@ export default function ClientSettings() {
                 </Select>
               </div>
 
-              <Button onClick={handleSaveAppearance}>
+              <Button onClick={handleSaveAppearance} disabled={loading || settingsLoading}>
                 <Save className="size-4 mr-2" />
-                Save Appearance
+                {loading ? 'Saving...' : 'Save Appearance'}
               </Button>
             </div>
           </div>

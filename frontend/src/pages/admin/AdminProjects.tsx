@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
@@ -126,12 +126,7 @@ export default function AdminProjects() {
             <div className="text-sm text-gray-600">Client Budget</div>
             <div className="font-medium">₹{project.client_budget.toLocaleString()}</div>
           </div>
-          <div>
-            <div className="text-sm text-gray-600">Margin</div>
-            <div className="font-medium">
-              {project.margin ? `₹${project.margin.toLocaleString()}` : 'Not set'}
-            </div>
-          </div>
+         
           <div>
             <div className="text-sm text-gray-600">Timeline</div>
             <div className="font-medium">{project.timeline}</div>

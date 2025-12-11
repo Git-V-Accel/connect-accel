@@ -35,6 +35,19 @@ export const API_CONFIG = {
     BIDDING: (id: string) => `${API_PREFIX}/projects/${id}/bidding`,
     CONSULTATION: `${API_PREFIX}/projects/consultation`,
   },
+  ACTIVITY_LOGS: {
+    PROJECT: (projectId: string) => `${API_PREFIX}/activity-logs/project/${projectId}`,
+    CLIENT: (clientId: string) => `${API_PREFIX}/activity-logs/client/${clientId}`,
+    ALL: `${API_PREFIX}/activity-logs`,
+    STATS: `${API_PREFIX}/activity-logs/stats`,
+  },
+  SETTINGS: {
+    GET: `${API_PREFIX}/settings`,
+    GET_BY_USER_ID: (userId: string) => `${API_PREFIX}/settings/user/${userId}`,
+    UPDATE: `${API_PREFIX}/settings`,
+    UPDATE_SECTION: (section: string) => `${API_PREFIX}/settings/${section}`,
+    RESET: `${API_PREFIX}/settings/reset`,
+  },
 };
 
 export default API_CONFIG;

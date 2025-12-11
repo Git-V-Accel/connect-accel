@@ -13,6 +13,7 @@ import LandingPage from "./pages/public/LandingPage";
 import LoginPage from "./pages/public/LoginPage";
 import SignupPage from "./pages/public/SignupPage";
 import ForgotPassword from "./pages/public/ForgotPassword";
+import ResetPassword from "./pages/public/ResetPassword";
 import HowItWorksPage from "./pages/public/HowItWorksPage";
 import PricingPage from "./pages/public/PricingPage";
 
@@ -47,7 +48,6 @@ import SubmitBid from "./pages/freelancer/SubmitBid";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProjects from "./pages/admin/AdminProjects";
 import ProjectReview from "./pages/admin/ProjectReview";
-import FreelancerDirectory from "./pages/admin/FreelancerDirectory";
 import FreelancerDetails from "./pages/admin/FreelancerDetails";
 import BiddingManagement from "./pages/admin/BiddingManagement";
 import AdminConsultations from "./pages/admin/AdminConsultations";
@@ -125,6 +125,7 @@ function AppRoutes() {
       <Route path="/login" element={user ? <Navigate to={getRoleBasedRoute(user.role)} /> : <LoginPage />} />
       <Route path="/signup" element={user ? <Navigate to={getRoleBasedRoute(user.role)} /> : <SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
       <Route path="/how-it-works" element={<HowItWorksPage />} />
       <Route path="/pricing" element={<PricingPage />} />
 
@@ -159,7 +160,6 @@ function AppRoutes() {
       <Route path="/admin/projects" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminProjects /></ProtectedRoute>} />
       <Route path="/admin/projects/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminProjectDetail /></ProtectedRoute>} />
       <Route path="/admin/projects/:id/review" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><ProjectReview /></ProtectedRoute>} />
-      <Route path="/admin/freelancers" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><FreelancerDirectory /></ProtectedRoute>} />
       <Route path="/admin/freelancers/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><FreelancerDetails /></ProtectedRoute>} />
       <Route path="/admin/freelancers/:id/detail" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><FreelancerDetail /></ProtectedRoute>} />
       <Route path="/admin/projects/:id/bids" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><BiddingManagement /></ProtectedRoute>} />

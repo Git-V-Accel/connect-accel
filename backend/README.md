@@ -115,6 +115,7 @@ npm run seed
 ```
 
 This will create:
+
 - **1 Super Admin** (already exists: selvakumar@v-accel.ai)
 - **2 Admin users** with different permissions
 - **10 Freelancer users** with various skills and rates
@@ -183,7 +184,7 @@ The script will display all created user credentials with their email, password,
 ### User Model
 
 - Basic info: name, email, password, role
-- Admin fields: adminRole, permissions
+- Admin fields: adminRole
 - Freelancer fields: skills, hourlyRate, experience, bio
 - Client fields: company, phone, website, location, title
 - Security: isFirstLogin, email verification tokens

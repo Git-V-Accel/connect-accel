@@ -27,7 +27,7 @@ export default function FreelancerDetails() {
         <div className="space-y-6">
           <Button
             variant="outline"
-            onClick={() => navigate('/admin/freelancers')}
+            onClick={() => navigate('/admin/freelancers-management')}
             className="mb-4"
           >
             <ArrowLeft className="size-4 mr-2" />

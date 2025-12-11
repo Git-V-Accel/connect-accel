@@ -24,7 +24,7 @@ export default function FreelancerDetail() {
           <div className="max-w-4xl mx-auto text-center py-12">
             <h2 className="text-2xl mb-2">Freelancer Not Found</h2>
             <button
-              onClick={() => navigate('/admin/freelancers')}
+              onClick={() => navigate('/admin/freelancers-management')}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mt-4"
             >
               Back to Directory
@@ -42,7 +42,7 @@ export default function FreelancerDetail() {
           {/* Header */}
           <div className="mb-6">
             <button
-              onClick={() => navigate('/admin/freelancers')}
+              onClick={() => navigate('/admin/freelancers-management')}
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -50,7 +50,7 @@ export default function FreelancerDetail() {
 
             <div className="bg-white rounded-lg border p-6">
               <div className="flex items-start justify-between">
-                  <div className="flex gap-4">
+                <div className="flex gap-4">
                   <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl">
                     {freelancer.name.split(' ').map((n: string) => n[0]).join('')}
                   </div>
@@ -129,17 +129,17 @@ export default function FreelancerDetail() {
 
               {/* Portfolio */}
               {freelancer.portfolio && freelancer.portfolio.length > 0 && (
-                <div className="bg-white rounded-lg border p-6">
-                  <h2 className="text-xl mb-4">Portfolio</h2>
-                  <div className="space-y-4">
-                    {freelancer.portfolio.map((item: any, index: number) => (
-                      <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                        <h3 className="font-medium mb-1">{item.title}</h3>
-                        <p className="text-sm text-gray-600">{item.description}</p>
-                      </div>
-                    ))}
-                  </div>
+              <div className="bg-white rounded-lg border p-6">
+                <h2 className="text-xl mb-4">Portfolio</h2>
+                <div className="space-y-4">
+                  {freelancer.portfolio.map((item: any, index: number) => (
+                    <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                      <h3 className="font-medium mb-1">{item.title}</h3>
+                      <p className="text-sm text-gray-600">{item.description}</p>
+                    </div>
+                  ))}
                 </div>
+              </div>
               )}
 
               {/* Projects History */}
@@ -218,20 +218,20 @@ export default function FreelancerDetail() {
 
               {/* Certifications */}
               {freelancer.certifications && freelancer.certifications.length > 0 && (
-                <div className="bg-white rounded-lg border p-6">
-                  <h3 className="text-lg mb-4 flex items-center gap-2">
-                    <Award className="w-5 h-5" />
-                    Certifications
-                  </h3>
-                  <ul className="space-y-2">
+              <div className="bg-white rounded-lg border p-6">
+                <h3 className="text-lg mb-4 flex items-center gap-2">
+                  <Award className="w-5 h-5" />
+                  Certifications
+                </h3>
+                <ul className="space-y-2">
                     {freelancer.certifications.map((cert: any, index: number) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    <li key={index} className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                         <span className="text-sm">{cert.name || cert}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
               )}
 
               {/* Performance Metrics */}

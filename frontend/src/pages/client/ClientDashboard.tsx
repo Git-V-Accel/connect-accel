@@ -171,34 +171,34 @@ export default function ClientDashboard() {
             <div className="space-y-4">
               {activeProjects.length > 0 ? (
                 activeProjects.map((project) => (
-                  <Link key={project.id} to={`/client/projects/${project.id}`}>
-                    <div className="border rounded-lg p-4 hover:border-blue-500 transition-colors cursor-pointer">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h4 className="font-medium">{project.name}</h4>
-                          <p className="text-sm text-gray-500">Freelancer: {project.freelancer}</p>
-                        </div>
-                        <Badge className={statusColors[project.statusKey] || 'bg-gray-100 text-gray-700'}>
-                          {project.status}
-                        </Badge>
+                <Link key={project.id} to={`/client/projects/${project.id}`}>
+                  <div className="border rounded-lg p-4 hover:border-blue-500 transition-colors cursor-pointer">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h4 className="font-medium">{project.name}</h4>
+                        <p className="text-sm text-gray-500">Freelancer: {project.freelancer}</p>
                       </div>
-                      {project.progress > 0 && (
-                        <div className="mt-2">
-                          <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                            <span>Progress</span>
-                            <span>{project.progress}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
-                              style={{ width: `${project.progress}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
-                      <p className="text-xs text-gray-500 mt-2">Due: {project.dueDate}</p>
+                        <Badge className={statusColors[project.statusKey] || 'bg-gray-100 text-gray-700'}>
+                        {project.status}
+                        </Badge>
                     </div>
-                  </Link>
+                    {project.progress > 0 && (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                          <span>Progress</span>
+                          <span>{project.progress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ width: `${project.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500 mt-2">Due: {project.dueDate}</p>
+                  </div>
+                </Link>
                 ))
               ) : (
                 <div className="text-center py-8">
@@ -217,12 +217,12 @@ export default function ClientDashboard() {
             <div className="space-y-4">
               {recentActivity.length > 0 ? (
                 recentActivity.map((activity) => (
-                  <ActivityItem
-                    key={activity.id}
-                    text={activity.text}
-                    time={activity.time}
-                    type={activity.type}
-                  />
+                <ActivityItem
+                  key={activity.id}
+                  text={activity.text}
+                  time={activity.time}
+                  type={activity.type}
+                />
                 ))
               ) : (
                 <p className="text-sm text-gray-500 text-center py-4">No recent activity</p>

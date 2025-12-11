@@ -77,23 +77,6 @@ export default function UserManagement() {
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const isAdmin = currentUser?.role === 'admin';
 
-  // Get available roles based on current user's permissions
-  const getAvailableRoles = () => {
-    if (isSuperAdmin) {
-      return [
-        { value: 'superadmin', label: 'Super Admin' },
-        { value: 'admin', label: 'Admin' },
-        { value: 'agent', label: 'Agent' },
-        { value: 'freelancer', label: 'Freelancer' },
-      ];
-    } else if (isAdmin) {
-      return [
-        { value: 'agent', label: 'Agent' },
-        { value: 'freelancer', label: 'Freelancer' },
-      ];
-    }
-    return [];
-  };
 
   const loadUsers = async () => {
     setLoading(true);
@@ -111,10 +94,10 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
-    if (currentUser?.role === 'superadmin') {
+    if (isAdmin || isSuperAdmin) {
       loadUsers();
     }
-  }, [currentUser]);
+  }, [isAdmin, isSuperAdmin]);
 
   const roleColors = {
     client: 'bg-blue-100 text-blue-700',
@@ -145,12 +128,21 @@ export default function UserManagement() {
     all: filteredUsers,
     client: filteredUsers.filter((u) => u.role === 'client'),
     freelancer: filteredUsers.filter((u) => u.role === 'freelancer'),
-    admin: filteredUsers.filter((u) => u.role === 'admin' || u.role === 'superadmin'),
     agent: filteredUsers.filter((u) => u.role === 'agent'),
+    // Only show admin tab for superadmins
+    ...(isSuperAdmin ? {
+      admin: filteredUsers.filter((u) => u.role === 'admin' || u.role === 'superadmin'),
+    } : {}),
   };
 
   // Get current tab's users
-  const currentTabUsers = usersByRole[activeTab as keyof typeof usersByRole] || usersByRole.all;
+  const getCurrentTabUsers = () => {
+    if (activeTab === 'admin' && !isSuperAdmin) {
+      return usersByRole.all; // Fallback to all if admin tries to access admin tab
+    }
+    return (usersByRole as any)[activeTab] || usersByRole.all;
+  };
+  const currentTabUsers = getCurrentTabUsers();
   
   // Calculate pagination
   const totalPages = Math.ceil(currentTabUsers.length / itemsPerPage);
@@ -170,7 +162,7 @@ export default function UserManagement() {
     setLoading(true);
     try {
       await userService.updateUserStatus(user.id, newStatus as any);
-      toast.success(`User status updated to ${newStatus}`);
+    toast.success(`User status updated to ${newStatus}`);
       await loadUsers();
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to update status';
@@ -186,9 +178,9 @@ export default function UserManagement() {
     setLoading(true);
     try {
       await userService.deleteUser(selectedUser.id);
-      toast.success('User deleted successfully');
-      setShowDeleteDialog(false);
-      setSelectedUser(null);
+    toast.success('User deleted successfully');
+    setShowDeleteDialog(false);
+    setSelectedUser(null);
       await loadUsers();
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to delete user';
@@ -279,31 +271,42 @@ export default function UserManagement() {
     {
       key: 'actions',
       header: 'Actions',
-      render: (user) => (
-        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleStatusToggle(user)}
-            title={user.status === 'active' ? 'Suspend User' : 'Activate User'}
-          >
-            {user.status === 'active' ? <Ban className="size-4" /> : <CheckCircle className="size-4" />}
-          </Button>
-          {isSuperAdmin && (
+      render: (user) => {
+        // Hide actions for superadmin users (including own account)
+        const isSuperAdminUser = user.role === 'superadmin';
+        const isOwnAccount = user.id === currentUser?.id;
+        const shouldHideActions = isSuperAdminUser || (isSuperAdmin && isOwnAccount);
+        
+        if (shouldHideActions) {
+          return <span className="text-gray-400 text-sm">-</span>;
+        }
+        
+        return (
+          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setSelectedUser(user);
-                setShowDeleteDialog(true);
-              }}
-              className="text-red-600 hover:text-red-700"
+              onClick={() => handleStatusToggle(user)}
+              title={user.status === 'active' ? 'Suspend User' : 'Activate User'}
             >
-              <Trash2 className="size-4" />
+              {user.status === 'active' ? <Ban className="size-4" /> : <CheckCircle className="size-4" />}
             </Button>
-          )}
-        </div>
-      ),
+            {isSuperAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedUser(user);
+                  setShowDeleteDialog(true);
+                }}
+                className="text-red-600 hover:text-red-700"
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -326,7 +329,7 @@ export default function UserManagement() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-1 md:grid-cols-4 ${isSuperAdmin ? 'lg:grid-cols-5' : ''} gap-4`}>
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -357,14 +360,36 @@ export default function UserManagement() {
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Active</p>
-                <p className="text-2xl font-medium">
-                  {allUsers.filter((u) => u.status === 'active').length}
-                </p>
+                <p className="text-sm text-gray-600">Agents</p>
+                <p className="text-2xl font-medium">{usersByRole.agent.length}</p>
               </div>
-              <CheckCircle className="size-8 text-green-500" />
+              <Shield className="size-8 text-orange-500" />
             </div>
           </Card>
+          {isSuperAdmin && (
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Admins</p>
+                  <p className="text-2xl font-medium">{(usersByRole as any).admin?.length || 0}</p>
+                </div>
+                <Shield className="size-8 text-purple-500" />
+              </div>
+            </Card>
+          )}
+          {!isSuperAdmin && (
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Active</p>
+                  <p className="text-2xl font-medium">
+                    {allUsers.filter((u) => u.status === 'active').length}
+                  </p>
+                </div>
+                <CheckCircle className="size-8 text-green-500" />
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Filters */}
@@ -408,8 +433,10 @@ export default function UserManagement() {
               <TabsTrigger value="all">All ({usersByRole.all.length})</TabsTrigger>
               <TabsTrigger value="client">Clients ({usersByRole.client.length})</TabsTrigger>
               <TabsTrigger value="freelancer">Freelancers ({usersByRole.freelancer.length})</TabsTrigger>
-              <TabsTrigger value="admin">Admins ({usersByRole.admin.length})</TabsTrigger>
               <TabsTrigger value="agent">Agents ({usersByRole.agent.length})</TabsTrigger>
+              {isSuperAdmin && (
+                <TabsTrigger value="admin">Admins ({(usersByRole as any).admin?.length || 0})</TabsTrigger>
+              )}
             </TabsList>
             
             <PaginationControls
@@ -441,7 +468,7 @@ export default function UserManagement() {
             />
           </TabsContent>
 
-          {(['client', 'freelancer', 'admin', 'agent'] as const).map((role) => (
+          {(['client', 'freelancer', 'agent'] as const).map((role) => (
             <TabsContent key={role} value={role} className="space-y-4">
               <DataTable
                 data={paginatedUsers}
@@ -462,6 +489,21 @@ export default function UserManagement() {
               />
             </TabsContent>
           ))}
+          {isSuperAdmin && (
+            <TabsContent value="admin" className="space-y-4">
+              <DataTable
+                data={paginatedUsers}
+                columns={columns}
+                emptyMessage="No admins found"
+                emptyIcon={<User className="size-12 text-gray-400 mx-auto mb-4" />}
+                onRowClick={(user) => {
+                  if (user.role === 'admin' || user.role === 'superadmin') {
+                    navigate(`/admin/users/${user.id}/admin`);
+                  }
+                }}
+              />
+            </TabsContent>
+          )}
         </Tabs>
 
         {/* Delete Dialog */}

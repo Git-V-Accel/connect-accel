@@ -91,7 +91,7 @@ async function sendShortlistedEmail({ to, freelancerName, projectTitle }) {
     <p>We will notify you once the client takes a final decision.</p>
   `);
   
-  await sendEmail(to, `You're shortlisted for ${projectTitle}`, html);
+    await sendEmail(to, `You're shortlisted for ${projectTitle}`, html);
 }
 
 async function sendAcceptedEmail({ to, freelancerName, projectTitle }) {
@@ -100,7 +100,7 @@ async function sendAcceptedEmail({ to, freelancerName, projectTitle }) {
     <p>Great news! Your proposal for <strong>${projectTitle}</strong> has been <strong>accepted</strong>.</p>
     <p>Our team will contact you shortly with next steps.</p>
   `);
-  await sendEmail(to, `Your proposal was accepted - ${projectTitle}`, html);
+    await sendEmail(to, `Your proposal was accepted - ${projectTitle}`, html);
 }
 
 async function sendNotSelectedEmail({ to, freelancerName, projectTitle }) {
@@ -109,7 +109,7 @@ async function sendNotSelectedEmail({ to, freelancerName, projectTitle }) {
     <p>Thank you for submitting a proposal for <strong>${projectTitle}</strong>.</p>
     <p>This time, another freelancer has been selected. We encourage you to keep applying to other projects.</p>
   `);
-  await sendEmail(to, `Update on your proposal - ${projectTitle}`, html);
+    await sendEmail(to, `Update on your proposal - ${projectTitle}`, html);
 }
 
 async function sendConsultationRequestEmail({ to, adminName, clientName, clientEmail, clientPhone, clientCompany, projectDetails }) {
@@ -134,7 +134,7 @@ async function sendConsultationRequestEmail({ to, adminName, clientName, clientE
       <p style="margin:0;color:#1e40af;font-size:13px"><strong>Action Required:</strong> Contact the client to discuss their project requirements and provide guidance.</p>
     </div>
   `);
-  await sendEmail(to, `Consultation Request from ${clientName || 'Client'}`, html);
+    await sendEmail(to, `Consultation Request from ${clientName || 'Client'}`, html);
 }
 
 async function sendPasswordChangedEmail({ to, userName }) {
@@ -156,7 +156,7 @@ async function sendPasswordChangedEmail({ to, userName }) {
     </div>
   `);
   
-  await sendEmail(to, 'Password Changed Successfully - Connect Accel', html);
+    await sendEmail(to, 'Password Changed Successfully - Connect Accel', html);
 }
 
 module.exports = {

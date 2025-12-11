@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for existing session on mount
     const initializeAuth = async () => {
       try {
-        const storedUser = localStorage.getItem('connect_accel_user');
+    const storedUser = localStorage.getItem('connect_accel_user');
         const token = localStorage.getItem('auth_token');
 
         if (storedUser && token) {
@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Connect socket if user is authenticated
           if (userData.id && token) {
             socketService.connect(userData.id, token);
-          }
+    }
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('refresh_token');
       } finally {
-        setLoading(false);
+    setLoading(false);
       }
     };
 
@@ -79,10 +79,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: response.user.name,
           role: response.user.role,
           avatar: response.user.avatar,
-          email_verified: true,
-          created_at: new Date().toISOString(),
-        };
-
+      email_verified: true,
+      created_at: new Date().toISOString(),
+    };
+    
         setUser(userData);
 
         // Connect socket
@@ -158,9 +158,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: response.user.role,
           avatar: response.user.avatar,
           email_verified: true,
-          created_at: new Date().toISOString(),
-        };
-
+      created_at: new Date().toISOString(),
+    };
+    
         setUser(userData);
         socketService.connect(userData.id, response.token);
         toast.success(response.message || 'Email verified successfully!');
@@ -205,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      setUser(null);
+    setUser(null);
       socketService.disconnect();
       setLoading(false);
     }

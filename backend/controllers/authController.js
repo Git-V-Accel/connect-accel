@@ -4,7 +4,7 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const emailService = require('../services/emailService');
 const sendEmail = require('../utils/sendEmail');
-const { otpVerificationTemplate } = require('../templates/emailTemplates');
+const { otpVerificationTemplate, passwordResetTemplate } = require('../templates/emailTemplates');
 const socketService = require('../services/socketService');
 const { USER_ROLES, JWT_CONFIG, PASSWORD_RESET_CONFIG, MESSAGES, STATUS_CODES, NOTIFICATION_TYPES, USER_STATUS, FRONTEND_CONFIG } = require('../constants');
 const { generateUserId } = require('../utils/userIdGenerator');
@@ -27,19 +27,19 @@ const generateRefreshToken = (id) => {
 const inMemoryTokens = new Map();
 
 const storeRefreshToken = async (userId, refreshToken) => {
-  inMemoryTokens.set(userId, refreshToken);
-  // Auto-expire after 7 days
-  setTimeout(() => inMemoryTokens.delete(userId), 7 * 24 * 60 * 60 * 1000);
+      inMemoryTokens.set(userId, refreshToken);
+      // Auto-expire after 7 days
+      setTimeout(() => inMemoryTokens.delete(userId), 7 * 24 * 60 * 60 * 1000);
 };
 
 // Get refresh token from in-memory storage
 const getRefreshToken = async (userId) => {
-  return inMemoryTokens.get(userId) || null;
+      return inMemoryTokens.get(userId) || null;
 };
 
 // Revoke refresh token
 const revokeRefreshToken = async (userId) => {
-  inMemoryTokens.delete(userId);
+      inMemoryTokens.delete(userId);
 };
 
 // Set HTTP-only cookie
@@ -564,21 +564,12 @@ const forgotPassword = async (req, res) => {
     const frontendUrl = FRONTEND_CONFIG.URL || `${req.protocol}://${req.get('host')}`;
     const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
 
-    const message = `
-      <h2>Password Reset Request</h2>
-      <p>You have requested a password reset for your V-Accel account.</p>
-      <p>Please click the link below to reset your password:</p>
-      <a href="${resetUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
-      <p>This link will expire in 10 minutes.</p>
-      <p>If you did not request this password reset, please ignore this email.</p>
-      <br>
-      <p>Best regards,<br>V-Accel Team</p>
-    `;
+      const message = passwordResetTemplate(resetUrl, user.name);
 
     try {
       await sendEmail({
         email: user.email,
-        subject: 'Password Reset Request - V-Accel',
+        subject: 'Password Reset Request - Connect-Accel',
         message
       });
 
@@ -817,7 +808,7 @@ const resendOTP = async (req, res) => {
     try {
       await sendEmail({
         email: user.email,
-        subject: 'OTP Verification - V-Accel',
+        subject: 'OTP Verification - Connect-Accel',
         message: otpMessage
       });
 

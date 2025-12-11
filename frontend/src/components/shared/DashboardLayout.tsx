@@ -195,11 +195,6 @@ export default function DashboardLayout({
             path: "/admin/freelancers-management",
           },
           {
-            label: "Freelancer Directory",
-            icon: <Users className="size-5" />,
-            path: "/admin/freelancers",
-          },
-          {
             label: "Consultations",
             icon: <Users className="size-5" />,
             path: "/admin/consultations",
@@ -373,7 +368,8 @@ export default function DashboardLayout({
               {mounted && (
                 <ThemeSwitch
                   checked={theme === "dark"}
-                  onChange={(e, checked) => setTheme(checked ? "dark" : "light")}
+                  // onChange={(e, checked) => setTheme(checked ? "dark" : "light")}
+                  // onChange={() => setTheme(theme === "dark" ? "light" : "dark")}
                 />
               )}
               <Button 

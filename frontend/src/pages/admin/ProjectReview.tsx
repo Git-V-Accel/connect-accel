@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { getProjectActivityLogs, ActivityLog } from "../../services/activityLogService";
 import { useParams, useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { Card } from "../../components/ui/card";
@@ -33,6 +34,7 @@ import { statusColors, statusLabels } from "../../constants/projectConstants";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   ArrowLeft,
+  ArrowRight,
   CheckCircle,
   XCircle,
   Edit,
@@ -57,6 +59,7 @@ import {
   Eye,
 } from "lucide-react";
 import { toast } from "../../utils/toast";
+import ProjectTimeline from "../../components/project/ProjectTimeline";
 
 export default function ProjectReview() {
   const { id } = useParams();
@@ -64,6 +67,7 @@ export default function ProjectReview() {
   const { user } = useAuth();
   const {
     projects,
+    getProject,
     updateProject,
     freelancers,
     createMilestone,
@@ -73,7 +77,58 @@ export default function ProjectReview() {
     getBidsByProject,
   } = useData();
 
-  const project = projects.find((p) => p.id === id);
+  const [project, setProject] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadProject = async () => {
+      if (!id) return;
+      setLoading(true);
+      try {
+        // Always fetch from backend to ensure we have populated client data (email, phone)
+        const fetchedProject = await getProject(id);
+        setProject(fetchedProject || null);
+      } catch (error: any) {
+        console.error('Failed to load project:', error);
+        // Handle rate limit errors
+        if (error.response?.status === 429) {
+          toast.error('Too many requests. Please wait a moment and refresh the page.');
+        }
+        // Fallback to local project if fetch fails
+        const localProject = projects.find((p) => p.id === id);
+        setProject(localProject || null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProject();
+  }, [id]); // Removed getProject from dependencies to prevent unnecessary re-runs
+
+  // Load activity logs when project is available
+  useEffect(() => {
+    const loadActivityLogs = async () => {
+      if (!id || !project) return;
+      setLoadingLogs(true);
+      try {
+        const logs = await getProjectActivityLogs(id);
+        setActivityLogs(logs);
+      } catch (error: any) {
+        console.error('Failed to load activity logs:', error);
+        // Handle rate limit errors
+        if (error.response?.status === 429) {
+          toast.error('Too many requests. Activity logs will load automatically when available.');
+        }
+      } finally {
+        setLoadingLogs(false);
+      }
+    };
+    // Add a small delay to prevent simultaneous calls with project fetch
+    const timer = setTimeout(() => {
+      loadActivityLogs();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [id, project]);
+
   const projectMilestones = project ? getMilestonesByProject(project.id) : [];
   const projectBids = project && getBidsByProject ? getBidsByProject(project.id) : [];
   const isSuperAdmin = user?.role === "superadmin";
@@ -123,6 +178,10 @@ export default function ProjectReview() {
   const [editMilestoneAmount, setEditMilestoneAmount] = useState("");
   const [editMilestoneDescription, setEditMilestoneDescription] = useState("");
 
+  // Activity logs state
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
   if (!project) {
     return (
       <DashboardLayout>
@@ -151,27 +210,57 @@ export default function ProjectReview() {
     calculateMargin(project.client_budget, parseFloat(value));
   };
 
-  const handleApproveProject = () => {
-    updateProject(project.id, {
-      status: "in_bidding",
+  const handleApproveProject = async () => {
+    try {
+      await updateProject(project.id, {
+        status: "in_progress",
     });
-    toast.success("Project approved and moved to bidding!");
+      toast.success("Project approved and status changed to In Progress!");
     setIsApproveDialogOpen(false);
+      // Reload activity logs after approval
+      if (id) {
+        try {
+          const logs = await getProjectActivityLogs(id);
+          setActivityLogs(logs);
+        } catch (error) {
+          console.error('Failed to reload activity logs:', error);
+        }
+      }
     navigate("/admin/projects");
+    } catch (error: any) {
+      console.error('Failed to approve project:', error);
+      toast.error(error?.response?.data?.message || "Failed to approve project");
+    }
   };
 
-  const handleRejectProject = () => {
+  const handleRejectProject = async () => {
     if (!rejectionReason.trim()) {
       toast.error("Please provide a rejection reason");
       return;
     }
 
-    updateProject(project.id, {
-      status: "cancelled",
+    try {
+      await updateProject(project.id, {
+        status: "rejected",
+        ...({ rejectionReason: rejectionReason.trim() } as any), // Include rejection reason in the update
     });
-    toast.success("Project rejected");
+      toast.success("Project rejected successfully");
     setIsRejectDialogOpen(false);
+      setRejectionReason("");
+      // Reload activity logs after rejection
+      if (id) {
+        try {
+          const logs = await getProjectActivityLogs(id);
+          setActivityLogs(logs);
+        } catch (error) {
+          console.error('Failed to reload activity logs:', error);
+        }
+      }
     navigate("/admin/projects");
+    } catch (error: any) {
+      console.error('Failed to reject project:', error);
+      toast.error(error?.response?.data?.message || "Failed to reject project");
+    }
   };
 
   const handleEditProject = () => {
@@ -393,7 +482,7 @@ export default function ProjectReview() {
         </div>
 
         {/* Action Buttons */}
-        {project.status === "pending_review" && (
+        {(project.status === "pending_review" || project.status === "active") && (
           <Card className="p-4 bg-yellow-50 border-yellow-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -712,7 +801,7 @@ export default function ProjectReview() {
                       </div>
                       <div>
                         <Label className="text-gray-600">Email</Label>
-                        <p>client@example.com</p>
+                        <p>{project.client_email || 'N/A'}</p>
                       </div>
                     </div>
 
@@ -722,7 +811,7 @@ export default function ProjectReview() {
                       </div>
                       <div>
                         <Label className="text-gray-600">Phone</Label>
-                        <p>+91 98765 43210</p>
+                        <p>{project.client_phone || 'N/A'}</p>
                       </div>
                     </div>
 
@@ -740,44 +829,11 @@ export default function ProjectReview() {
               <TabsContent value="timeline" className="space-y-4">
                 <Card className="p-6">
                   <h3 className="font-medium mb-4">Project Timeline</h3>
-
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-gray-100 p-2 rounded-full mt-1">
-                        <Clock className="size-4 text-gray-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium">Project Created</p>
-                        <p className="text-sm text-gray-600">
-                          {new Date(project.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-
-                    {project.status !== "draft" &&
-                      project.status !== "pending_review" && (
-                        <div className="flex items-start gap-3">
-                          <div className="bg-green-100 p-2 rounded-full mt-1">
-                            <CheckCircle className="size-4 text-green-600" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium">Admin Approved</p>
-                            <p className="text-sm text-gray-600">
-                              Project moved to bidding phase
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                    <div className="pt-4 border-t">
-                      <Label className="text-gray-600">
-                        Estimated Duration
-                      </Label>
-                      <p className="mt-1">
-                        {project.duration_weeks ? `${project.duration_weeks} weeks` : "N/A"}
-                      </p>
-                    </div>
-                  </div>
+                  <ProjectTimeline 
+                    activityLogs={activityLogs} 
+                    project={project} 
+                    loading={loadingLogs}
+                  />
                 </Card>
               </TabsContent>
 
@@ -1237,8 +1293,7 @@ export default function ProjectReview() {
             <DialogHeader>
               <DialogTitle>Approve Project</DialogTitle>
               <DialogDescription>
-                This will move the project to the bidding phase where
-                freelancers can submit proposals.
+                This will approve the project and change its status to In Progress.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

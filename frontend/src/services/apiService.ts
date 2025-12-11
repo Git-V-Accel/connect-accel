@@ -78,6 +78,14 @@ apiClient.interceptors.response.use(
       }
     }
 
+    // Handle rate limit errors (429)
+    if (error.response?.status === 429) {
+      const retryAfter = error.response.headers['retry-after'] || '15';
+      const errorMessage = `Too many requests. Please wait ${retryAfter} seconds before trying again.`;
+      // Don't show toast for rate limit errors in interceptor - let individual components handle it
+      return Promise.reject(error);
+    }
+
     // Handle other errors
     const errorMessage = 
       (error.response?.data as any)?.message || 

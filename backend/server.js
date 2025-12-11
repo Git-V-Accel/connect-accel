@@ -92,6 +92,7 @@ app.get("/health", healthCheck);
 // API Routes
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/users", require("./routes/users"));
+app.use("/api/settings", require("./routes/settings"));
 app.use("/api/projects", require("./routes/projects"));
 app.use("/api/bids", require("./routes/bids"));
 app.use("/api/bidding", require("./routes/bidding"));

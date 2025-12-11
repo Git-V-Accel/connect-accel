@@ -4,7 +4,7 @@ import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { ArrowLeft, User, Mail, Phone, Building, Calendar, DollarSign, Briefcase, TrendingUp, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Building, Calendar, DollarSign, Briefcase, TrendingUp, CheckCircle, Clock, XCircle, Globe, MapPin, BriefcaseIcon, Award, Shield, CheckCircle2, XCircle as XCircleIcon } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import * as userService from '../../services/userService';
@@ -12,15 +12,29 @@ import { toast } from '../../utils/toast';
 
 interface UnifiedUser {
   id: string;
+  _id?: string;
+  userID?: string;
   name: string;
   email: string;
   role: 'client' | 'freelancer' | 'admin' | 'superadmin' | 'agent';
   status: 'active' | 'inactive';
   phone?: string;
   company?: string;
-  created_at: string;
-  last_login?: string;
   title?: string;
+  website?: string;
+  location?: string;
+  bio?: string;
+  avatar?: string;
+  skills?: string[];
+  hourlyRate?: number;
+  experience?: string;
+  adminRole?: string;
+  isEmailVerified?: boolean;
+  isFirstLogin?: boolean;
+  created_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  last_login?: string;
   rating?: number;
 }
 
@@ -142,6 +156,16 @@ export default function UserDetail() {
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">User Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Basic Information */}
+            {user.userID && (
+              <div className="flex items-center gap-3">
+                <Shield className="size-5 text-gray-400" />
+                <div>
+                  <p className="text-sm text-gray-600">User ID</p>
+                  <p className="font-medium">{user.userID}</p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <User className="size-5 text-gray-400" />
               <div>
@@ -153,7 +177,9 @@ export default function UserDetail() {
               <Mail className="size-5 text-gray-400" />
               <div>
                 <p className="text-sm text-gray-600">Email</p>
-                <p className="font-medium">{user.email}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium">{user.email}</p>
+                </div>
               </div>
             </div>
             {user.phone && (
@@ -162,6 +188,15 @@ export default function UserDetail() {
                 <div>
                   <p className="text-sm text-gray-600">Phone</p>
                   <p className="font-medium">{user.phone}</p>
+                </div>
+              </div>
+            )}
+            {user.title && (
+              <div className="flex items-center gap-3">
+                <BriefcaseIcon className="size-5 text-gray-400" />
+                <div>
+                  <p className="text-sm text-gray-600">Title</p>
+                  <p className="font-medium">{user.title}</p>
                 </div>
               </div>
             )}
@@ -174,11 +209,37 @@ export default function UserDetail() {
                 </div>
               </div>
             )}
+            {user.location && (
+              <div className="flex items-center gap-3">
+                <MapPin className="size-5 text-gray-400" />
+                <div>
+                  <p className="text-sm text-gray-600">Location</p>
+                  <p className="font-medium">{user.location}</p>
+                </div>
+              </div>
+            )}
+            {user.website && (
+              <div className="flex items-center gap-3">
+                <Globe className="size-5 text-gray-400" />
+                <div>
+                  <p className="text-sm text-gray-600">Website</p>
+                  <a href={user.website} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 hover:underline">
+                    {user.website}
+                  </a>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <Calendar className="size-5 text-gray-400" />
               <div>
                 <p className="text-sm text-gray-600">Joined</p>
-                <p className="font-medium">{new Date(user.created_at).toLocaleDateString()}</p>
+                <p className="font-medium">
+                  {user.created_at 
+                    ? new Date(user.created_at).toLocaleDateString()
+                    : user.createdAt 
+                    ? new Date(user.createdAt).toLocaleDateString()
+                    : 'N/A'}
+                </p>
               </div>
             </div>
             {user.last_login && (
@@ -191,6 +252,59 @@ export default function UserDetail() {
               </div>
             )}
           </div>
+
+          {/* Bio Section */}
+          {user.bio && (
+            <div className="mt-6 pt-6 border-t">
+              <h3 className="text-sm font-medium text-gray-600 mb-2">Bio</h3>
+              <p className="text-gray-800 whitespace-pre-wrap">{user.bio}</p>
+            </div>
+          )}
+
+          {/* Freelancer Specific Information */}
+          {user.role === 'freelancer' && (
+            <div className="mt-6 pt-6 border-t">
+              <h3 className="text-sm font-medium text-gray-600 mb-4">Freelancer Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {user.hourlyRate !== undefined && (
+                  <div className="flex items-center gap-3">
+                    <DollarSign className="size-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-600">Hourly Rate</p>
+                      <p className="font-medium">₹{user.hourlyRate.toLocaleString()}/hr</p>
+                    </div>
+                  </div>
+                )}
+                {user.experience && (
+                  <div className="flex items-center gap-3">
+                    <Award className="size-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-600">Experience Level</p>
+                      <p className="font-medium capitalize">{user.experience}</p>
+                    </div>
+                  </div>
+                )}
+                {user.skills && user.skills.length > 0 && (
+                  <div className="md:col-span-2">
+                    <p className="text-sm text-gray-600 mb-2">Skills</p>
+                    <div className="flex flex-wrap gap-2">
+                      {user.skills.map((skill, index) => (
+                        <Badge key={index} variant="secondary">{skill}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Admin Specific Information */}
+          {user.role === 'admin' && user.adminRole && (
+            <div className="mt-6 pt-6 border-t">
+              <h3 className="text-sm font-medium text-gray-600 mb-2">Admin Role</h3>
+              <p className="font-medium capitalize">{user.adminRole}</p>
+            </div>
+          )}
         </Card>
 
         {/* Statistics */}

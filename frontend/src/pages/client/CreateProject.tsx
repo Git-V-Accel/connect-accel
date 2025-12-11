@@ -212,28 +212,28 @@ export default function CreateProject() {
     if (!user) return;
 
     try {
-      const budget = parseInt(formData.client_budget);
+    const budget = parseInt(formData.client_budget);
       const project = await createProject({
-        title: formData.title,
-        description: formData.description,
-        client_id: user.id,
-        client_name: user.name,
-        status: 'pending_review',
-        category: formData.category,
-        skills_required: formData.skills_required,
-        budget: budget,
-        client_budget: budget,
-        duration_weeks: parseInt(formData.duration_weeks),
-        priority: formData.priority as 'low' | 'medium' | 'high',
-        complexity: 'moderate', // Default value, can be updated later
-        requirements: false, // Default value
+      title: formData.title,
+      description: formData.description,
+      client_id: user.id,
+      client_name: user.name,
+      status: 'pending_review',
+      category: formData.category,
+      skills_required: formData.skills_required,
+      budget: budget,
+      client_budget: budget,
+      duration_weeks: parseInt(formData.duration_weeks),
+      priority: formData.priority as 'low' | 'medium' | 'high',
+      complexity: 'moderate', // Default value, can be updated later
+      requirements: false, // Default value
         timeline: `${formData.duration_weeks} weeks`,
         isNegotiableBudget: formData.negotiable,
-      });
+    });
 
-      toast.success('Project submitted successfully! Our team will review it shortly.');
-      
-      navigate('/client/projects');
+    toast.success('Project submitted successfully! Our team will review it shortly.');
+    
+    navigate('/client/projects');
     } catch (error: any) {
       // Error is already handled in DataContext with toast
       console.error('Failed to create project:', error);

@@ -106,7 +106,7 @@ const getProjects = async (req, res) => {
       limit: parseInt(limit),
       sort: { createdAt: -1 },
       populate: [
-        { path: 'client', select: 'name email userID' },
+        { path: 'client', select: 'name email phone userID' },
         { path: 'assignedFreelancerId', select: 'name email userID' },
         {
           path: 'additionalDescriptions.createdBy',
@@ -142,7 +142,7 @@ const getProjects = async (req, res) => {
 const getProject = async (req, res) => {
   try {
     const project = await Project.findById(req.params.id)
-      .populate('client', 'name email userID')
+      .populate('client', 'name email phone userID')
       .populate('assignedFreelancerId', 'name email userID')
       .populate('additionalDescriptions.createdBy', 'name email userID role')
       .lean();
@@ -508,6 +508,64 @@ const updateProject = async (req, res) => {
       { new: true, runValidators: true }
     ).populate('client', 'name email userID')
      .populate('assignedFreelancer', 'name email userID');
+
+    // Log activity for status changes
+    if (oldStatus !== updatedProject.status) {
+      const ActivityLogger = require('../services/activityLogger');
+      
+      // Log specific approval/rejection activities
+      if (oldStatus === 'pending_review' && updatedProject.status === 'in_progress') {
+        await ActivityLogger.logActivity({
+          user: req.user.id,
+          project: project._id,
+          activityType: 'project_status_changed',
+          title: 'Project Approved',
+          description: `Project "${updatedProject.title}" was approved by ${req.user.name} and status changed to In Progress`,
+          metadata: {
+            projectTitle: updatedProject.title,
+            oldStatus: oldStatus,
+            newStatus: updatedProject.status,
+            action: 'approved',
+            approvedBy: req.user.name,
+            approvedByRole: req.user.role
+          },
+          tags: ['project', 'approval', 'status', 'change'],
+          severity: 'high',
+          visibleToClient: true,
+          visibleToAdmin: true
+        }, req);
+      } else if (oldStatus === 'pending_review' && updatedProject.status === 'rejected') {
+        await ActivityLogger.logActivity({
+          user: req.user.id,
+          project: project._id,
+          activityType: 'project_status_changed',
+          title: 'Project Rejected',
+          description: `Project "${updatedProject.title}" was rejected by ${req.user.name}${req.body.rejectionReason ? `. Reason: ${req.body.rejectionReason}` : ''}`,
+          metadata: {
+            projectTitle: updatedProject.title,
+            oldStatus: oldStatus,
+            newStatus: updatedProject.status,
+            action: 'rejected',
+            rejectedBy: req.user.name,
+            rejectedByRole: req.user.role,
+            rejectionReason: req.body.rejectionReason || null
+          },
+          tags: ['project', 'rejection', 'status', 'change'],
+          severity: 'high',
+          visibleToClient: true,
+          visibleToAdmin: true
+        }, req);
+      } else {
+        // Log general status change
+        await ActivityLogger.logProjectStatusChanged(
+          project._id,
+          req.user.id,
+          oldStatus,
+          updatedProject.status,
+          req
+        );
+      }
+    }
 
     // Emit socket event for status change
     if (oldStatus !== updatedProject.status) {

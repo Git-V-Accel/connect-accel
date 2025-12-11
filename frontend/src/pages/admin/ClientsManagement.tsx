@@ -118,7 +118,7 @@ export default function ClientsManagement() {
     setLoading(true);
     try {
       await userService.updateUserStatus(client.id, newStatus as any);
-      toast.success(`Client status updated to ${newStatus}`);
+    toast.success(`Client status updated to ${newStatus}`);
       await loadClients();
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to update status';
@@ -134,9 +134,9 @@ export default function ClientsManagement() {
     setLoading(true);
     try {
       await userService.deleteUser(selectedClient.id);
-      toast.success('Client deleted successfully');
-      setShowDeleteDialog(false);
-      setSelectedClient(null);
+    toast.success('Client deleted successfully');
+    setShowDeleteDialog(false);
+    setSelectedClient(null);
       await loadClients();
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to delete client';

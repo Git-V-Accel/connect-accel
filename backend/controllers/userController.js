@@ -10,7 +10,7 @@ const { generateUserId } = require('../utils/userIdGenerator');
 // @access  Private
 const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select('-password');
 
     res.status(STATUS_CODES.OK).json({
       success: true,
@@ -21,6 +21,13 @@ const getMe = async (req, res) => {
         email: user.email,
         role: user.role,
         avatar: user.avatar,
+        phone: user.phone,
+        company: user.company,
+        title: user.title,
+        location: user.location,
+        website: user.website,
+        bio: user.bio,
+        skills: user.skills || [],
         isEmailVerified: user.isEmailVerified,
         createdAt: user.createdAt
       }
@@ -138,12 +145,20 @@ const deleteAccount = async (req, res) => {
   }
 };
 
-// @desc    Get all users (Superadmin only)
+// @desc    Get all users (Admin+Superadmin)
 // @route   GET /api/users
-// @access  Private/Superadmin
+// @access  Private (Admin+Superadmin)
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password');
+    let query = {};
+    
+    // Admins can only see clients, freelancers, and agents (not other admins or superadmins)
+    if (req.user.role === USER_ROLES.ADMIN) {
+      query.role = { $in: [USER_ROLES.CLIENT, USER_ROLES.FREELANCER, USER_ROLES.AGENT] };
+    }
+    // Superadmins can see all users
+    
+    const users = await User.find(query).select('-password');
 
     res.status(STATUS_CODES.OK).json({
       success: true,
@@ -262,7 +277,7 @@ const getAdmins = async (req, res) => {
     const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500);
 
     const admins = await User.find(query)
-      .select('name email userID role adminRole permissions status createdAt')
+      .select('name email userID role adminRole status createdAt')
       .sort({ createdAt: -1 })
       .limit(parsedLimit);
 
@@ -280,9 +295,9 @@ const getAdmins = async (req, res) => {
   }
 };
 
-// @desc    Get user by ID (Superadmin only)
+// @desc    Get user by ID (Admin+Superadmin)
 // @route   GET /api/users/:id
-// @access  Private/Superadmin
+// @access  Private (Admin+Superadmin)
 const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password');
@@ -292,6 +307,16 @@ const getUserById = async (req, res) => {
         success: false,
         message: MESSAGES.USER_NOT_FOUND
       });
+    }
+
+    // Admins can only view clients, freelancers, and agents (not other admins or superadmins)
+    if (req.user.role === USER_ROLES.ADMIN) {
+      if (user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.SUPERADMIN) {
+        return res.status(STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: 'Access denied. You can only view client, freelancer, and agent profiles.'
+        });
+      }
     }
 
     res.status(STATUS_CODES.OK).json({
@@ -348,9 +373,9 @@ const updateUserRole = async (req, res) => {
   }
 };
 
-// @desc    Create new user (Superadmin only)
+// @desc    Create new user (Admin+Superadmin)
 // @route   POST /api/users
-// @access  Private/Superadmin
+// @access  Private (Admin+Superadmin)
 const createUser = async (req, res) => {
   try {
     const {
@@ -362,7 +387,6 @@ const createUser = async (req, res) => {
       avatar,
       // Admin specific fields
       adminRole,
-      permissions,
       // Freelancer specific fields
       skills,
       hourlyRate,
@@ -399,6 +423,16 @@ const createUser = async (req, res) => {
       });
     }
 
+    // Restrict admin users from creating admin or superadmin users
+    if (req.user.role === USER_ROLES.ADMIN) {
+      if (role === USER_ROLES.ADMIN || role === USER_ROLES.SUPERADMIN) {
+        return res.status(STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: 'You do not have permission to create admin or superadmin users'
+        });
+      }
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -429,7 +463,6 @@ const createUser = async (req, res) => {
     // Add role-specific fields
     if (role === USER_ROLES.ADMIN || role === USER_ROLES.SUPERADMIN) {
       userData.adminRole = adminRole || 'admin';
-      userData.permissions = permissions || [];
     }
 
     if (role === USER_ROLES.FREELANCER) {
@@ -492,7 +525,6 @@ const createUser = async (req, res) => {
         email: user.email,
         role: user.role,
         adminRole: user.adminRole,
-        permissions: user.permissions,
         skills: user.skills,
         hourlyRate: user.hourlyRate,
         experience: user.experience,
@@ -570,7 +602,6 @@ const updateUser = async (req, res) => {
       avatar,
       // Admin specific fields
       adminRole,
-      permissions,
       // Freelancer specific fields
       skills,
       hourlyRate,
@@ -603,7 +634,6 @@ const updateUser = async (req, res) => {
 
     // Add role-specific fields
     if (adminRole) updateData.adminRole = adminRole;
-    if (permissions) updateData.permissions = permissions;
 
     if (skills) updateData.skills = Array.isArray(skills) ? skills : skills.split(',').map(s => s.trim());
     if (hourlyRate !== undefined) updateData.hourlyRate = hourlyRate;

@@ -48,12 +48,6 @@ async function createSuperAdmin() {
       adminRole: 'superadmin',
       company: 'V-Accel',
       phone: '9944796546',
-      permissions: [
-        'user_management',
-        'project_management',
-        'billing_management',
-        'system_settings'
-      ],
       isEmailVerified: true,
       isFirstLogin: false,
       status: 'active'

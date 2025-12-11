@@ -253,15 +253,6 @@ const ADMIN_ROLE = {
 };
 const ADMIN_ROLE_ARRAY = Object.values(ADMIN_ROLE);
 
-// Permissions
-const PERMISSIONS = {
-  USER_MANAGEMENT: 'user_management',
-  PROJECT_MANAGEMENT: 'project_management',
-  BILLING_MANAGEMENT: 'billing_management',
-  SYSTEM_SETTINGS: 'system_settings'
-};
-const PERMISSIONS_ARRAY = Object.values(PERMISSIONS);
-
 // Experience Level
 const EXPERIENCE_LEVEL = {
   BEGINNER: 'beginner',
@@ -319,8 +310,6 @@ module.exports = {
   USER_STATUS_ARRAY,
   ADMIN_ROLE,
   ADMIN_ROLE_ARRAY,
-  PERMISSIONS,
-  PERMISSIONS_ARRAY,
   EXPERIENCE_LEVEL,
   EXPERIENCE_LEVEL_ARRAY,
   SEVERITY_LEVEL,

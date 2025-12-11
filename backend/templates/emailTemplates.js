@@ -42,7 +42,7 @@ const passwordResetTemplate = (resetUrl, userName = 'User') => {
             .button {
                 display: inline-block;
                 background-color: #4CAF50;
-                color: white;
+                color: #ffffff !important;
                 padding: 15px 30px;
                 text-decoration: none;
                 border-radius: 5px;
@@ -52,6 +52,8 @@ const passwordResetTemplate = (resetUrl, userName = 'User') => {
             }
             .button:hover {
                 background-color: #45a049;
+                color: #ffffff !important;
+                text-decoration: none !important;
             }
             .footer {
                 text-align: center;
@@ -74,14 +76,14 @@ const passwordResetTemplate = (resetUrl, userName = 'User') => {
     <body>
         <div class="container">
             <div class="header">
-                <div class="logo">V-Accel</div>
+                <div class="logo">Connect-Accel</div>
                 <h2>Password Reset Request</h2>
             </div>
             
             <div class="content">
                 <p>Hello ${userName},</p>
                 
-                <p>We received a request to reset your password for your V-Accel account. If you made this request, click the button below to reset your password:</p>
+                <p>We received a request to reset your password for your Connect-Accel account. If you made this request, click the button below to reset your password:</p>
                 
                 <div style="text-align: center;">
                     <a href="${resetUrl}" class="button">Reset My Password</a>
@@ -91,10 +93,7 @@ const passwordResetTemplate = (resetUrl, userName = 'User') => {
                     <strong>Important:</strong> This password reset link will expire in 10 minutes for security reasons.
                 </div>
                 
-                <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-                <p style="word-break: break-all; background-color: #f8f9fa; padding: 10px; border-radius: 5px;">
-                    ${resetUrl}
-                </p>
+              
                 
                 <p>If you did not request a password reset, please ignore this email. Your password will remain unchanged.</p>
                 
@@ -107,8 +106,8 @@ const passwordResetTemplate = (resetUrl, userName = 'User') => {
             </div>
             
             <div class="footer">
-                <p>This email was sent from V-Accel. If you have any questions, please contact our support team.</p>
-                <p>&copy; 2024 V-Accel. All rights reserved.</p>
+                <p>This email was sent from Connect-Accel. If you have any questions, please contact our support team.</p>
+                <p>&copy; 2025 Connect-Accel. All rights reserved.</p>
             </div>
         </div>
     </body>
@@ -784,8 +783,8 @@ const biddingDeclinedTemplate = (freelancerName, projectTitle, adminName) => {
             </div>
             
             <div class="footer">
-                <p>This email was sent fromConnect-Accel. If you have any questions, please contact our support team.</p>
-                <p>&copy; 2024Connect-Accel. All rights reserved.</p>
+                <p>This email was sent from Connect-Accel. If you have any questions, please contact our support team.</p>
+                <p>&copy; 2024   Connect-Accel. All rights reserved.</p>
             </div>
         </div>
     </body>

@@ -282,7 +282,7 @@ export default function CreateBid() {
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Email</p>
-                        <p className="font-medium">client@example.com</p>
+                        <p className="font-medium">{project.client_email || 'N/A'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -291,7 +291,7 @@ export default function CreateBid() {
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Phone</p>
-                        <p className="font-medium">+91 98765 43210</p>
+                        <p className="font-medium">{project.client_phone || 'N/A'}</p>
                       </div>
                     </div>
                   </div>

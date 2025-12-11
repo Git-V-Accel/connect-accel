@@ -13,11 +13,13 @@ export interface Project {
   description: string;
   client_id: string;
   client_name: string;
+  client_email?: string;
+  client_phone?: string;
   freelancer_id?: string;
   freelancer_name?: string;
   assigned_agent_id?: string;
   agent_margin_percentage?: number;
-  status: 'draft' | 'pending_review' | 'in_bidding' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'disputed' | 'open';
+  status: 'draft' | 'pending_review' | 'active' | 'in_bidding' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'rejected' | 'disputed' | 'open';
   category: string;
   skills_required: string[];
   budget: number;
@@ -33,6 +35,9 @@ export interface Project {
   admin_name?: string;
   priority: 'low' | 'medium' | 'high';
   complexity: 'simple' | 'moderate' | 'complex';
+  clientTitle?: string;
+  isNegotiableBudget?: boolean;
+  timeline?: string;
 }
 
 export interface Milestone {
@@ -310,7 +315,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const stored = localStorage.getItem('connect_accel_data');
     if (stored) {
       try {
-        return JSON.parse(stored);
+      return JSON.parse(stored);
       } catch {
         // If parsing fails, return empty data structure
       }
@@ -424,16 +429,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const updatedProject = await projectService.updateProject(id, payload);
       const normalizedProject = projectService.normalizeProject(updatedProject);
       
-      setData((prev: any) => {
-        const updatedProjects = prev.projects.map((p: Project) =>
+    setData((prev: any) => {
+      const updatedProjects = prev.projects.map((p: Project) =>
           p.id === id ? normalizedProject : p
-        );
-        
-        // Create notifications for project updates
-        const project = prev.projects.find((p: Project) => p.id === id);
-        const newNotifications = [...prev.notifications];
-        
-        if (project) {
+      );
+      
+      // Create notifications for project updates
+      const project = prev.projects.find((p: Project) => p.id === id);
+      const newNotifications = [...prev.notifications];
+      
+      if (project) {
         // Notify client when admin changes anything in the project
         if (socketService.isConnected() && user && (user.role === 'admin' || user.role === 'superadmin')) {
           // Determine what changed
@@ -529,12 +534,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
       }
       
-        return {
-          ...prev,
-          projects: updatedProjects,
-          notifications: newNotifications,
-        };
-      });
+      return {
+        ...prev,
+        projects: updatedProjects,
+        notifications: newNotifications,
+      };
+    });
       
       return normalizedProject;
     } catch (error: any) {
@@ -545,11 +550,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const getProject = async (id: string): Promise<Project | undefined> => {
-    // First check local data
-    const localProject = data.projects.find((p: Project) => p.id === id);
-    if (localProject) return localProject;
-
-    // If not found, fetch from backend
+    // Always fetch from backend to ensure we have the latest data with populated client information
     try {
       const project = await projectService.getProjectById(id);
       const normalizedProject = projectService.normalizeProject(project);
@@ -586,7 +587,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return normalizedProject;
     } catch (error: any) {
       console.error('Failed to fetch project:', error);
-      return undefined;
+      // Fallback to local project if fetch fails
+      const localProject = data.projects.find((p: Project) => p.id === id);
+      return localProject;
     }
   };
 
@@ -652,12 +655,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       normalizedMilestone.project_id = milestone.project_id;
       normalizedMilestone.order = milestone.order;
       
-      setData((prev: any) => ({
-        ...prev,
-        milestones: prev.milestones.map((m: Milestone) =>
+    setData((prev: any) => ({
+      ...prev,
+      milestones: prev.milestones.map((m: Milestone) =>
           m.id === id ? normalizedMilestone : m
-        ),
-      }));
+      ),
+    }));
       
       return normalizedMilestone;
     } catch (error: any) {

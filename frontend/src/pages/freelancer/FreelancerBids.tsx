@@ -92,7 +92,7 @@ export default function FreelancerBids() {
 
   // Get available projects (in bidding status)
   const availableProjects = projects.filter(p => p.status === 'in_bidding' || p.status === 'open');
-  
+
   // Get my bids
   const myBids = user ? getBidsByFreelancer(user.id) : [];
 

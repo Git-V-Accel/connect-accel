@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const { USER_ROLES, MESSAGES, ADMIN_ROLE_ARRAY, PERMISSIONS_ARRAY, EXPERIENCE_LEVEL_ARRAY, USER_STATUS_ARRAY, ADMIN_ROLE, EXPERIENCE_LEVEL, USER_STATUS } = require('../constants');
+const { USER_ROLES, MESSAGES, ADMIN_ROLE_ARRAY, EXPERIENCE_LEVEL_ARRAY, USER_STATUS_ARRAY, ADMIN_ROLE, EXPERIENCE_LEVEL, USER_STATUS } = require('../constants');
 const { VALIDATION } = MESSAGES;
 
 const userSchema = new mongoose.Schema({
@@ -43,10 +43,6 @@ const userSchema = new mongoose.Schema({
     enum: ADMIN_ROLE_ARRAY,
     default: ADMIN_ROLE.ADMIN
   },
-  permissions: [{
-    type: String,
-    enum: PERMISSIONS_ARRAY
-  }],
   // Freelancer specific fields
   skills: [String],
   hourlyRate: {

@@ -35,6 +35,7 @@ export interface ProjectResponse {
     _id: string;
     name: string;
     email: string;
+    phone?: string;
     userID?: string;
   };
   assignedFreelancerId?: string | {
@@ -93,10 +94,36 @@ export interface CreateMilestonePayload {
 }
 
 const normalizeProject = (project: ProjectResponse) => {
-  const client = typeof project.client === 'object' ? project.client : { _id: project.client, name: '', email: '' };
+  // Handle client - can be string ID, populated object, or null/undefined
+  let client: { _id: string; name: string; email: string; phone?: string } = { _id: '', name: '', email: '', phone: '' };
+  
+  if (project.client) {
+    if (typeof project.client === 'object' && project.client !== null) {
+      client = {
+        _id: project.client._id || '',
+        name: project.client.name || '',
+        email: project.client.email || '',
+        phone: (project.client as any).phone || '',
+      };
+    } else if (typeof project.client === 'string') {
+      client._id = project.client;
+    }
+  }
+
   const freelancer = project.assignedFreelancerId 
-    ? (typeof project.assignedFreelancerId === 'object' ? project.assignedFreelancerId : { _id: project.assignedFreelancerId, name: '', email: '' })
+    ? (typeof project.assignedFreelancerId === 'object' && project.assignedFreelancerId !== null 
+        ? project.assignedFreelancerId 
+        : { _id: project.assignedFreelancerId, name: '', email: '' })
     : undefined;
+
+  // Get client_id safely
+  const client_id = project.client 
+    ? (typeof project.client === 'string' 
+        ? project.client 
+        : (typeof project.client === 'object' && project.client !== null 
+            ? project.client._id || '' 
+            : ''))
+    : '';
 
   return {
     id: project._id || project.id || '',
@@ -114,8 +141,10 @@ const normalizeProject = (project: ProjectResponse) => {
     status: project.status,
     priority: project.priority || 'medium',
     complexity: project.complexity || 'moderate',
-    client_id: typeof project.client === 'string' ? project.client : project.client._id,
+    client_id: client_id,
     client_name: client.name,
+    client_email: client.email,
+    client_phone: client.phone || '',
     freelancer_id: freelancer?._id,
     freelancer_name: freelancer?.name,
     assigned_agent_id: undefined,
@@ -234,6 +263,7 @@ export const updateProject = async (projectId: string, data: UpdateProjectPayloa
   if (data.priority) formData.append('priority', data.priority);
   if (data.complexity) formData.append('complexity', data.complexity);
   if (data.status) formData.append('status', data.status);
+  if ((data as any).rejectionReason) formData.append('rejectionReason', (data as any).rejectionReason);
   if (data.attachments) {
     data.attachments.forEach(file => formData.append('attachments', file));
   }

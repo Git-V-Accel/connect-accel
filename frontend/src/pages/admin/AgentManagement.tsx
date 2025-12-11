@@ -121,7 +121,7 @@ export default function AgentManagement() {
     setLoading(true);
     try {
       await userService.updateUserStatus(agent.id, newStatus as any);
-      toast.success(`Agent status updated to ${newStatus}`);
+    toast.success(`Agent status updated to ${newStatus}`);
       await loadAgents();
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to update status';
@@ -137,9 +137,9 @@ export default function AgentManagement() {
     setLoading(true);
     try {
       await userService.deleteUser(selectedAgent.id);
-      toast.success('Agent deleted successfully');
-      setShowDeleteDialog(false);
-      setSelectedAgent(null);
+    toast.success('Agent deleted successfully');
+    setShowDeleteDialog(false);
+    setSelectedAgent(null);
       await loadAgents();
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to delete agent';

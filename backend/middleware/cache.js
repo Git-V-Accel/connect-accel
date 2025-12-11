@@ -7,7 +7,7 @@
 const cacheMiddleware = (ttl = 300, keyGenerator = null) => {
   return async (req, res, next) => {
     // Caching disabled - pass through to next middleware
-    return next();
+        return next();
   };
 };
 

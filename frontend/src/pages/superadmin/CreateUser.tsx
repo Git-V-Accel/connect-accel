@@ -40,7 +40,7 @@ export default function CreateUser() {
   const isSuperAdmin = currentUser?.role === "superadmin";
   const isAdmin = currentUser?.role === "admin";
 
-  // Get available roles based on current user's permissions
+  // Get available roles based on current user's role
   const getAvailableRoles = () => {
     if (isSuperAdmin) {
       return [
@@ -69,7 +69,7 @@ export default function CreateUser() {
       return;
     }
 
-    // Validate permissions
+    // Validate role restrictions
     if (
       isAdmin &&
       (newUser.role === "admin" || newUser.role === "superadmin")
@@ -87,21 +87,21 @@ export default function CreateUser() {
     setError(null);
     try {
       await userService.createUser({
-        name: fullName,
-        email: newUser.email,
+      name: fullName,
+      email: newUser.email,
         role: newUser.role as any,
-        phone: newUser.phone || undefined,
-        company: newUser.company || undefined,
+      phone: newUser.phone || undefined,
+      company: newUser.company || undefined,
         confirmEmail: newUser.confirmEmail,
-      });
+    });
 
-      const roleLabel =
-        getAvailableRoles().find((r) => r.value === newUser.role)?.label ||
-        newUser.role;
-      toast.success(`${roleLabel} created successfully`);
+    const roleLabel =
+      getAvailableRoles().find((r) => r.value === newUser.role)?.label ||
+      newUser.role;
+    toast.success(`${roleLabel} created successfully`);
 
-      // Navigate back to user management
-      navigate("/admin/users");
+    // Navigate back to user management
+    navigate("/admin/users");
     } catch (err: any) {
       const message =
         err?.response?.data?.message || err.message || "Failed to create user";

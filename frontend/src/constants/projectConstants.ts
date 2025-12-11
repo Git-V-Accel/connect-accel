@@ -37,6 +37,7 @@ export const statusColors = {
   in_progress: 'bg-green-100 text-green-700',
   completed: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-700',
+  rejected: 'bg-red-100 text-red-700',
   disputed: 'bg-orange-100 text-orange-700',
   pending_review: 'bg-yellow-100 text-yellow-700',
 };
@@ -49,6 +50,7 @@ export const statusLabels = {
   in_progress: 'In Progress',
   completed: 'Completed',
   cancelled: 'Cancelled',
+  rejected: 'Rejected',
   disputed: 'Disputed',
   pending_review: 'Pending Review',
 };

@@ -35,13 +35,13 @@ router.delete('/account', protect, deleteAccount);
 
 // @desc    Create new user
 // @route   POST /api/users
-// @access  Private/Superadmin
-router.post('/', protect, isSuperadmin, createUser);
+// @access  Private (Admin+Superadmin)
+router.post('/', protect, authorize('admin', 'superadmin'), createUser);
 
 // @desc    Get all users
 // @route   GET /api/users
-// @access  Private/Superadmin
-router.get('/', protect, isSuperadmin, getAllUsers);
+// @access  Private (Admin+Superadmin)
+router.get('/', protect, authorize('admin', 'superadmin'), getAllUsers);
 
 // @desc    Get freelancers (summary)
 // @route   GET /api/users/freelancers
@@ -75,8 +75,8 @@ router.get(
 
 // @desc    Get user by ID
 // @route   GET /api/users/:id
-// @access  Private/Superadmin
-router.get('/:id', protect, isSuperadmin, getUserById);
+// @access  Private (Admin+Superadmin)
+router.get('/:id', protect, authorize('admin', 'superadmin'), getUserById);
 
 // @desc    Update user role
 // @route   PUT /api/users/:id/role
