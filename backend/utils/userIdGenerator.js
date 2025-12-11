@@ -2,30 +2,35 @@ const User = require('../models/User');
 const { USER_ROLES } = require('../constants');
 
 /**
+ * Get user ID prefix based on role
+ * @param {string} role - User role
+ * @returns {string} - Prefix for user ID
+ */
+const getUserPrefix = (role) => {
+  switch (role) {
+    case USER_ROLES.SUPERADMIN:
+    case USER_ROLES.ADMIN:
+      return 'ADMIN';
+    case USER_ROLES.FREELANCER:
+      return 'USR';
+    case USER_ROLES.CLIENT:
+      return 'CLIENT';
+    case USER_ROLES.AGENT:
+      return 'AGENT';
+    default:
+      return 'USR';
+  }
+};
+
+/**
  * Generate a unique user ID based on user role
- * @param {string} role - User role (superadmin, admin, freelancer, client)
+ * @param {string} role - User role (superadmin, admin, freelancer, client, agent)
  * @returns {Promise<string>} - Generated user ID
  */
 const generateUserId = async (role) => {
   try {
-    let prefix;
+    const prefix = getUserPrefix(role);
     let count = 1;
-
-    // Determine prefix based on role
-    switch (role) {
-      case USER_ROLES.SUPERADMIN:
-      case USER_ROLES.ADMIN:
-        prefix = 'ADMIN';
-        break;
-      case USER_ROLES.FREELANCER:
-        prefix = 'USR';
-        break;
-      case USER_ROLES.CLIENT:
-        prefix = 'CLIENT';
-        break;
-      default:
-        prefix = 'USR';
-    }
 
     // Find the highest existing user ID for this prefix
     const existingUsers = await User.find({
@@ -65,27 +70,12 @@ const generateUserId = async (role) => {
  * @returns {string} - Generated user ID
  */
 const generateUserIdWithCustomCount = (role, customCount = 1) => {
-  let prefix;
-
-  switch (role) {
-    case USER_ROLES.SUPERADMIN:
-    case USER_ROLES.ADMIN:
-      prefix = 'ADMIN';
-      break;
-    case USER_ROLES.FREELANCER:
-      prefix = 'USR';
-      break;
-    case USER_ROLES.CLIENT:
-      prefix = 'CLIENT';
-      break;
-    default:
-      prefix = 'USR';
-  }
-
+  const prefix = getUserPrefix(role);
   return `${prefix}-${customCount.toString().padStart(4, '0')}`;
 };
 
 module.exports = {
   generateUserId,
-  generateUserIdWithCustomCount
+  generateUserIdWithCustomCount,
+  getUserPrefix
 };

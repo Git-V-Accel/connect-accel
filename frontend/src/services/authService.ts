@@ -22,6 +22,7 @@ export interface AuthResponse {
   success: boolean;
   message: string;
   token?: string;
+  isFirstLogin?: boolean;
   user?: {
     id: string;
     userID: string;
@@ -29,6 +30,8 @@ export interface AuthResponse {
     email: string;
     role: 'client' | 'freelancer' | 'admin' | 'superadmin' | 'agent';
     avatar?: string;
+    isFirstLogin?: boolean;
+    status?: string;
   };
   email?: string;
   requiresVerification?: boolean;
@@ -57,7 +60,7 @@ export const login = async (credentials: LoginCredentials): Promise<AuthResponse
       credentials
     );
 
-    const { success, token, user, message, requiresVerification, email } = response.data;
+    const { success, token, user, message, requiresVerification, email, isFirstLogin } = response.data;
 
     if (success && token && user) {
       // Store token and user data
@@ -70,6 +73,8 @@ export const login = async (credentials: LoginCredentials): Promise<AuthResponse
         role: user.role,
         avatar: user.avatar,
         email_verified: true,
+        isFirstLogin: user.isFirstLogin || isFirstLogin || false,
+        status: user.status,
         created_at: new Date().toISOString(),
       }));
     }
@@ -276,6 +281,43 @@ export const changePassword = async (
       API_CONFIG.AUTH.CHANGE_PASSWORD,
       { newPassword, otpCode }
     );
+    return response.data;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
+/**
+ * First-time password change (for new users created by admin)
+ */
+export const firstLoginChangePassword = async (
+  newPassword: string,
+  confirmPassword: string
+): Promise<AuthResponse> => {
+  try {
+    const response = await apiClient.put<AuthResponse>(
+      API_CONFIG.AUTH.FIRST_LOGIN_CHANGE_PASSWORD,
+      { newPassword, confirmPassword }
+    );
+
+    const { success, token, user } = response.data;
+
+    if (success && token && user) {
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem('connect_accel_user', JSON.stringify({
+        id: user.id,
+        userID: user.userID,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        email_verified: true,
+        isFirstLogin: false,
+        status: user.status,
+        created_at: new Date().toISOString(),
+      }));
+    }
+
     return response.data;
   } catch (error: any) {
     throw error;

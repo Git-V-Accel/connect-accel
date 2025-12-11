@@ -62,11 +62,14 @@ import {
 } from "lucide-react";
 import { toast } from "../../utils/toast";
 import ProjectTimeline from "../../components/project/ProjectTimeline";
+import * as userService from "../../services/userService";
 
 export default function ProjectReview() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isAgent = user?.role === 'agent';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const {
     projects,
     getProject,
@@ -131,6 +134,22 @@ export default function ProjectReview() {
     return () => clearTimeout(timer);
   }, [id, project]);
 
+  // Load agents list - Only for admin/superadmin (agents don't need this list)
+  useEffect(() => {
+    if (!isAdmin) return; // Only load agents list for admins/superadmins
+    
+    const loadAgents = async () => {
+      try {
+        const users = await userService.listUsers();
+        const agentUsers = users.filter((u) => u.role === 'agent');
+        setAgents(agentUsers);
+      } catch (error: any) {
+        console.error('Failed to load agents:', error);
+      }
+    };
+    loadAgents();
+  }, [isAdmin]);
+
   const projectMilestones = project ? getMilestonesByProject(project.id) : [];
   const projectBids = project && getBidsByProject ? getBidsByProject(project.id) : [];
   const isSuperAdmin = user?.role === "superadmin";
@@ -144,6 +163,10 @@ export default function ProjectReview() {
   const [isDeleteMilestoneDialogOpen, setIsDeleteMilestoneDialogOpen] =
     useState(false);
   const [editingMilestone, setEditingMilestone] = useState<any>(null);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [isAssignAgentDialogOpen, setIsAssignAgentDialogOpen] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string>("");
+  const [isEditingAgent, setIsEditingAgent] = useState(false);
 
   // Form states
   const [editedTitle, setEditedTitle] = useState(project?.title || "");
@@ -191,7 +214,7 @@ export default function ProjectReview() {
           <div className="text-center">
             <AlertCircle className="size-12 text-gray-400 mx-auto mb-4" />
             <h2 className="text-2xl mb-2">Project Not Found</h2>
-            <Button onClick={() => navigate("/admin/projects")}>
+            <Button onClick={() => navigate(isAgent ? "/agent/projects" : "/admin/projects")}>
               Back to Projects
             </Button>
           </div>
@@ -228,7 +251,7 @@ export default function ProjectReview() {
           console.error('Failed to reload activity logs:', error);
         }
       }
-    navigate("/admin/projects");
+    navigate(isAgent ? "/agent/projects" : "/admin/projects");
     } catch (error: any) {
       console.error('Failed to approve project:', error);
       toast.error(error?.response?.data?.message || "Failed to approve project");
@@ -258,7 +281,7 @@ export default function ProjectReview() {
           console.error('Failed to reload activity logs:', error);
         }
       }
-    navigate("/admin/projects");
+    navigate(isAgent ? "/agent/projects" : "/admin/projects");
     } catch (error: any) {
       console.error('Failed to reject project:', error);
       toast.error(error?.response?.data?.message || "Failed to reject project");
@@ -294,6 +317,37 @@ export default function ProjectReview() {
       project?.duration_weeks ? `${project.duration_weeks} weeks` : ""
     );
     setIsEditing(false);
+  };
+
+  const handleAssignAgent = async () => {
+    if (!selectedAgentId) {
+      toast.error("Please select an agent");
+      return;
+    }
+
+    try {
+      await updateProject(project.id, {
+        assigned_agent_id: selectedAgentId,
+      } as any);
+      toast.success("Agent assigned successfully!");
+      setIsAssignAgentDialogOpen(false);
+      setSelectedAgentId("");
+      setIsEditingAgent(false);
+      // Reload project to get updated agent data
+      if (id) {
+        const fetchedProject = await getProject(id);
+        setProject(fetchedProject || null);
+      }
+    } catch (error: any) {
+      console.error('Failed to assign agent:', error);
+      toast.error(error?.response?.data?.message || "Failed to assign agent");
+    }
+  };
+
+  const handleEditAgent = () => {
+    setIsEditingAgent(true);
+    setIsAssignAgentDialogOpen(true);
+    setSelectedAgentId(project?.assigned_agent_id || "");
   };
 
   const handleAddMilestone = () => {
@@ -470,11 +524,11 @@ export default function ProjectReview() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate("/admin/projects")}>
+            <Button variant="ghost" onClick={() => navigate(isAgent ? "/agent/projects" : "/admin/projects")}>
               <ArrowLeft className="size-4 mr-2" />
             </Button>
             <div>
-              <h1 className="text-3xl">Project Review</h1>
+              <h1 className="text-3xl">{isAgent ? 'Project Details' : 'Project Review'}</h1>
               <p className="text-gray-600">Review and manage project details</p>
             </div>
           </div>
@@ -484,7 +538,7 @@ export default function ProjectReview() {
         </div>
 
         {/* Action Buttons */}
-        {(project.status === "pending_review" || project.status === "active") && (
+        {(project.status === "pending_review" || project.status === "active") && isAdmin && (
           <Card className="p-4 bg-yellow-50 border-yellow-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -912,9 +966,9 @@ export default function ProjectReview() {
 
                             <div>
                               <Label className="text-gray-600">Bio</Label>
-                              <p className="mt-1 text-gray-900">
-                                {freelancer.bio}
-                              </p>
+                              <div className="mt-1">
+                                <RichTextViewer content={freelancer.bio || ''} />
+                              </div>
                             </div>
 
                             <div>
@@ -1064,7 +1118,7 @@ export default function ProjectReview() {
                       {project.status === "in_bidding" && (
                         <Button
                           onClick={() =>
-                            navigate(`/admin/projects/${project.id}/bids`)
+                            navigate(isAgent ? `/agent/projects/${project.id}/bids` : `/admin/projects/${project.id}/bids`)
                           }
                         >
                           View Bids
@@ -1088,7 +1142,7 @@ export default function ProjectReview() {
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            navigate(`/admin/projects/${project.id}/bids`)
+                            navigate(isAgent ? `/agent/projects/${project.id}/bids` : `/admin/projects/${project.id}/bids`)
                           }
                         >
                           <Eye className="size-4 mr-2" />
@@ -1246,7 +1300,7 @@ export default function ProjectReview() {
                       {project.status === "in_bidding" && (
                         <Button
                           onClick={() =>
-                            navigate(`/admin/projects/${project.id}/create-bid`)
+                            navigate(isAgent ? `/agent/projects/${project.id}/create-bid` : `/admin/projects/${project.id}/create-bid`)
                           }
                         >
                           <Award className="size-4 mr-2" />
@@ -1268,7 +1322,7 @@ export default function ProjectReview() {
                 <Button
                   variant="outline"
                   className="w-full justify-start"
-                  onClick={() => navigate(`/admin/projects/${project.id}/create-bid`)}
+                  onClick={() => navigate(isAgent ? `/agent/projects/${project.id}/create-bid` : `/admin/projects/${project.id}/create-bid`)}
                 >
                   <Users className="size-4 mr-2" />
                   Add Bids
@@ -1281,6 +1335,80 @@ export default function ProjectReview() {
                   <Target className="size-4 mr-2" />
                   Add Milestone
                 </Button>
+                {/* Assign to Agent - Only show for admin/superadmin */}
+                {!isAgent && (
+                  !project?.assigned_agent_id ? (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => setIsAssignAgentDialogOpen(true)}
+                    >
+                      <User className="size-4 mr-2" />
+                      Assign to Agent
+                    </Button>
+                  ) : (
+                    <div className="space-y-2 p-3 bg-gray-50 rounded-lg border">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <User className="size-4 text-gray-600" />
+                          <span className="text-sm font-medium">Assigned Agent</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleEditAgent}
+                        >
+                          <Edit className="size-3" />
+                        </Button>
+                      </div>
+                      {(() => {
+                        const assignedAgent = agents.find(a => a.id === project.assigned_agent_id);
+                        return assignedAgent ? (
+                          <div className="space-y-1 text-sm">
+                            <p className="font-medium">{assignedAgent.name}</p>
+                            <p className="text-gray-600">ID: {assignedAgent.userID || 'N/A'}</p>
+                            <p className="text-gray-600">{assignedAgent.email}</p>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">Loading agent details...</p>
+                        );
+                      })()}
+                    </div>
+                  )
+                )}
+                {/* Show Agent Name for Agents (read-only) */}
+                {isAgent && project?.assigned_agent_id && (
+                  <div className="space-y-2 p-3 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center gap-2">
+                      <User className="size-4 text-gray-600" />
+                      <span className="text-sm font-medium">Assigned Agent</span>
+                    </div>
+                    {(() => {
+                      // For agents, show their own info if they're assigned
+                      const assignedAgent = agents.find(a => a.id === project.assigned_agent_id) || 
+                                          (user?.id === project.assigned_agent_id && isAgent ? {
+                                            name: user.name,
+                                            userID: user.userID,
+                                            email: user.email
+                                          } : null);
+                      return assignedAgent ? (
+                        <div className="space-y-1 text-sm">
+                          <p className="font-medium">{assignedAgent.name}</p>
+                          <p className="text-gray-600">ID: {assignedAgent.userID || 'N/A'}</p>
+                          <p className="text-gray-600">{assignedAgent.email}</p>
+                        </div>
+                      ) : isAgent && user ? (
+                        <div className="space-y-1 text-sm">
+                          <p className="font-medium">{user.name}</p>
+                          <p className="text-gray-600">ID: {user.userID || 'N/A'}</p>
+                          <p className="text-gray-600">{user.email}</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">Loading agent details...</p>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             </Card>
           </div>
@@ -1697,6 +1825,64 @@ export default function ProjectReview() {
               <Button variant="destructive" onClick={handleDeleteMilestone}>
                 <Trash2 className="size-4 mr-2" />
                 Delete Milestone
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Assign Agent Dialog */}
+        <Dialog
+          open={isAssignAgentDialogOpen}
+          onOpenChange={setIsAssignAgentDialogOpen}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {isEditingAgent ? 'Re-assign Agent' : 'Assign to Agent'}
+              </DialogTitle>
+              <DialogDescription>
+                {isEditingAgent 
+                  ? 'Select a new agent to assign to this project'
+                  : 'Select an agent to assign to this project'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="agent-select">Select Agent *</Label>
+                <Select
+                  value={selectedAgentId}
+                  onValueChange={setSelectedAgentId}
+                >
+                  <SelectTrigger id="agent-select" className="mt-2">
+                    <SelectValue placeholder="Choose an agent..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {agents.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.name} ({agent.userID || 'N/A'})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsAssignAgentDialogOpen(false);
+                  setSelectedAgentId("");
+                  setIsEditingAgent(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAssignAgent}
+                disabled={!selectedAgentId}
+              >
+                <CheckCircle className="size-4 mr-2" />
+                {isEditingAgent ? 'Re-assign Agent' : 'Assign Agent'}
               </Button>
             </DialogFooter>
           </DialogContent>

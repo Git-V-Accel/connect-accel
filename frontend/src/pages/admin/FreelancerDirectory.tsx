@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 import {
   Dialog,
   DialogContent,
@@ -121,7 +122,9 @@ export default function FreelancerDirectory() {
           </Badge>
         </div>
 
-        <p className="text-gray-700 line-clamp-2">{freelancer.bio}</p>
+        <div className="text-gray-700 line-clamp-2">
+          <RichTextViewer content={freelancer.bio || ''} />
+        </div>
 
         <div className="flex flex-wrap gap-2">
           {freelancer.skills.slice(0, 5).map((skill: string) => (

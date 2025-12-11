@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const { USER_ROLES, MESSAGES, STATUS_CODES, FRONTEND_CONFIG, EMAIL_CONFIG } = require('../constants');
+const { USER_ROLES, MESSAGES, STATUS_CODES, FRONTEND_CONFIG, EMAIL_CONFIG, USER_STATUS } = require('../constants');
 const sendEmail = require('../utils/sendEmail');
 const { userCreationTemplate } = require('../templates/emailTemplates');
 const { generateTemporaryPassword } = require('../utils/passwordGenerator');
@@ -455,9 +455,10 @@ const createUser = async (req, res) => {
       email,
       password: temporaryPassword,
       role,
-      phone,
-      avatar: avatar || null,
-      isFirstLogin: true
+      phone: phone || undefined,
+      avatar: avatar || undefined,
+      isFirstLogin: true,
+      status: USER_STATUS.PENDING // Set user as pending until first login and password change
     };
 
     // Add role-specific fields
@@ -466,7 +467,14 @@ const createUser = async (req, res) => {
     }
 
     if (role === USER_ROLES.FREELANCER) {
-      userData.skills = skills ? skills.split(',').map(s => s.trim()) : [];
+      // Handle skills - can be string (comma-separated) or array
+      if (skills) {
+        userData.skills = Array.isArray(skills) 
+          ? skills.map(s => String(s).trim()).filter(s => s)
+          : String(skills).split(',').map(s => s.trim()).filter(s => s);
+      } else {
+        userData.skills = [];
+      }
       userData.hourlyRate = hourlyRate || 0;
       userData.experience = experience || 'beginner';
       userData.bio = bio || '';
@@ -542,9 +550,12 @@ const createUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Create user error:', error);
+    // Return more specific error message
+    const errorMessage = error.message || MESSAGES.SERVER_ERROR;
     res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: MESSAGES.SERVER_ERROR
+      message: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };

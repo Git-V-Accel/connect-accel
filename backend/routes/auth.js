@@ -10,7 +10,8 @@ const {
   forgotPassword,
   resetPassword,
   verifyOTP,
-  resendOTP
+  resendOTP,
+  firstLoginChangePassword
 } = require('../controllers/authController');
 
 const router = express.Router();
@@ -64,5 +65,10 @@ router.post('/verify-otp', verifyOTP);
 // @route   POST /api/auth/resend-otp
 // @access  Public
 router.post('/resend-otp', resendOTP);
+
+// @desc    First-time password change (for new users created by admin)
+// @route   PUT /api/auth/first-login/change-password
+// @access  Private
+router.put('/first-login/change-password', protect, firstLoginChangePassword);
 
 module.exports = router;

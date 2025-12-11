@@ -242,7 +242,8 @@ const BID_STATUS_ARRAY = Object.values(BID_STATUS);
 // User Status
 const USER_STATUS = {
   ACTIVE: 'active',
-  INACTIVE: 'inactive'
+  INACTIVE: 'inactive',
+  PENDING: 'pending'
 };
 const USER_STATUS_ARRAY = Object.values(USER_STATUS);
 

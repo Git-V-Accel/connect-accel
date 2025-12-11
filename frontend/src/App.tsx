@@ -14,6 +14,7 @@ import LoginPage from "./pages/public/LoginPage";
 import SignupPage from "./pages/public/SignupPage";
 import ForgotPassword from "./pages/public/ForgotPassword";
 import ResetPassword from "./pages/public/ResetPassword";
+import FirstTimePasswordChange from "./pages/public/FirstTimePasswordChange";
 import HowItWorksPage from "./pages/public/HowItWorksPage";
 import PricingPage from "./pages/public/PricingPage";
 
@@ -66,13 +67,11 @@ import UserDetail from "./pages/admin/UserDetail";
 
 // Agent portal
 import AgentDashboard from "./pages/agent/AgentDashboard";
-import CreateBidInvitation from "./pages/agent/CreateBidInvitation";
 import AgentProjects from "./pages/agent/AgentProjects";
 import AgentFreelancers from "./pages/agent/AgentFreelancers";
 import AgentClients from "./pages/agent/AgentClients";
 import AgentConsultations from "./pages/agent/AgentConsultations";
 import AgentBidManagement from "./pages/agent/AgentBidManagement";
-import AgentProjectDetail from "./pages/agent/AgentProjectDetail";
 import AgentFreelancerDetail from "./pages/agent/AgentFreelancerDetail";
 import AgentClientDetail from "./pages/agent/AgentClientDetail";
 import AgentReports from "./pages/agent/AgentReports";
@@ -126,6 +125,7 @@ function AppRoutes() {
       <Route path="/signup" element={user ? <Navigate to={getRoleBasedRoute(user.role)} /> : <SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
+      <Route path="/first-login/change-password" element={<FirstTimePasswordChange />} />
       <Route path="/how-it-works" element={<HowItWorksPage />} />
       <Route path="/pricing" element={<PricingPage />} />
 
@@ -180,16 +180,17 @@ function AppRoutes() {
 
       {/* Agent routes */}
       <Route path="/agent/dashboard" element={<ProtectedRoute allowedRoles={['agent']}><AgentDashboard /></ProtectedRoute>} />
-      <Route path="/agent/bids/create" element={<ProtectedRoute allowedRoles={['agent']}><CreateBidInvitation /></ProtectedRoute>} />
       <Route path="/agent/projects" element={<ProtectedRoute allowedRoles={['agent']}><AgentProjects /></ProtectedRoute>} />
-      <Route path="/agent/projects/:id" element={<ProtectedRoute allowedRoles={['agent']}><AgentProjectDetail /></ProtectedRoute>} />
+      <Route path="/agent/projects/:id/create-bid" element={<ProtectedRoute allowedRoles={['agent']}><CreateBid /></ProtectedRoute>} />
       <Route path="/agent/projects/:id/bids" element={<ProtectedRoute allowedRoles={['agent']}><AgentBidManagement /></ProtectedRoute>} />
+      <Route path="/agent/projects/:id" element={<ProtectedRoute allowedRoles={['agent']}><ProjectReview /></ProtectedRoute>} />
       <Route path="/agent/freelancers" element={<ProtectedRoute allowedRoles={['agent']}><AgentFreelancers /></ProtectedRoute>} />
       <Route path="/agent/freelancers/:id" element={<ProtectedRoute allowedRoles={['agent']}><AgentFreelancerDetail /></ProtectedRoute>} />
       <Route path="/agent/clients" element={<ProtectedRoute allowedRoles={['agent']}><AgentClients /></ProtectedRoute>} />
       <Route path="/agent/clients/:id" element={<ProtectedRoute allowedRoles={['agent']}><AgentClientDetail /></ProtectedRoute>} />
       <Route path="/agent/consultations" element={<ProtectedRoute allowedRoles={['agent']}><AgentConsultations /></ProtectedRoute>} />
       <Route path="/agent/bids" element={<ProtectedRoute allowedRoles={['agent']}><AgentBidManagement /></ProtectedRoute>} />
+      <Route path="/agent/bids/create" element={<ProtectedRoute allowedRoles={['agent']}><CreateBid /></ProtectedRoute>} />
       <Route path="/agent/reports" element={<ProtectedRoute allowedRoles={['agent']}><AgentReports /></ProtectedRoute>} />
       <Route path="/agent/settings" element={<ProtectedRoute allowedRoles={['agent']}><AgentSettings /></ProtectedRoute>} />
 

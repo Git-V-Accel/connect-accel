@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { ArrowLeft, Star, Briefcase, DollarSign, CheckCircle, Award, Mail, Phone, MapPin } from 'lucide-react';
 
 export default function FreelancerDetail() {
@@ -112,7 +113,7 @@ export default function FreelancerDetail() {
               {/* About */}
               <div className="bg-white rounded-lg border p-6">
                 <h2 className="text-xl mb-4">About</h2>
-                <p className="text-gray-600">{freelancer.bio}</p>
+                <RichTextViewer content={freelancer.bio || ''} />
               </div>
 
               {/* Skills */}

@@ -44,6 +44,12 @@ export interface ProjectResponse {
     email: string;
     userID?: string;
   };
+  assignedAgentId?: string | {
+    _id: string;
+    name: string;
+    email: string;
+    userID?: string;
+  };
   milestones?: MilestoneResponse[];
   attachments?: string[];
   createdAt?: string;
@@ -83,6 +89,7 @@ export interface CreateProjectPayload {
 
 export interface UpdateProjectPayload extends Partial<CreateProjectPayload> {
   status?: string;
+  assignedAgentId?: string;
 }
 
 export interface CreateMilestonePayload {
@@ -116,6 +123,12 @@ const normalizeProject = (project: ProjectResponse) => {
         : { _id: project.assignedFreelancerId, name: '', email: '' })
     : undefined;
 
+  const agent = project.assignedAgentId 
+    ? (typeof project.assignedAgentId === 'object' && project.assignedAgentId !== null 
+        ? project.assignedAgentId 
+        : { _id: project.assignedAgentId, name: '', email: '' })
+    : undefined;
+
   // Get client_id safely
   const client_id = project.client 
     ? (typeof project.client === 'string' 
@@ -147,7 +160,7 @@ const normalizeProject = (project: ProjectResponse) => {
     client_phone: client.phone || '',
     freelancer_id: freelancer?._id,
     freelancer_name: freelancer?.name,
-    assigned_agent_id: undefined,
+    assigned_agent_id: agent?._id,
     admin_id: undefined,
     start_date: undefined,
     end_date: undefined,
@@ -263,6 +276,7 @@ export const updateProject = async (projectId: string, data: UpdateProjectPayloa
   if (data.priority) formData.append('priority', data.priority);
   if (data.complexity) formData.append('complexity', data.complexity);
   if (data.status) formData.append('status', data.status);
+  if (data.assignedAgentId) formData.append('assignedAgentId', data.assignedAgentId);
   if ((data as any).rejectionReason) formData.append('rejectionReason', (data as any).rejectionReason);
   if (data.attachments) {
     data.attachments.forEach(file => formData.append('attachments', file));

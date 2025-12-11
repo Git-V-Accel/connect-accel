@@ -235,12 +235,6 @@ export default function AgentProjects() {
                         Manage Bids ({projectBids.length})
                       </Link>
                     </Button>
-                    <Button asChild size="sm">
-                      <Link to={`/agent/bids/create?project=${project.id}`}>
-                        <Users className="size-4 mr-2" />
-                        Invite Freelancers
-                      </Link>
-                    </Button>
                   </div>
                 </div>
               );

@@ -19,7 +19,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      const result = await login(email, password);
+      // Check if first login - redirect to password change
+      if (result && 'isFirstLogin' in result && result.isFirstLogin) {
+        navigate('/first-login/change-password', { replace: true });
+        return;
+      }
       // Navigation is handled by App.tsx based on role
     } catch (error: any) {
       // Error message is already shown by authService/toast

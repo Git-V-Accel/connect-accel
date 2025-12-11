@@ -13,16 +13,19 @@ interface User {
   phone?: string;
   avatar?: string;
   created_at: string;
+  isFirstLogin?: boolean;
+  status?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ isFirstLogin?: boolean } | void>;
   signup: (name: string, email: string, password: string, phone?: string) => Promise<{ requiresVerification: boolean; email: string }>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
+  setUser: (user: User | null) => void;
   verifyOTP: (email: string, otpCode: string) => Promise<void>;
   resendOTP: (email: string) => Promise<void>;
 }
@@ -43,7 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (storedUser && token) {
           const userData = JSON.parse(storedUser);
-          setUser(userData);
+          // Don't set user if it's first login - they need to change password first
+          if (!userData.isFirstLogin) {
+            setUser(userData);
+          }
 
           // Connect socket if user is authenticated
           if (userData.id && token) {
@@ -79,9 +85,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: response.user.name,
           role: response.user.role,
           avatar: response.user.avatar,
-      email_verified: true,
-      created_at: new Date().toISOString(),
-    };
+          email_verified: true,
+          isFirstLogin: response.user.isFirstLogin || response.isFirstLogin || false,
+          status: response.user.status,
+          created_at: new Date().toISOString(),
+        };
+    
+        // If first login, don't set user yet - they need to change password
+        if (userData.isFirstLogin) {
+          // Store token temporarily for password change
+          localStorage.setItem('auth_token', response.token);
+          return { isFirstLogin: true };
+        }
     
         setUser(userData);
 
@@ -220,7 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, signup, logout, updateUser, verifyOTP, resendOTP }}>
+    <AuthContext.Provider value={{ user, loading, error, login, signup, logout, updateUser, setUser, verifyOTP, resendOTP }}>
       {children}
     </AuthContext.Provider>
   );

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { useData } from '../../contexts/DataContext';
 import { 
   ArrowLeft,
@@ -115,12 +116,6 @@ export default function AgentFreelancerDetail() {
                 Message
               </Link>
             </Button>
-            <Button asChild>
-              <Link to={`/agent/bids/create?freelancer=${freelancer.id}`}>
-                <Send className="size-4 mr-2" />
-                Invite to Bid
-              </Link>
-            </Button>
           </div>
         </div>
 
@@ -147,7 +142,7 @@ export default function AgentFreelancerDetail() {
             {/* About */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <h2 className="text-xl mb-4">About</h2>
-              <p className="text-gray-600">{freelancer.bio}</p>
+              <RichTextViewer content={freelancer.bio || ''} />
             </div>
 
             {/* Skills */}

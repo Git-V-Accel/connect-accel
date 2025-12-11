@@ -171,16 +171,17 @@ const login = async (req, res) => {
       });
     }
 
-    // Block inactive accounts
-    if (user.status === 'inactive') {
+    // Allow inactive users with isFirstLogin to proceed to password change
+    // Block other inactive accounts
+    if (user.status === 'inactive' && !user.isFirstLogin) {
       return res.status(STATUS_CODES.FORBIDDEN).json({
         success: false,
         message: 'Your account is inactive. Please contact an administrator.'
       });
     }
 
-    // For client users, check if email is verified
-    if (user.role === USER_ROLES.CLIENT && !user.isEmailVerified) {
+    // For client users, check if email is verified (skip for first login)
+    if (user.role === USER_ROLES.CLIENT && !user.isEmailVerified && !user.isFirstLogin) {
       return res.status(STATUS_CODES.FORBIDDEN).json({
         success: false,
         message: MESSAGES.EMAIL_NOT_VERIFIED,
@@ -203,13 +204,16 @@ const login = async (req, res) => {
       success: true,
       message: MESSAGES.LOGIN_SUCCESS,
       token,
+      isFirstLogin: user.isFirstLogin || false,
       user: {
         id: user._id,
         userID: user.userID,
         name: user.name,
         email: user.email,
         role: user.role,
-        avatar: user.avatar
+        avatar: user.avatar,
+        isFirstLogin: user.isFirstLogin || false,
+        status: user.status
       }
     });
   } catch (error) {
@@ -833,6 +837,117 @@ const resendOTP = async (req, res) => {
   }
 };
 
+// @desc    First-time password change (for new users created by admin)
+// @route   PUT /api/auth/first-login/change-password
+// @access  Private
+const firstLoginChangePassword = async (req, res) => {
+  try {
+    const { newPassword, confirmPassword } = req.body;
+
+    // Validation
+    if (!newPassword || !confirmPassword) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'New password and confirm password are required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'Passwords do not match'
+      });
+    }
+
+    // Get user
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
+    // Check if this is a first login
+    if (!user.isFirstLogin) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'This endpoint is only for first-time password changes. Please use the regular password change feature.'
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    user.isFirstLogin = false;
+    user.status = USER_STATUS.ACTIVE; // Activate the user after password change
+    await user.save();
+
+    // Send email notification
+    try {
+      await emailService.sendPasswordChangedEmail({
+        to: user.email,
+        userName: user.name,
+      });
+    } catch (emailError) {
+      console.error('Failed to send password change email:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    // Create notification
+    try {
+      const notification = new Notification({
+        user: user._id,
+        type: NOTIFICATION_TYPES.SYSTEM,
+        title: 'Account Activated',
+        message: `Welcome! Your account has been activated. You can now access all features.`,
+      });
+      await notification.save();
+
+      // Send real-time notification via Socket.IO
+      socketService.emitNotification(user._id.toString(), {
+        _id: notification._id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        isRead: notification.isRead,
+        createdAt: notification.createdAt,
+      });
+    } catch (notificationError) {
+      console.error('Failed to create activation notification:', notificationError);
+      // Don't fail the request if notification fails
+    }
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: 'Password changed successfully. Your account has been activated.',
+      user: {
+        id: user._id,
+        userID: user.userID,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        isFirstLogin: false,
+        status: user.status
+      }
+    });
+  } catch (error) {
+    console.error('First login password change error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -843,5 +958,6 @@ module.exports = {
   forgotPassword,
   resetPassword,
   verifyOTP,
-  resendOTP
+  resendOTP,
+  firstLoginChangePassword
 };

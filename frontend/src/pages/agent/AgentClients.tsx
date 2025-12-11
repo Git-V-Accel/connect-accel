@@ -30,9 +30,24 @@ export default function AgentClients() {
   // Get projects assigned to this agent
   const agentProjects = projects.filter(p => p.assigned_agent_id === user?.id);
   
-  // Get clients from agent's projects
-  const agentClientIds = Array.from(new Set(agentProjects.map(p => p.client_id)));
-  const agentClients = clients.filter(c => agentClientIds.includes(c.id));
+  // Extract unique clients from agent's projects (using project's client data)
+  const agentClientsMap = new Map<string, any>();
+  agentProjects.forEach(project => {
+    if (project.client_id && !agentClientsMap.has(project.client_id)) {
+      // Create client object from project data (projects have populated client info)
+      agentClientsMap.set(project.client_id, {
+        id: project.client_id,
+        name: project.client_name || 'Unknown Client',
+        email: project.client_email || '',
+        phone: project.client_phone || '',
+        // Try to get additional info from local clients array if available
+        ...(clients.find(c => c.id === project.client_id) || {})
+      });
+    }
+  });
+  
+  // Convert map to array
+  const agentClients = Array.from(agentClientsMap.values());
 
   const filteredClients = agentClients.filter(client => {
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

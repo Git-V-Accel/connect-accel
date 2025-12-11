@@ -8,6 +8,7 @@ import { Input } from "../../components/ui/input";
 import { RichTextEditor } from "../../components/common/RichTextEditor";
 import { Label } from "../../components/ui/label";
 import { useData } from "../../contexts/DataContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { projectTypes, statusColors, statusLabels } from "../../constants/projectConstants";
 import {
   ArrowLeft,
@@ -27,9 +28,15 @@ export default function CreateBid() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { projects, createBid } = useData();
+  const { user } = useAuth();
+
+  // Filter projects based on user role
+  const availableProjects = user?.role === 'agent' 
+    ? projects.filter(p => p.assigned_agent_id === user?.id)
+    : projects;
 
   const [selectedProjectId, setSelectedProjectId] = useState<string>(id || "");
-  const project = projects.find((p) => p.id === selectedProjectId);
+  const project = availableProjects.find((p) => p.id === selectedProjectId);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -55,7 +62,7 @@ export default function CreateBid() {
 
   const handleProjectSelect = (projectId: string) => {
     setSelectedProjectId(projectId);
-    const selectedProject = projects.find((p) => p.id === projectId);
+    const selectedProject = availableProjects.find((p) => p.id === projectId);
     if (selectedProject) {
       setFormData({
         title: selectedProject.title || "",
@@ -74,7 +81,7 @@ export default function CreateBid() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" onClick={() => navigate("/admin/bids")}>
+              <Button variant="ghost" onClick={() => navigate(user?.role === 'agent' ? "/agent/bids" : "/admin/bids")}>
                 <ArrowLeft className="size-4 mr-2" />
               </Button>
               <div>
@@ -95,7 +102,7 @@ export default function CreateBid() {
                   className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Choose a project...</option>
-                  {projects.map((proj) => (
+                  {availableProjects.map((proj) => (
                     <option key={proj.id} value={proj.id}>
                       {proj.title}
                     </option>
@@ -116,7 +123,7 @@ export default function CreateBid() {
           <div className="text-center">
             <AlertCircle className="size-12 text-gray-400 mx-auto mb-4" />
             <h2 className="text-2xl mb-2">Project Not Found</h2>
-            <Button onClick={() => navigate("/admin/bids")}>
+            <Button onClick={() => navigate(user?.role === 'agent' ? "/agent/bids" : "/admin/bids")}>
               Back to Bid Management
             </Button>
           </div>
@@ -171,7 +178,10 @@ export default function CreateBid() {
     });
 
     toast.success("Bid created successfully!");
-    navigate(`/admin/projects/${project.id}/bids`);
+    const redirectPath = user?.role === 'agent' 
+      ? `/agent/projects/${project.id}/bids`
+      : `/admin/projects/${project.id}/bids`;
+    navigate(redirectPath);
   };
 
   const statusColors: Record<string, string> = {
@@ -191,7 +201,7 @@ export default function CreateBid() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate("/admin/bids")}>
+            <Button variant="ghost" onClick={() => navigate(user?.role === 'agent' ? "/agent/bids" : "/admin/bids")}>
               <ArrowLeft className="size-4 mr-2" />
             </Button>
             <div>
@@ -405,7 +415,7 @@ export default function CreateBid() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => navigate("/admin/bids")}
+                    onClick={() => navigate(user?.role === 'agent' ? "/agent/bids" : "/admin/bids")}
                     className="flex-1"
                   >
                     Cancel

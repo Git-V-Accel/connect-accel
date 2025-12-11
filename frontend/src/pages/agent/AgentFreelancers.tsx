@@ -84,12 +84,6 @@ export default function AgentFreelancers() {
             <h1 className="text-3xl">Freelancer Directory</h1>
             <p className="text-gray-600 mt-1">Curate and invite top freelancers to your projects</p>
           </div>
-          <Button asChild>
-            <Link to="/agent/bids/create">
-              <UserPlus className="size-4 mr-2" />
-              Create Bid Invitation
-            </Link>
-          </Button>
         </div>
 
         {/* Stats Grid */}
@@ -218,9 +212,9 @@ export default function AgentFreelancers() {
                       </Link>
                     </Button>
                     <Button asChild size="sm" className="flex-1">
-                      <Link to={`/agent/bids/create?freelancer=${freelancer.id}`}>
-                        <UserPlus className="size-4 mr-2" />
-                        Invite
+                      <Link to={`/agent/bids`}>
+                        <FileText className="size-4 mr-2" />
+                        View Bids
                       </Link>
                     </Button>
                   </div>

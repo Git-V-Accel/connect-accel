@@ -4,6 +4,7 @@ import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 import {
   ArrowLeft,
   Star,
@@ -103,7 +104,7 @@ export default function FreelancerDetails() {
 
             <div>
               <h4 className="font-medium mb-3">Bio</h4>
-              <p className="text-gray-700">{selectedFreelancer.bio}</p>
+              <RichTextViewer content={selectedFreelancer.bio || ''} />
             </div>
 
             <div>

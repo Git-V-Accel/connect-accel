@@ -20,6 +20,7 @@ export const API_CONFIG = {
     RESEND_OTP: `${API_PREFIX}/auth/resend-otp`,
     CHANGE_PASSWORD: `${API_PREFIX}/auth/change-password`,
     SEND_PASSWORD_CHANGE_OTP: `${API_PREFIX}/auth/change-password/send-otp`,
+    FIRST_LOGIN_CHANGE_PASSWORD: `${API_PREFIX}/auth/first-login/change-password`,
   },
   PROJECTS: {
     LIST: `${API_PREFIX}/projects`,

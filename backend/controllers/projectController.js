@@ -83,6 +83,9 @@ const getProjects = async (req, res) => {
           ]
         }
       ];
+    } else if (req.user.role === 'agent') {
+      // Agents can only see projects assigned to them
+      query.assignedAgentId = req.user.id;
     }
     // Admin and superadmin can see all projects
     
@@ -108,6 +111,7 @@ const getProjects = async (req, res) => {
       populate: [
         { path: 'client', select: 'name email phone userID' },
         { path: 'assignedFreelancerId', select: 'name email userID' },
+        { path: 'assignedAgentId', select: 'name email userID' },
         {
           path: 'additionalDescriptions.createdBy',
           select: 'name email userID role'
@@ -144,6 +148,7 @@ const getProject = async (req, res) => {
     const project = await Project.findById(req.params.id)
       .populate('client', 'name email phone userID')
       .populate('assignedFreelancerId', 'name email userID')
+      .populate('assignedAgentId', 'name email userID')
       .populate('additionalDescriptions.createdBy', 'name email userID role')
       .lean();
 
@@ -507,7 +512,8 @@ const updateProject = async (req, res) => {
       updateData,
       { new: true, runValidators: true }
     ).populate('client', 'name email userID')
-     .populate('assignedFreelancer', 'name email userID');
+     .populate('assignedFreelancer', 'name email userID')
+     .populate('assignedAgentId', 'name email userID');
 
     // Log activity for status changes
     if (oldStatus !== updatedProject.status) {

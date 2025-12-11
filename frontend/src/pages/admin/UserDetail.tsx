@@ -8,6 +8,7 @@ import { ArrowLeft, User, Mail, Phone, Building, Calendar, DollarSign, Briefcase
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import * as userService from '../../services/userService';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { toast } from '../../utils/toast';
 
 interface UnifiedUser {
@@ -257,7 +258,7 @@ export default function UserDetail() {
           {user.bio && (
             <div className="mt-6 pt-6 border-t">
               <h3 className="text-sm font-medium text-gray-600 mb-2">Bio</h3>
-              <p className="text-gray-800 whitespace-pre-wrap">{user.bio}</p>
+              <RichTextViewer content={user.bio} />
             </div>
           )}
 

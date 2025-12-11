@@ -226,10 +226,10 @@ export default function AgentDashboard() {
                   <Target className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                   <p>No active bids</p>
                   <button
-                    onClick={() => navigate('/agent/bids/create')}
+                    onClick={() => navigate('/agent/bids')}
                     className="mt-3 text-sm text-blue-600 hover:underline"
                   >
-                    Create Bid Invitation
+                    View All Bids
                   </button>
                 </div>
               )}
@@ -250,12 +250,12 @@ export default function AgentDashboard() {
               </button>
 
               <button
-                onClick={() => navigate('/agent/bids/create')}
+                onClick={() => navigate('/agent/bids')}
                 className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg text-left transition-colors"
               >
                 <Target className="w-6 h-6 text-purple-600 mb-2" />
-                <p className="text-sm font-medium">Create Bid</p>
-                <p className="text-xs text-gray-600">Invite freelancers</p>
+                <p className="text-sm font-medium">Bid Management</p>
+                <p className="text-xs text-gray-600">Manage bids</p>
               </button>
 
               <button

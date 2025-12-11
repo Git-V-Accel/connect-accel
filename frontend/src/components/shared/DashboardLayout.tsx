@@ -288,9 +288,9 @@ export default function DashboardLayout({
             path: "/agent/projects",
           },
           {
-            label: "Create Bid",
+            label: "Bidding",
             icon: <FileText className="size-5" />,
-            path: "/agent/bids/create",
+            path: "/agent/bids",
           },
           {
             label: "Freelancers",

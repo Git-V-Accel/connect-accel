@@ -425,6 +425,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (updates.priority) payload.priority = updates.priority;
       if (updates.complexity) payload.complexity = updates.complexity;
       if (updates.status) payload.status = updates.status as any;
+      if ((updates as any).assignedAgentId) payload.assignedAgentId = (updates as any).assignedAgentId;
+      if ((updates as any).assigned_agent_id) payload.assignedAgentId = (updates as any).assigned_agent_id;
 
       const updatedProject = await projectService.updateProject(id, payload);
       const normalizedProject = projectService.normalizeProject(updatedProject);
