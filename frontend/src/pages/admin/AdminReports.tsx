@@ -14,7 +14,7 @@ import {
 import { useData } from '../../contexts/DataContext';
 import {
   TrendingUp,
-  DollarSign,
+  IndianRupee,
   Users,
   Briefcase,
   Calendar,
@@ -129,7 +129,7 @@ export default function AdminReports() {
           <Card className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="bg-purple-100 p-3 rounded-lg">
-                <DollarSign className="size-5 text-purple-600" />
+                <IndianRupee className="size-5 text-purple-600" />
               </div>
               {revenueGrowth > 0 ? (
                 <Badge className="bg-green-100 text-green-700">
@@ -194,7 +194,7 @@ export default function AdminReports() {
               Overview
             </TabsTrigger>
             <TabsTrigger value="revenue">
-              <DollarSign className="size-4 mr-2" />
+              <IndianRupee className="size-4 mr-2" />
               Revenue
             </TabsTrigger>
             <TabsTrigger value="projects">

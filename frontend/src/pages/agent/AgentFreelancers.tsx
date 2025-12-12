@@ -9,7 +9,7 @@ import {
   Filter, 
   Star,
   Briefcase,
-  DollarSign,
+  IndianRupee,
   Award,
   Eye,
   UserPlus,
@@ -184,7 +184,7 @@ export default function AgentFreelancers() {
                       <span>{completedProjects.length} projects</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <DollarSign className="size-4 text-gray-500" />
+                      <IndianRupee className="size-4 text-gray-500" />
                       <span>${freelancer.hourly_rate}/hr</span>
                     </div>
                   </div>

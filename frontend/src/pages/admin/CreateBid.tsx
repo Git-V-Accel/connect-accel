@@ -9,10 +9,11 @@ import { RichTextEditor } from "../../components/common/RichTextEditor";
 import { Label } from "../../components/ui/label";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
+import { createBid } from "../../services/bidService";
 import { projectTypes, statusColors, statusLabels } from "../../constants/projectConstants";
 import {
   ArrowLeft,
-  DollarSign,
+  IndianRupee,
   Clock,
   Calendar,
   FileText,
@@ -27,8 +28,9 @@ import { toast } from "../../utils/toast";
 export default function CreateBid() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects, createBid } = useData();
+  const { projects } = useData();
   const { user } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
 
   // Filter projects based on user role
   const availableProjects = user?.role === 'agent' 
@@ -132,7 +134,7 @@ export default function CreateBid() {
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.title.trim()) {
@@ -151,9 +153,9 @@ export default function CreateBid() {
     }
 
     const bidAmount = parseFloat(formData.amount);
-    if (bidAmount > project.client_budget) {
+    if (project.budget && bidAmount > project.budget) {
       toast.warning(
-        `Warning: Bid amount (₹${bidAmount.toLocaleString()}) exceeds project budget (₹${project.client_budget.toLocaleString()})`
+        `Warning: Bid amount ($${bidAmount.toLocaleString()}) exceeds project budget ($${project.budget.toLocaleString()})`
       );
       // Allow submission but show warning
     }
@@ -163,25 +165,29 @@ export default function CreateBid() {
       return;
     }
 
-    createBid({
-      project_id: project.id,
-      freelancer_id: "",
-      freelancer_name: "",
-      freelancer_rating: 0,
-      amount: parseFloat(formData.amount),
-      duration_weeks: parseInt(formData.duration_weeks),
-      estimated_duration: `${formData.duration_weeks} weeks`,
-      cover_letter: "",
-      proposal: "",
-      status: "pending",
-      submitted_at: new Date().toISOString(),
-    });
+    try {
+      setSubmitting(true);
+      await createBid({
+        projectId: project.id,
+        projectTitle: formData.title.trim(),
+        bidAmount: bidAmount,
+        timeline: `${formData.duration_weeks} weeks`,
+        description: formData.description.trim(),
+        notes: '',
+      });
 
-    toast.success("Bid created successfully!");
-    const redirectPath = user?.role === 'agent' 
-      ? `/agent/projects/${project.id}/bids`
-      : `/admin/projects/${project.id}/bids`;
-    navigate(redirectPath);
+      toast.success("Bid created successfully!");
+      const redirectPath = user?.role === 'agent' 
+        ? `/agent/bids`
+        : `/admin/bids`;
+      navigate(redirectPath);
+    } catch (error: any) {
+      console.error('Failed to create bid:', error);
+      const msg = error?.response?.data?.message || error?.message || 'Failed to create bid';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const statusColors: Record<string, string> = {
@@ -252,7 +258,7 @@ export default function CreateBid() {
                   <div>
                     <Label className="text-gray-600">Budget</Label>
                     <p className="mt-1">
-                      ₹{project.client_budget.toLocaleString()}
+                      ${project.budget?.toLocaleString() || 'N/A'}
                     </p>
                   </div>
                   <div>
@@ -377,15 +383,17 @@ export default function CreateBid() {
                       className="mt-2"
                       required
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Project budget: ₹{project.client_budget.toLocaleString()}
-                    </p>
-                    {formData.amount && parseFloat(formData.amount) > project.client_budget && (
+                    {project.budget && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Project budget: ${project.budget.toLocaleString()}
+                      </p>
+                    )}
+                    {formData.amount && project.budget && parseFloat(formData.amount) > project.budget && (
                       <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
                         <AlertCircle className="size-4 text-yellow-600 mt-0.5 flex-shrink-0" />
                         <p className="text-xs text-yellow-800">
-                          Warning: Bid amount exceeds project budget by ₹
-                          {(parseFloat(formData.amount) - project.client_budget).toLocaleString()}
+                          Warning: Bid amount exceeds project budget by $
+                          {(parseFloat(formData.amount) - project.budget).toLocaleString()}
                         </p>
                       </div>
                     )}
@@ -420,9 +428,9 @@ export default function CreateBid() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" className="flex-1">
+                  <Button type="submit" className="flex-1" disabled={submitting}>
                     <CheckCircle className="size-4 mr-2" />
-                    Create Bid
+                    {submitting ? 'Creating...' : 'Create Bid'}
                   </Button>
                 </div>
               </form>

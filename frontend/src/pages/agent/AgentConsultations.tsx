@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,25 +14,16 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  Plus,
   User,
   FileText,
-  DollarSign
+  IndianRupee
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
 export default function AgentConsultations() {
-  const { consultations, clients, updateConsultation, createConsultation } = useData();
+  const { consultations, clients, updateConsultation } = useData();
   const { user } = useAuth();
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [formData, setFormData] = useState({
-    client_id: '',
-    scheduled_date: '',
-    duration: 60,
-    type: 'video' as 'video' | 'phone' | 'in_person',
-    notes: '',
-  });
 
   // Filter consultations for this agent
   const agentConsultations = consultations.filter(c => c.agent_id === user?.id);
@@ -86,33 +76,6 @@ export default function AgentConsultations() {
     }
   };
 
-  const handleCreateConsultation = () => {
-    if (!formData.client_id || !formData.scheduled_date) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    createConsultation({
-      client_id: formData.client_id,
-      agent_id: user!.id,
-      scheduled_date: formData.scheduled_date,
-      duration: formData.duration,
-      type: formData.type,
-      status: 'scheduled',
-      notes: formData.notes,
-      outcome: null,
-    });
-
-    toast.success('Consultation scheduled successfully!');
-    setShowCreateModal(false);
-    setFormData({
-      client_id: '',
-      scheduled_date: '',
-      duration: 60,
-      type: 'video',
-      notes: '',
-    });
-  };
 
   const stats = [
     {
@@ -155,10 +118,6 @@ export default function AgentConsultations() {
             <h1 className="text-3xl">Consultations</h1>
             <p className="text-gray-600 mt-1">Manage client consultations and discovery calls</p>
           </div>
-          <Button onClick={() => setShowCreateModal(true)}>
-            <Plus className="size-4 mr-2" />
-            Schedule Consultation
-          </Button>
         </div>
 
         {/* Stats Grid */}
@@ -301,92 +260,6 @@ export default function AgentConsultations() {
           )}
         </div>
 
-        {/* Create Consultation Modal */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full p-6">
-              <h2 className="text-2xl mb-6">Schedule Consultation</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="client">Client *</Label>
-                  <select
-                    id="client"
-                    value={formData.client_id}
-                    onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                    className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select a client</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>{client.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <Label htmlFor="scheduled_date">Date & Time *</Label>
-                  <Input
-                    id="scheduled_date"
-                    type="datetime-local"
-                    value={formData.scheduled_date}
-                    onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="duration">Duration (minutes)</Label>
-                    <Input
-                      id="duration"
-                      type="number"
-                      value={formData.duration}
-                      onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
-                      className="mt-1"
-                      min="15"
-                      step="15"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="type">Type</Label>
-                    <select
-                      id="type"
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                      className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="video">Video Call</option>
-                      <option value="phone">Phone Call</option>
-                      <option value="in_person">In Person</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="notes">Notes</Label>
-                  <textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows={4}
-                    placeholder="Add any notes or agenda items..."
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 mt-6">
-                <Button onClick={handleCreateConsultation} className="flex-1">
-                  Schedule Consultation
-                </Button>
-                <Button variant="outline" onClick={() => setShowCreateModal(false)} className="flex-1">
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </DashboardLayout>
   );

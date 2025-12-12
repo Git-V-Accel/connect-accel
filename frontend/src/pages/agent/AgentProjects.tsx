@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
@@ -6,11 +6,13 @@ import { Input } from '../../components/ui/input';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import * as bidService from '../../services/bidService';
+import type { Bid } from '../../services/bidService';
 import { 
   Search, 
   Filter, 
   Calendar,
-  DollarSign,
+  IndianRupee,
   Users,
   TrendingUp,
   Eye,
@@ -21,13 +23,32 @@ import {
 } from 'lucide-react';
 
 export default function AgentProjects() {
-  const { projects, clients, bids } = useData();
+  const { projects, clients } = useData();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [bids, setBids] = useState<Bid[]>([]);
 
   // Filter projects assigned to this agent
   const agentProjects = projects.filter(p => p.assigned_agent_id === user?.id);
+
+  // Fetch bids for agent's assigned projects
+  useEffect(() => {
+    const loadBids = async () => {
+      if (!user?.id) return;
+      try {
+        const response = await bidService.getAllBids({
+          page: 1,
+          limit: 1000, // Get all bids for agent's projects
+        });
+        // Backend already filters bids for agent's assigned projects
+        setBids(response.bids);
+      } catch (error) {
+        console.error('Failed to load bids:', error);
+      }
+    };
+    loadBids();
+  }, [user?.id]);
 
   const filteredProjects = agentProjects.filter(project => {
     const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -64,7 +85,8 @@ export default function AgentProjects() {
   };
 
   const getProjectBids = (projectId: string) => {
-    return bids.filter(b => b.project_id === projectId);
+    // Check both projectId (new structure) and project_id (old structure) for compatibility
+    return bids.filter(b => b.projectId === projectId || (b as any).project_id === projectId);
   };
 
   const getClientName = (clientId: string) => {
@@ -94,7 +116,7 @@ export default function AgentProjects() {
     {
       label: 'Total Value',
       value: `$${agentProjects.reduce((sum, p) => sum + p.budget, 0).toLocaleString()}`,
-      icon: <DollarSign className="size-5" />,
+      icon: <IndianRupee className="size-5" />,
       color: 'bg-emerald-500',
     },
   ];

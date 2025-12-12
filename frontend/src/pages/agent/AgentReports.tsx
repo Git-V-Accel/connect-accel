@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
-  DollarSign,
+  IndianRupee,
   TrendingUp,
   Users,
   FolderKanban,
@@ -123,7 +123,7 @@ export default function AgentReports() {
     {
       label: 'Total Revenue',
       value: `$${totalRevenue.toLocaleString()}`,
-      icon: <DollarSign className="size-5" />,
+      icon: <IndianRupee className="size-5" />,
       color: 'bg-green-500',
       change: '+12.5%',
     },

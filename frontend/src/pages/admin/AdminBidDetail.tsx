@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
 import { useData } from '../../contexts/DataContext';
+import * as bidService from '../../services/bidService';
+import type { Bid as ApiBid } from '../../services/bidService';
 import { 
   ArrowLeft,
-  DollarSign,
+  IndianRupee,
   Clock,
   Calendar,
   FileText,
@@ -23,19 +25,100 @@ import {
 import { toast } from '../../utils/toast';
 
 export default function AdminBidDetail() {
-  const { bidId } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { bids, projects, freelancers, updateBid, getProjectsByUser } = useData();
-  const [adminNotes, setAdminNotes] = useState('');
+  const { bids, projects, freelancers, getProjectsByUser } = useData();
+  const [apiBid, setApiBid] = useState<ApiBid | null>(null);
+  const [loadingBid, setLoadingBid] = useState(false);
 
-  const bid = bids.find(b => b.id === bidId);
-  const project = bid ? projects.find(p => p.id === bid.project_id) : null;
-  const freelancer = bid ? freelancers.find(f => f.id === bid.freelancer_id) : null;
+  const localBid = bids.find((b) => b.id === id);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!id) return;
+      // If we already have it in memory, no need to fetch.
+      if (localBid) return;
+      try {
+        setLoadingBid(true);
+        const b = await bidService.getBidDetails(id);
+        setApiBid(b);
+      } catch (e) {
+        console.error('Failed to fetch bid details:', e);
+        setApiBid(null);
+      } finally {
+        setLoadingBid(false);
+      }
+    };
+    load();
+  }, [id, localBid]);
+
+  const mappedBid = useMemo(() => {
+    if (!apiBid) return null;
+    return {
+      id: apiBid.id,
+      project_id: apiBid.projectId,
+      freelancer_id: apiBid.bidderId,
+      freelancer_name: apiBid.bidderName,
+      amount: apiBid.bidAmount,
+      duration_weeks: 0,
+      estimated_duration: apiBid.timeline,
+      cover_letter: apiBid.description,
+      proposal: apiBid.description,
+      status: apiBid.status,
+      submitted_at: apiBid.submittedAt,
+      created_at: apiBid.submittedAt,
+      admin_notes: '',
+      milestones: [],
+    } as any;
+  }, [apiBid]);
+
+  const bid = localBid || mappedBid;
+  const project =
+    (bid ? projects.find((p) => p.id === bid.project_id) : null) ||
+    (apiBid?.project
+      ? ({
+          id: apiBid.project.id,
+          title: apiBid.project.title,
+          budget: apiBid.project.budget ?? 0,
+          category: '',
+          skills_required: [],
+          duration_weeks: 0,
+        } as any)
+      : null);
+
+  const freelancer =
+    (bid ? freelancers.find((f) => f.id === bid.freelancer_id) : null) ||
+    (apiBid?.bidder
+      ? ({
+          id: apiBid.bidder.id,
+          name: apiBid.bidder.name,
+          email: apiBid.bidder.email,
+          rating: apiBid.bidder.rating ?? 0,
+          total_reviews: 0,
+          title: '',
+          skills: [],
+          hourly_rate: 0,
+          availability: '',
+          phone: '',
+          location: '',
+        } as any)
+      : null);
   
-  // Calculate freelancer stats from projects
+  // Calculate freelancer stats from projects (local data only)
   const freelancerProjects = freelancer ? getProjectsByUser(freelancer.id, 'freelancer') : [];
   const completedProjectsCount = freelancerProjects.filter(p => p.status === 'completed').length;
   const totalProjectsCount = freelancerProjects.length;
+
+  if (loadingBid) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4" />
+          <p className="text-gray-600">Loading bid details...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (!bid || !project) {
     return (
@@ -52,30 +135,33 @@ export default function AdminBidDetail() {
     );
   }
 
-  const handleAccept = () => {
-    updateBid(bid.id, { 
-      status: 'accepted',
-      admin_notes: adminNotes || bid.admin_notes
-    });
-    toast.success('Bid accepted successfully!');
-    navigate('/admin/bids');
+  const handleAccept = async () => {
+    try {
+      await bidService.updateBidAcceptance(bid.id, true);
+      toast.success('Bid accepted successfully!');
+      navigate('/admin/bids');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to accept bid');
+    }
   };
 
-  const handleReject = () => {
-    updateBid(bid.id, { 
-      status: 'rejected',
-      admin_notes: adminNotes || bid.admin_notes
-    });
-    toast.success('Bid rejected');
-    navigate('/admin/bids');
+  const handleReject = async () => {
+    try {
+      await bidService.updateBidDecline(bid.id, true);
+      toast.success('Bid rejected');
+      navigate('/admin/bids');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to reject bid');
+    }
   };
 
-  const handleShortlist = () => {
-    updateBid(bid.id, { 
-      status: 'shortlisted',
-      admin_notes: adminNotes || bid.admin_notes
-    });
-    toast.success('Bid shortlisted');
+  const handleShortlist = async () => {
+    try {
+      await bidService.updateBidShortlist(bid.id, true);
+      toast.success('Bid shortlisted');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to shortlist bid');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -211,23 +297,7 @@ export default function AdminBidDetail() {
             )}
 
             {/* Admin Notes */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-xl mb-4">Admin Notes</h2>
-              {bid.admin_notes && (
-                <div className="p-3 bg-gray-50 rounded-lg mb-4">
-                  <p className="text-sm text-gray-700">{bid.admin_notes}</p>
-                </div>
-              )}
-              <div>
-                <textarea
-                  value={adminNotes}
-                  onChange={(e) => setAdminNotes(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="Add internal notes about this bid..."
-                />
-              </div>
-            </div>
+            {/* Admin Notes removed as requested */}
 
             {/* Actions */}
             {bid.status !== 'accepted' && bid.status !== 'rejected' && (
@@ -324,7 +394,7 @@ export default function AdminBidDetail() {
 
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2 text-gray-600">
-                      <DollarSign className="size-4" />
+                      <IndianRupee className="size-4" />
                       <span>${freelancer.hourly_rate}/hr</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-600">

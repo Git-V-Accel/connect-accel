@@ -137,6 +137,9 @@ const ACTIVITY_TYPES = {
   MESSAGE_SENT: 'message_sent',
   NOTIFICATION_SENT: 'notification_sent',
   CONSULTATION_REQUESTED: 'consultation_requested',
+
+  // Bid activities
+  BID_DELETED: 'bid_deleted',
   
   // System activities
   SYSTEM_GENERATED: 'system_generated',
@@ -188,6 +191,7 @@ const NOTIFICATION_TYPES_ARRAY = Object.values(NOTIFICATION_TYPES);
 
 // Project Status
 const PROJECT_STATUS = {
+  DRAFT: 'draft',
   PENDING: 'pending',
   IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',

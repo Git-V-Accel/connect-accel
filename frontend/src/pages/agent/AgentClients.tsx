@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
@@ -10,7 +10,7 @@ import {
   Filter, 
   User,
   FolderKanban,
-  DollarSign,
+  IndianRupee,
   Calendar,
   Eye,
   MessageSquare,
@@ -86,7 +86,7 @@ export default function AgentClients() {
     {
       label: 'Total Revenue',
       value: `$${agentProjects.reduce((sum, p) => sum + p.budget, 0).toLocaleString()}`,
-      icon: <DollarSign className="size-5" />,
+      icon: <IndianRupee className="size-5" />,
       color: 'bg-green-500',
     },
     {
@@ -250,12 +250,7 @@ export default function AgentClients() {
                         Message
                       </Link>
                     </Button>
-                    <Button asChild size="sm">
-                      <Link to={`/agent/consultations?client=${client.id}`}>
-                        <Calendar className="size-4 mr-2" />
-                        Schedule Consultation
-                      </Link>
-                    </Button>
+                   
                   </div>
                 </div>
               );

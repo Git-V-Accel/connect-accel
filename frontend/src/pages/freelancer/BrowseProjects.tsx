@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
@@ -8,66 +8,81 @@ import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { Label } from '../../components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { Search, Calendar, DollarSign, Clock, Send, Filter } from 'lucide-react';
-import { toast } from '../../utils/toast';
+import { Search, Calendar, IndianRupee, Clock, Send, Filter, Eye, FileText } from 'lucide-react';
+import * as bidService from '../../services/bidService';
+import type { Bid } from '../../services/bidService';
+import apiClient from '../../services/apiService';
+import { API_CONFIG } from '../../config/api';
 
 export default function BrowseProjects() {
   const { user } = useAuth();
-  const { projects, createBid, getBidsByFreelancer } = useData();
+  const { projects } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [showBidDialog, setShowBidDialog] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<string | null>(null);
-  const [bidAmount, setBidAmount] = useState('');
-  const [bidDuration, setBidDuration] = useState('');
-  const [bidProposal, setBidProposal] = useState('');
+  const [availableBids, setAvailableBids] = useState<Bid[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [myBiddingIds, setMyBiddingIds] = useState<string[]>([]);
+  const [myBiddingMap, setMyBiddingMap] = useState<Map<string, string>>(new Map()); // Map of adminBidId -> biddingId
+
+  useEffect(() => {
+    const loadBids = async () => {
+      if (!user) return;
+      setLoading(true);
+      try {
+        // Fetch available admin bids
+        const response = await bidService.getAvailableAdminBids({ status: 'pending' });
+        setAvailableBids(response.bids || []);
+        
+        // Fetch freelancer's existing biddings to track which bids they've already submitted proposals for
+        try {
+          const biddingResponse = await apiClient.get(API_CONFIG.BIDDING.GET_BY_FREELANCER(user.id));
+          if (biddingResponse.data.success && biddingResponse.data.data) {
+            const biddings = Array.isArray(biddingResponse.data.data) ? biddingResponse.data.data : [];
+            const biddingIds: string[] = [];
+            const biddingMap = new Map<string, string>();
+            
+            biddings.forEach((b: any) => {
+              const adminBidId = b.adminBidId?._id?.toString() || b.adminBidId?.toString() || b.adminBidId;
+              const biddingId = b._id?.toString() || b.id?.toString();
+              if (adminBidId) {
+                biddingIds.push(adminBidId);
+                if (biddingId) {
+                  biddingMap.set(adminBidId, biddingId);
+                }
+              }
+            });
+            
+            setMyBiddingIds(biddingIds);
+            setMyBiddingMap(biddingMap);
+          }
+        } catch (error) {
+          console.error('Failed to load my biddings:', error);
+        }
+      } catch (error: any) {
+        console.error('Failed to load bids:', error);
+        toast.error('Failed to load available bids');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadBids();
+  }, [user]);
 
   if (!user) return null;
 
-  const myBids = getBidsByFreelancer(user.id);
-  const availableProjects = projects.filter(p => 
-    p.status === 'in_bidding' && 
-    !myBids.some(b => b.project_id === p.id)
-  );
-
-  const filteredProjects = availableProjects.filter(p => {
+  // Show all bids, but we'll hide the Submit Proposal button for bids where user already submitted
+  const filteredProjects = availableBids.filter(bid => {
     const matchesSearch = !searchQuery || 
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+      bid.projectTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bid.description.toLowerCase().includes(searchQuery.toLowerCase());
+    // Note: Bids don't have categories, so we'll skip category filter for now
+    return matchesSearch;
   });
 
   const categories = [...new Set(projects.map(p => p.category))];
-
-  const handleSubmitBid = () => {
-    if (!selectedProject || !bidAmount || !bidDuration || !bidProposal) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    createBid({
-      project_id: selectedProject,
-      freelancer_id: user.id,
-      freelancer_name: user.name,
-      freelancer_rating: 4.5,
-      amount: parseInt(bidAmount),
-      duration_weeks: parseInt(bidDuration),
-      proposal: bidProposal,
-      status: 'pending',
-    });
-
-    toast.success('Bid submitted successfully! We\'ll notify you if you\'re shortlisted.');
-    setShowBidDialog(false);
-    setSelectedProject(null);
-    setBidAmount('');
-    setBidDuration('');
-    setBidProposal('');
-  };
 
   return (
     <DashboardLayout>
@@ -104,171 +119,122 @@ export default function BrowseProjects() {
         </Card>
 
         <div className="flex items-center justify-between">
-          <p className="text-gray-600">{filteredProjects.length} projects available</p>
+          <p className="text-gray-600">
+            {loading ? 'Loading...' : `${filteredProjects.length} ${filteredProjects.length === 1 ? 'bid' : 'bids'} available`}
+          </p>
         </div>
 
-        <div className="space-y-4">
-          {filteredProjects.map(project => (
-            <Card key={project.id} className="p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-medium mb-2">{project.title}</h3>
-                  <div className="text-gray-600 mb-4 line-clamp-2">
-                    <RichTextViewer content={project.description || ''} />
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {project.skills_required.slice(0, 6).map(skill => (
-                      <Badge key={skill} variant="secondary">{skill}</Badge>
-                    ))}
-                    {project.skills_required.length > 6 && (
-                      <Badge variant="secondary">+{project.skills_required.length - 6} more</Badge>
-                    )}
-                  </div>
+        {loading ? (
+          <Card className="p-12 text-center">
+            <p className="text-gray-600">Loading available bids...</p>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filteredProjects.map(bid => (
+              <Card key={bid.id} className="p-6 hover:shadow-lg transition-shadow">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-lg font-medium">{bid.projectTitle}</h3>
+                      <Badge variant="outline">Posted by {bid.bidder?.role === 'agent' ? 'Agent' : bid.bidder?.role === 'admin' ? 'Admin' : 'Superadmin'}</Badge>
+                    </div>
+                    <div className="text-gray-600 mb-4 line-clamp-2">
+                      <RichTextViewer content={bid.description || ''} />
+                    </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <DollarSign className="size-4 text-gray-400" />
-                      <span className="text-gray-600">₹{project.client_budget.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Clock className="size-4 text-gray-400" />
-                      <span className="text-gray-600">{project.duration_weeks} weeks</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-400">Category:</span>
-                      <span className="text-gray-600">{project.category}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-400">Complexity:</span>
-                      <span className="text-gray-600 capitalize">{project.complexity}</span>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="flex items-center gap-2 text-sm">
+                        <IndianRupee className="size-4 text-gray-400" />
+                        <span className="text-gray-600">₹{bid.bidAmount?.toLocaleString() || '0'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className="size-4 text-gray-400" />
+                        <span className="text-gray-600">{bid.timeline || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-400">Status:</span>
+                        <Badge variant={bid.status === 'pending' ? 'default' : 'secondary'}>
+                          {bid.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-400">Posted:</span>
+                        <span className="text-gray-600">
+                          {bid.submittedAt ? new Date(bid.submittedAt).toLocaleDateString() : 'N/A'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between pt-4 border-t">
-                <span className="text-sm text-gray-500">
-                  Posted {new Date(project.created_at).toLocaleDateString()}
-                </span>
-                <div className="flex gap-2">
-                  <Link to={`/freelancer/projects/${project.id}/detail`}>
-                    <Button variant="outline">
-                      View Details
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <span className="text-sm text-gray-500">
+                    Posted by {bid.bidderName || 'Admin/Superadmin/Agent'} on {bid.submittedAt ? new Date(bid.submittedAt).toLocaleDateString() : 'N/A'}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline"
+                      asChild
+                    >
+                      <Link to={`/freelancer/bids/${bid.id}/view`}>
+                        <Eye className="size-4 mr-2" />
+                        View Bid
+                      </Link>
                     </Button>
-                  </Link>
-                  <Button 
-                    onClick={() => {
-                      setSelectedProject(project.id);
-                      setShowBidDialog(true);
-                    }}
-                  >
-                    <Send className="size-4 mr-2" />
-                    Submit Bid
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-
-          {filteredProjects.length === 0 && (
-            <Card className="p-12 text-center">
-              <h3 className="text-lg font-medium mb-2">No projects found</h3>
-              <p className="text-gray-600">
-                {searchQuery || categoryFilter !== 'all' 
-                  ? 'Try adjusting your filters'
-                  : 'Check back soon for new opportunities'
-                }
-              </p>
-            </Card>
-          )}
-        </div>
-
-        <Dialog open={showBidDialog} onOpenChange={setShowBidDialog}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Submit Your Bid</DialogTitle>
-              <DialogDescription>
-                Provide your proposal and pricing for this project
-              </DialogDescription>
-            </DialogHeader>
-
-            {selectedProject && (
-              <>
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                  <h4 className="font-medium mb-1">
-                    {projects.find(p => p.id === selectedProject)?.title}
-                  </h4>
-                  <p className="text-sm text-gray-600">
-                    Client Budget: ₹{projects.find(p => p.id === selectedProject)?.client_budget.toLocaleString()}
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="amount">Your Bid Amount (₹) *</Label>
-                      <Input
-                        id="amount"
-                        type="number"
-                        placeholder="e.g., 120000"
-                        value={bidAmount}
-                        onChange={e => setBidAmount(e.target.value)}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Recommended: 80-90% of client budget
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="duration">Duration (weeks) *</Label>
-                      <Input
-                        id="duration"
-                        type="number"
-                        placeholder="e.g., 8"
-                        value={bidDuration}
-                        onChange={e => setBidDuration(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="proposal">Your Proposal *</Label>
-                    <Textarea
-                      id="proposal"
-                      placeholder="Explain why you're the best fit for this project. Include relevant experience, approach, and what makes your bid competitive."
-                      rows={6}
-                      value={bidProposal}
-                      onChange={e => setBidProposal(e.target.value)}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      A detailed proposal increases your chances of being shortlisted
-                    </p>
+                    {/* Show View Your Proposal if already submitted, otherwise Show Submit Proposal */}
+                    {(() => {
+                      const hasSubmitted = myBiddingIds.some(biddingId => 
+                        biddingId === bid.id || 
+                        biddingId === String(bid.id) ||
+                        String(biddingId) === String(bid.id)
+                      );
+                      const biddingId = myBiddingMap.get(bid.id) || myBiddingMap.get(String(bid.id));
+                      
+                      if (hasSubmitted && biddingId) {
+                        return (
+                          <Button 
+                            variant="outline"
+                            asChild
+                          >
+                            <Link to={`/admin/bids/${bid.id}/proposal?biddingId=${biddingId}`}>
+                              <FileText className="size-4 mr-2" />
+                              View Your Proposal
+                            </Link>
+                          </Button>
+                        );
+                      } else if (!hasSubmitted) {
+                        return (
+                          <Button 
+                            asChild
+                          >
+                            <Link to={`/freelancer/bids/${bid.id}/submit-proposal`}>
+                              <Send className="size-4 mr-2" />
+                              Submit Proposal
+                            </Link>
+                          </Button>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
+              </Card>
+            ))}
 
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    <strong>Note:</strong> Your bid will be reviewed by our admin team. If shortlisted,
-                    the client will see your proposal and make a final decision.
-                  </p>
-                </div>
-              </>
+            {filteredProjects.length === 0 && (
+              <Card className="p-12 text-center">
+                <h3 className="text-lg font-medium mb-2">No bids available</h3>
+                <p className="text-gray-600">
+                  {searchQuery
+                    ? 'Try adjusting your search'
+                    : 'Check back soon for new opportunities posted by admin/superadmin/agent'
+                  }
+                </p>
+              </Card>
             )}
+          </div>
+        )}
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowBidDialog(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleSubmitBid}
-                disabled={!bidAmount || !bidDuration || !bidProposal}
-              >
-                <Send className="size-4 mr-2" />
-                Submit Bid
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );

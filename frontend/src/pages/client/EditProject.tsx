@@ -12,7 +12,7 @@ import { Progress } from '../../components/ui/progress';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Calendar, DollarSign, FileText, Settings, Plus, X, Phone } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Calendar, IndianRupee, FileText, Settings, Plus, X, Phone } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { categories, commonSkills, projectTypes, projectPriorities } from '../../constants/projectConstants';
 
@@ -578,7 +578,7 @@ export default function EditProject() {
 
   const steps = [
     { number: 1, title: 'Details', icon: <FileText className="size-4" /> },
-    { number: 2, title: 'Budget', icon: <DollarSign className="size-4" /> },
+    { number: 2, title: 'Budget', icon: <IndianRupee className="size-4" /> },
     { number: 3, title: 'Tech-Stacks', icon: <Settings className="size-4" /> },
     { number: 4, title: 'Review', icon: <Check className="size-4" /> },
   ];

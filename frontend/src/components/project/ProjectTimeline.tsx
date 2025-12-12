@@ -12,7 +12,7 @@ import {
   CheckCircle,
   XCircle,
   Edit,
-  DollarSign,
+  IndianRupee,
   User,
   FileText,
   AlertCircle,
@@ -75,9 +75,9 @@ export default function ProjectTimeline({ activityLogs, project, loading = false
         return <Eye className="size-5 text-blue-500" />;
       case 'payment_initiated':
       case 'payment_processing':
-        return <DollarSign className="size-5 text-yellow-600" />;
+        return <IndianRupee className="size-5 text-yellow-600" />;
       case 'payment_completed':
-        return <DollarSign className="size-5 text-green-600" />;
+        return <IndianRupee className="size-5 text-green-600" />;
       case 'payment_failed':
       case 'payment_cancelled':
         return <XCircle className="size-5 text-red-600" />;

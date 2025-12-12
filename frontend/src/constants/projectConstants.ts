@@ -40,6 +40,7 @@ export const statusColors = {
   rejected: 'bg-red-100 text-red-700',
   disputed: 'bg-orange-100 text-orange-700',
   pending_review: 'bg-yellow-100 text-yellow-700',
+  hold: 'bg-orange-100 text-orange-700',
 };
 
 export const statusLabels = {
@@ -53,5 +54,6 @@ export const statusLabels = {
   rejected: 'Rejected',
   disputed: 'Disputed',
   pending_review: 'Pending Review',
+  hold: 'Hold',
 };
 

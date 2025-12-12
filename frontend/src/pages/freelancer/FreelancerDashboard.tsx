@@ -7,7 +7,7 @@ import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { Briefcase, Clock, DollarSign, Star, TrendingUp, ArrowRight, Search } from 'lucide-react';
+import { Briefcase, Clock, IndianRupee, Star, TrendingUp, ArrowRight, Search } from 'lucide-react';
 
 export default function FreelancerDashboard() {
   const { user } = useAuth();
@@ -27,7 +27,7 @@ export default function FreelancerDashboard() {
   const stats = [
     { label: 'Active Projects', value: activeProjects.length.toString(), icon: Briefcase, color: 'text-blue-600', bgColor: 'bg-blue-50' },
     { label: 'Pending Bids', value: activeBids.length.toString(), icon: Clock, color: 'text-orange-600', bgColor: 'bg-orange-50' },
-    { label: 'Total Earnings', value: `₹${earnings.toLocaleString()}`, icon: DollarSign, color: 'text-green-600', bgColor: 'bg-green-50' },
+    { label: 'Total Earnings', value: `₹${earnings.toLocaleString()}`, icon: IndianRupee, color: 'text-green-600', bgColor: 'bg-green-50' },
     { label: 'Available Projects', value: availableProjects.toString(), icon: TrendingUp, color: 'text-purple-600', bgColor: 'bg-purple-50' },
   ];
 

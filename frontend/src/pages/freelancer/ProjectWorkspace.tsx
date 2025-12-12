@@ -19,7 +19,7 @@ import {
   Upload,
   MessageSquare,
   Calendar,
-  DollarSign,
+  IndianRupee,
   CheckCircle,
   Clock,
   AlertTriangle,
@@ -178,7 +178,7 @@ export default function ProjectWorkspace() {
           {/* Quick Stats */}
           <div className="grid grid-cols-4 gap-4">
             <div className="text-center p-4 bg-green-50 rounded-lg">
-              <DollarSign className="size-6 mx-auto mb-2 text-green-600" />
+              <IndianRupee className="size-6 mx-auto mb-2 text-green-600" />
               <div className="text-sm text-gray-600">Earned</div>
               <div className="text-xl">₹{earnedAmount.toLocaleString()}</div>
             </div>
@@ -243,7 +243,7 @@ export default function ProjectWorkspace() {
                       
                       <div className="flex items-center gap-6 text-sm text-gray-600 mb-4">
                         <div className="flex items-center gap-2">
-                          <DollarSign className="size-4" />
+                          <IndianRupee className="size-4" />
                           <span>₹{milestone.amount.toLocaleString()}</span>
                         </div>
                         <div className="flex items-center gap-2">

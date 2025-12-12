@@ -36,7 +36,7 @@ import {
   Trash2,
   Building,
   Shield,
-  DollarSign,
+  IndianRupee,
   Briefcase,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
@@ -234,7 +234,7 @@ export default function ClientsManagement() {
         const stats = getClientStats(client.id);
         return (
           <div className="flex items-center gap-1">
-            <DollarSign className="size-3 text-gray-400" />
+            <IndianRupee className="size-3 text-gray-400" />
             <span className="font-medium">₹{(stats.totalSpent / 100000).toFixed(1)}L</span>
           </div>
         );

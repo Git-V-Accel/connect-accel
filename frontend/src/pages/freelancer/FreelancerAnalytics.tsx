@@ -9,7 +9,7 @@ import { useData } from '../../contexts/DataContext';
 import { 
   TrendingUp, 
   TrendingDown,
-  DollarSign, 
+  IndianRupee, 
   Briefcase, 
   Star,
   Target,
@@ -113,7 +113,7 @@ export default function FreelancerAnalytics() {
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="bg-green-100 text-green-600 p-3 rounded-lg">
-                <DollarSign className="size-6" />
+                <IndianRupee className="size-6" />
               </div>
               <div className={`flex items-center gap-1 text-sm ${earningsTrend > 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {earningsTrend > 0 ? <TrendingUp className="size-4" /> : <TrendingDown className="size-4" />}

@@ -4,7 +4,7 @@ import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { DollarSign, TrendingUp, TrendingDown, Calendar, Download } from 'lucide-react';
+import { IndianRupee, TrendingUp, TrendingDown, Calendar, Download } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 
 export default function ClientPayments() {
@@ -31,7 +31,7 @@ export default function ClientPayments() {
     .reduce((sum, p) => sum + p.amount, 0);
 
   const stats = [
-    { label: 'Total Spent', value: `₹${totalSpent.toLocaleString()}`, icon: DollarSign, color: 'text-blue-600', bgColor: 'bg-blue-50' },
+    { label: 'Total Spent', value: `₹${totalSpent.toLocaleString()}`, icon: IndianRupee, color: 'text-blue-600', bgColor: 'bg-blue-50' },
     { label: 'In Escrow', value: `₹${(escrowBalance - releasedPayments).toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bgColor: 'bg-green-50' },
     { label: 'Released', value: `₹${releasedPayments.toLocaleString()}`, icon: TrendingDown, color: 'text-purple-600', bgColor: 'bg-purple-50' },
     { label: 'Active Projects', value: projects.filter(p => p.status === 'in_progress').length.toString(), icon: Calendar, color: 'text-orange-600', bgColor: 'bg-orange-50' },
@@ -86,7 +86,7 @@ export default function ClientPayments() {
                         <div className={`size-10 rounded-full flex items-center justify-center ${
                           payment.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
                         }`}>
-                          <DollarSign className="size-5" />
+                          <IndianRupee className="size-5" />
                         </div>
                         <div>
                           <p className="font-medium">₹{payment.amount.toLocaleString()}</p>
@@ -126,7 +126,7 @@ export default function ClientPayments() {
                     <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-4">
                         <div className="bg-blue-100 text-blue-600 size-10 rounded-full flex items-center justify-center">
-                          <DollarSign className="size-5" />
+                          <IndianRupee className="size-5" />
                         </div>
                         <div>
                           <p className="font-medium">₹{payment.amount.toLocaleString()}</p>
@@ -156,7 +156,7 @@ export default function ClientPayments() {
                     <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-4">
                         <div className="bg-green-100 text-green-600 size-10 rounded-full flex items-center justify-center">
-                          <DollarSign className="size-5" />
+                          <IndianRupee className="size-5" />
                         </div>
                         <div>
                           <p className="font-medium">₹{payment.amount.toLocaleString()}</p>

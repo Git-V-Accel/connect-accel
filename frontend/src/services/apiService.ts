@@ -20,7 +20,7 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor - Add auth token to requests
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('auth_token');
+    const token = sessionStorage.getItem('auth_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -43,7 +43,7 @@ apiClient.interceptors.response.use(
 
       try {
         // Try to refresh token
-        const refreshToken = localStorage.getItem('refresh_token') || 
+        const refreshToken = sessionStorage.getItem('refresh_token') || 
                             document.cookie.split('; ').find(row => row.startsWith('refreshToken='))?.split('=')[1];
         
         if (refreshToken) {
@@ -55,7 +55,7 @@ apiClient.interceptors.response.use(
 
           const { token } = response.data;
           if (token) {
-            localStorage.setItem('auth_token', token);
+            sessionStorage.setItem('auth_token', token);
             
             // Retry original request with new token
             if (originalRequest.headers) {
@@ -66,9 +66,9 @@ apiClient.interceptors.response.use(
         }
       } catch (refreshError) {
         // Refresh failed - logout user
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('connect_accel_user');
+        sessionStorage.removeItem('auth_token');
+        sessionStorage.removeItem('refresh_token');
+        sessionStorage.removeItem('connect_accel_user');
         
         // Redirect to login if not already there
         if (window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
@@ -78,11 +78,29 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // Handle rate limit errors (429)
+    // Handle rate limit errors (429) with retry logic
     if (error.response?.status === 429) {
-      const retryAfter = error.response.headers['retry-after'] || '15';
+      const retryAfter = parseInt(error.response.headers['retry-after'] || '15', 10);
+      const retryCount = (originalRequest as any)._retryCount || 0;
+      const maxRetries = 2; // Maximum 2 retries
+      
+      if (retryCount < maxRetries) {
+        // Exponential backoff: wait 2^retryCount * retryAfter seconds
+        const delay = Math.min(1000 * retryAfter * Math.pow(2, retryCount), 30000); // Max 30 seconds
+        
+        (originalRequest as any)._retryCount = retryCount + 1;
+        (originalRequest as any)._retry = true;
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        // Retry the request
+        return apiClient(originalRequest);
+      }
+      
+      // Max retries reached
       const errorMessage = `Too many requests. Please wait ${retryAfter} seconds before trying again.`;
-      // Don't show toast for rate limit errors in interceptor - let individual components handle it
+      toast.error(errorMessage);
       return Promise.reject(error);
     }
 

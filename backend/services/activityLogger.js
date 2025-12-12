@@ -162,6 +162,36 @@ class ActivityLogger {
       severity: 'medium'
     }, req);
   }
+
+  /**
+   * Log bid deletion (Admin/Superadmin)
+   */
+  static async logBidDeleted(projectId, userId, bidId, reason, req = null) {
+    const project = projectId ? await Project.findById(projectId).populate('client') : null;
+
+    return await this.logActivity(
+      {
+        user: userId,
+        project: projectId || null,
+        activityType: 'bid_deleted',
+        title: 'Bid Deleted',
+        description: project
+          ? `A bid was deleted for project "${project.title}".`
+          : 'A bid was deleted.',
+        metadata: {
+          additionalData: {
+            bidId,
+            reason,
+          },
+        },
+        tags: ['bid', 'deletion'],
+        severity: 'high',
+        visibleToClient: false,
+        visibleToAdmin: true,
+      },
+      req
+    );
+  }
   
   /**
    * Log file upload

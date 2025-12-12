@@ -19,7 +19,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { 
-  DollarSign, 
+  IndianRupee, 
   TrendingUp, 
   Download, 
   Calendar,
@@ -164,7 +164,7 @@ export default function EarningsPage() {
           <Card className="p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="bg-green-100 text-green-600 p-3 rounded-lg">
-                <DollarSign className="size-6" />
+                <IndianRupee className="size-6" />
               </div>
               <ArrowUpRight className="size-5 text-green-600" />
             </div>

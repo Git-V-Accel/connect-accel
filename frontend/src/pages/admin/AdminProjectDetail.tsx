@@ -4,7 +4,7 @@ import { useData } from '../../contexts/DataContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { statusLabels } from '../../constants/projectConstants';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
-import { ArrowLeft, Edit2, Users, DollarSign, Calendar, TrendingUp, MessageSquare, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Edit2, Users, IndianRupee, Calendar, TrendingUp, MessageSquare, AlertTriangle } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
 export default function AdminProjectDetail() {
@@ -137,7 +137,7 @@ export default function AdminProjectDetail() {
             <div className="bg-white rounded-lg border p-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-gray-600">Client Budget</span>
-                <DollarSign className="w-5 h-5 text-blue-600" />
+                <IndianRupee className="w-5 h-5 text-blue-600" />
               </div>
               <p className="text-2xl">₹{project.client_budget.toLocaleString()}</p>
             </div>
@@ -145,7 +145,7 @@ export default function AdminProjectDetail() {
             <div className="bg-white rounded-lg border p-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-gray-600">Freelancer Budget</span>
-                <DollarSign className="w-5 h-5 text-green-600" />
+                <IndianRupee className="w-5 h-5 text-green-600" />
               </div>
               <p className="text-2xl">₹{(project.freelancer_budget || 0).toLocaleString()}</p>
             </div>

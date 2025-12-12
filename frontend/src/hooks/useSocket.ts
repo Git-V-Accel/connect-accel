@@ -18,7 +18,7 @@ export function useSocket() {
     }
 
     // Connect socket
-    const token = localStorage.getItem('token') || '';
+    const token = sessionStorage.getItem('token') || '';
     socketService.connect(user.id, token);
 
     // Listen to connection changes

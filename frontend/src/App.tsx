@@ -44,6 +44,8 @@ import FreelancerAnalytics from "./pages/freelancer/FreelancerAnalytics";
 import OnboardingWizard from "./pages/freelancer/OnboardingWizard";
 import BidInvitations from "./pages/freelancer/BidInvitations";
 import SubmitBid from "./pages/freelancer/SubmitBid";
+import FreelancerBidDetail from "./pages/freelancer/FreelancerBidDetail";
+import SubmitProposal from "./pages/freelancer/SubmitProposal";
 
 // Admin portal
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -154,6 +156,8 @@ function AppRoutes() {
       <Route path="/freelancer/onboarding" element={<ProtectedRoute allowedRoles={['freelancer']}><OnboardingWizard /></ProtectedRoute>} />
       <Route path="/freelancer/bid-invitations" element={<ProtectedRoute allowedRoles={['freelancer']}><BidInvitations /></ProtectedRoute>} />
       <Route path="/freelancer/submit-bid/:projectId" element={<ProtectedRoute allowedRoles={['freelancer']}><SubmitBid /></ProtectedRoute>} />
+      <Route path="/freelancer/bids/:id/view" element={<ProtectedRoute allowedRoles={['freelancer']}><FreelancerBidDetail /></ProtectedRoute>} />
+      <Route path="/freelancer/bids/:id/submit-proposal" element={<ProtectedRoute allowedRoles={['freelancer']}><SubmitProposal /></ProtectedRoute>} />
 
       {/* Admin routes */}
       <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminDashboard /></ProtectedRoute>} />
@@ -169,13 +173,13 @@ function AppRoutes() {
       <Route path="/admin/bids" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminBidManagement /></ProtectedRoute>} />
       <Route path="/admin/bids/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><CreateBid /></ProtectedRoute>} />
       <Route path="/admin/bids/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminBidDetail /></ProtectedRoute>} />
-      <Route path="/admin/bids/:bidId/proposal" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><ViewProposal /></ProtectedRoute>} />
+      <Route path="/admin/bids/:bidId/proposal" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'freelancer']}><ViewProposal /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminSettings /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><UserManagement /></ProtectedRoute>} />
       <Route path="/admin/users/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><CreateUser /></ProtectedRoute>} />
-      <Route path="/admin/users/:id/:type" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><UserDetail /></ProtectedRoute>} />
+      <Route path="/admin/users/:id/:type" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'agent']}><UserDetail /></ProtectedRoute>} />
       <Route path="/admin/agents" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AgentManagement /></ProtectedRoute>} />
-      <Route path="/admin/clients" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'agent']}><ClientsManagement /></ProtectedRoute>} />
+      <Route path="/admin/clients" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><ClientsManagement /></ProtectedRoute>} />
       <Route path="/admin/freelancers-management" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><FreelancerManagement /></ProtectedRoute>} />
 
       {/* Agent routes */}

@@ -7,7 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { 
   Mail,
   Calendar,
-  DollarSign,
+  IndianRupee,
   Clock,
   CheckCircle2,
   XCircle,

@@ -9,7 +9,7 @@ import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData, Project } from '../../contexts/DataContext';
-import { Plus, Search, Calendar, DollarSign, User, ArrowRight, Filter } from 'lucide-react';
+import { Plus, Search, Calendar, IndianRupee, User, ArrowRight, Filter } from 'lucide-react';
 import { statusColors, statusLabels } from '../../constants/projectConstants';
 
 export default function ClientProjects() {
@@ -79,7 +79,7 @@ export default function ClientProjects() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div className="flex items-center gap-2 text-sm">
-              <DollarSign className="size-4 text-gray-400" />
+              <IndianRupee className="size-4 text-gray-400" />
               <span className="text-gray-600">₹{project.client_budget.toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">

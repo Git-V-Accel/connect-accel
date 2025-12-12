@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
@@ -10,6 +10,9 @@ import { Textarea } from '../../components/ui/textarea';
 import { Label } from '../../components/ui/label';
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
+import apiClient from '../../services/apiService';
+import { API_CONFIG } from '../../config/api';
 import {
   Dialog,
   DialogContent,
@@ -29,7 +32,7 @@ import {
   Search,
   Filter,
   Clock,
-  DollarSign,
+  IndianRupee,
   Users,
   Calendar,
   TrendingUp,
@@ -41,6 +44,7 @@ import {
   CheckCircle,
   AlertCircle,
   Gavel,
+  Eye,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
@@ -64,15 +68,27 @@ interface Project {
   status: 'open' | 'in-review' | 'awarded';
 }
 
-interface Bid {
+interface Bidding {
+  _id: string;
   id: string;
-  projectId: string;
-  projectTitle: string;
-  bidAmount: string;
-  deliveryTime: string;
-  proposal: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'withdrawn';
-  submittedDate: string;
+  adminBidId: {
+    _id: string;
+    projectTitle?: string;
+    bidAmount?: number;
+    timeline?: string;
+    description?: string;
+  };
+  projectId: {
+    _id: string;
+    title?: string;
+    description?: string;
+  };
+  bidAmount: number;
+  timeline: string;
+  description: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'shortlisted' | 'withdrawn';
+  submittedAt: string;
+  createdAt: string;
 }
 
 export default function FreelancerBids() {
@@ -84,6 +100,8 @@ export default function FreelancerBids() {
   const [budgetFilter, setBudgetFilter] = useState('all');
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [isBidDialogOpen, setIsBidDialogOpen] = useState(false);
+  const [myBiddings, setMyBiddings] = useState<Bidding[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Bid form state
   const [bidAmount, setBidAmount] = useState('');
@@ -93,8 +111,24 @@ export default function FreelancerBids() {
   // Get available projects (in bidding status)
   const availableProjects = projects.filter(p => p.status === 'in_bidding' || p.status === 'open');
 
-  // Get my bids
-  const myBids = user ? getBidsByFreelancer(user.id) : [];
+  // Fetch my biddings from API
+  useEffect(() => {
+    const loadBiddings = async () => {
+      if (!user?.id) return;
+      try {
+        setLoading(true);
+        const response = await apiClient.get(API_CONFIG.BIDDING.GET_BY_FREELANCER(user.id));
+        if (response.data.success && response.data.data) {
+          setMyBiddings(Array.isArray(response.data.data) ? response.data.data : []);
+        }
+      } catch (error) {
+        console.error('Failed to load biddings:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadBiddings();
+  }, [user?.id]);
 
   const filteredProjects = availableProjects.filter((project) => {
     const matchesSearch =
@@ -138,6 +172,8 @@ export default function FreelancerBids() {
         return 'bg-green-100 text-green-800';
       case 'rejected':
         return 'bg-red-100 text-red-800';
+      case 'shortlisted':
+        return 'bg-blue-100 text-blue-800';
       case 'withdrawn':
         return 'bg-gray-100 text-gray-800';
       default:
@@ -173,7 +209,7 @@ export default function FreelancerBids() {
           <TabsList>
             <TabsTrigger value="my-bids">
               <FileText className="size-4 mr-2" />
-              My Bids ({myBids.length})
+              My Bids ({myBiddings.length})
             </TabsTrigger>
             <TabsTrigger value="available">
               <Gavel className="size-4 mr-2" />
@@ -183,7 +219,11 @@ export default function FreelancerBids() {
 
           {/* My Bids Tab */}
           <TabsContent value="my-bids" className="space-y-4">
-            {myBids.length === 0 ? (
+            {loading ? (
+              <Card className="p-12 text-center">
+                <p className="text-gray-600">Loading your bids...</p>
+              </Card>
+            ) : myBiddings.length === 0 ? (
               <Card className="p-12 text-center">
                 <FileText className="size-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-xl mb-2">No bids yet</h3>
@@ -195,75 +235,104 @@ export default function FreelancerBids() {
                 </Button>
               </Card>
             ) : (
-              myBids.map((bid) => (
-                <Card key={bid.id} className="p-6">
-                  <div className="space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-xl mb-2">{bid.projectTitle}</h3>
-                        <div className="flex items-center gap-3 text-sm text-gray-600">
-                          <span>Submitted {bid.submittedDate}</span>
-                          <Badge className={getStatusColor(bid.status)}>
-                            <span className="flex items-center gap-1">
-                              {getStatusIcon(bid.status)}
-                              {bid.status.charAt(0).toUpperCase() + bid.status.slice(1)}
-                            </span>
-                          </Badge>
+              myBiddings.map((bidding) => {
+                const adminBidId = bidding.adminBidId?._id || bidding.adminBidId;
+                const projectTitle = bidding.adminBidId?.projectTitle || bidding.projectId?.title || 'Project';
+                const adminBidAmount = bidding.adminBidId?.bidAmount || 0;
+                const adminTimeline = bidding.adminBidId?.timeline || 'N/A';
+                const submittedDate = bidding.submittedAt ? new Date(bidding.submittedAt).toLocaleDateString() : 'N/A';
+                
+                return (
+                  <Card key={bidding._id || bidding.id} className="p-6">
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-xl mb-2">{projectTitle}</h3>
+                          <div className="flex items-center gap-3 text-sm text-gray-600">
+                            <span>Submitted {submittedDate}</span>
+                            <Badge className={getStatusColor(bidding.status)}>
+                              <span className="flex items-center gap-1">
+                                {getStatusIcon(bidding.status)}
+                                {bidding.status.charAt(0).toUpperCase() + bidding.status.slice(1)}
+                              </span>
+                            </Badge>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-3 gap-4 py-4 border-y">
-                      <div>
-                        <div className="text-sm text-gray-600">Bid Amount</div>
-                        <div>{bid.bidAmount}</div>
+                      {/* Admin Bid Information */}
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h4 className="font-medium text-blue-900 mb-3">Admin Bid Details</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-blue-700 font-medium">Admin Bid Amount:</span>
+                            <span className="ml-2 text-blue-900">₹{adminBidAmount.toLocaleString()}</span>
+                          </div>
+                          <div>
+                            <span className="text-blue-700 font-medium">Admin Timeline:</span>
+                            <span className="ml-2 text-blue-900">{adminTimeline}</span>
+                          </div>
+                        </div>
+                        {bidding.adminBidId?.description && (
+                          <div className="mt-3">
+                            <span className="text-blue-700 font-medium text-sm">Admin Bid Description:</span>
+                            <div className="mt-1 text-blue-900">
+                              <RichTextViewer content={bidding.adminBidId.description} />
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <div className="text-sm text-gray-600">Delivery Time</div>
-                        <div>{bid.deliveryTime}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-600">Status</div>
-                        <div className="capitalize">{bid.status}</div>
-                      </div>
-                    </div>
 
-                    <div>
-                      <div className="text-sm text-gray-600 mb-2">Your Proposal</div>
-                      <p className="text-gray-700">
-                        {bid.proposal.length > 200
-                          ? `${bid.proposal.substring(0, 200)}...`
-                          : bid.proposal}
-                      </p>
-                    </div>
+                      {/* Your Proposal Details */}
+                      <div className="grid grid-cols-3 gap-4 py-4 border-y">
+                        <div>
+                          <div className="text-sm text-gray-600">Your Bid Amount</div>
+                          <div className="font-semibold">₹{bidding.bidAmount?.toLocaleString() || '0'}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600">Your Timeline</div>
+                          <div className="font-semibold">{bidding.timeline || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600">Status</div>
+                          <div className="capitalize font-semibold">{bidding.status}</div>
+                        </div>
+                      </div>
 
-                    <div className="flex items-center gap-3">
-                      <Button variant="outline" size="sm">
-                        View Project
-                      </Button>
-                      {bid.status === 'pending' && (
-                        <>
-                          <Button variant="outline" size="sm">
-                            Edit Bid
+                      <div>
+                        <div className="text-sm text-gray-600 mb-2">Your Proposal</div>
+                        <div className="text-gray-700">
+                          <RichTextViewer content={bidding.description || ''} />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {adminBidId && (
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/freelancer/bids/${adminBidId}/view`}>
+                              <Eye className="size-4 mr-2" />
+                              View Admin Bid
+                            </Link>
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            Withdraw Bid
+                        )}
+                        {bidding.status === 'pending' && adminBidId && (
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/admin/bids/${adminBidId}/proposal?biddingId=${bidding._id || bidding.id}`}>
+                              <FileText className="size-4 mr-2" />
+                              View Full Proposal
+                            </Link>
                           </Button>
-                        </>
-                      )}
-                      {bid.status === 'accepted' && (
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                          View Project Workspace
-                        </Button>
-                      )}
+                        )}
+                        {bidding.status === 'accepted' && (
+                          <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                            View Project Workspace
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              ))
+                  </Card>
+                );
+              })
             )}
           </TabsContent>
 
@@ -368,7 +437,7 @@ export default function FreelancerBids() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-y">
                         <div>
                           <div className="flex items-center gap-2 text-gray-600 text-sm mb-1">
-                            <DollarSign className="size-4" />
+                            <IndianRupee className="size-4" />
                             Budget
                           </div>
                           <div>{project.budget}</div>

@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { useData } from '../../contexts/DataContext';
+import { useAuth } from '../../contexts/AuthContext';
+import * as bidService from '../../services/bidService';
+import type { Bid } from '../../services/bidService';
+import DeleteWithReasonDialog from '../../components/common/DeleteWithReasonDialog';
 import { 
   FileText,
   Filter,
@@ -12,24 +16,53 @@ import {
   XCircle,
   Clock,
   Users,
-  DollarSign,
+  IndianRupee,
   Calendar,
   Plus,
   Search,
+  Trash2,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
 export default function AdminBidManagement() {
-  const { bids, projects, updateBid, freelancers } = useData();
+  const { projects } = useData();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [bids, setBids] = useState<Bid[]>([]);
+  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [projectSearch, setProjectSearch] = useState<string>('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ bidId: string; label: string } | null>(null);
+
+  useEffect(() => {
+    loadBids();
+  }, [statusFilter]);
+
+  const loadBids = async () => {
+    try {
+      setLoading(true);
+      const params: any = {
+        page: 1,
+        limit: 100,
+      };
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
+      const response = await bidService.getAllBids(params);
+      setBids(response.bids);
+    } catch (error: any) {
+      console.error('Failed to load bids:', error);
+      toast.error(error.message || 'Failed to load bids');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredBids = bids.filter(bid => {
-    if (statusFilter !== 'all' && bid.status !== statusFilter) return false;
     if (projectSearch.trim() !== '') {
-      const project = projects.find(p => p.id === bid.project_id);
-      if (!project || !project.title.toLowerCase().includes(projectSearch.toLowerCase())) {
+      const projectTitle = bid.projectTitle || bid.project?.title || '';
+      if (!projectTitle.toLowerCase().includes(projectSearch.toLowerCase())) {
         return false;
       }
     }
@@ -40,23 +73,61 @@ export default function AdminBidManagement() {
     return projects.find(p => p.id === projectId);
   };
 
-  const getFreelancer = (freelancerId: string) => {
-    return freelancers.find(f => f.id === freelancerId);
+  const handleAcceptBid = async (bidId: string) => {
+    try {
+      await bidService.updateBidAcceptance(bidId, true);
+      toast.success('Bid accepted successfully!');
+      loadBids();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to accept bid');
+    }
   };
 
-  const handleAcceptBid = (bidId: string) => {
-    updateBid(bidId, { status: 'accepted' });
-    toast.success('Bid accepted successfully!');
+  const handleUndoAcceptBid = async (bidId: string) => {
+    try {
+      await bidService.updateBidAcceptance(bidId, false);
+      toast.success('Bid acceptance undone');
+      loadBids();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to undo accept');
+    }
   };
 
-  const handleRejectBid = (bidId: string) => {
-    updateBid(bidId, { status: 'rejected' });
-    toast.success('Bid rejected');
+  const handleRejectBid = async (bidId: string) => {
+    try {
+      await bidService.updateBidDecline(bidId, true);
+      toast.success('Bid rejected');
+      loadBids();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to reject bid');
+    }
   };
 
-  const handleShortlist = (bidId: string) => {
-    updateBid(bidId, { status: 'shortlisted' });
-    toast.success('Bid shortlisted');
+  const handleUndoRejectBid = async (bidId: string) => {
+    try {
+      await bidService.updateBidDecline(bidId, false);
+      toast.success('Bid rejection undone');
+      loadBids();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to undo reject');
+    }
+  };
+
+  const handleShortlist = async (bidId: string) => {
+    try {
+      await bidService.updateBidShortlist(bidId, true);
+      toast.success('Bid shortlisted');
+      loadBids();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to shortlist bid');
+    }
+  };
+
+  const handleDeleteBid = async (bidId: string) => {
+    const bid = bids.find((b) => b.id === bidId);
+    const label = bid?.projectTitle || bid?.project?.title || 'this bid';
+    setDeleteTarget({ bidId, label });
+    setDeleteDialogOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -101,6 +172,29 @@ export default function AdminBidManagement() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        <DeleteWithReasonDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          title="Delete Bid"
+          description={
+            deleteTarget
+              ? `Provide a reason to delete ${deleteTarget.label}. This will be tracked in activity logs.`
+              : 'Provide a reason for deletion. This will be tracked in activity logs.'
+          }
+          onConfirm={async (reason) => {
+            if (!deleteTarget) return;
+            try {
+              await bidService.deleteBid(deleteTarget.bidId, reason);
+              toast.success('Bid deleted');
+              await loadBids();
+            } catch (error: any) {
+              toast.error(error?.response?.data?.message || error.message || 'Failed to delete bid');
+              throw error;
+            } finally {
+              setDeleteTarget(null);
+            }
+          }}
+        />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -164,7 +258,12 @@ export default function AdminBidManagement() {
 
         {/* Bids List */}
         <div className="space-y-4">
-          {filteredBids.length === 0 ? (
+          {loading ? (
+            <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading bids...</p>
+            </div>
+          ) : filteredBids.length === 0 ? (
             <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
               <FileText className="size-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg mb-2">No bids found</h3>
@@ -176,64 +275,67 @@ export default function AdminBidManagement() {
             </div>
           ) : (
             filteredBids
-              .sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())
+              .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
               .map((bid) => {
-                const project = getProject(bid.project_id);
-                const freelancer = getFreelancer(bid.freelancer_id);
-                if (!project) return null;
+                const project = getProject(bid.projectId);
+                const projectTitle = bid.projectTitle || bid.project?.title || 'Unknown Project';
+                const bidderName = bid.bidderName || bid.bidder?.name || 'Unknown';
+                const bidderRating = bid.bidder?.rating;
+                const bidderCompletedProjects = bid.bidder?.completedProjects;
 
                 return (
                   <div key={bid.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl">{project.title}</h3>
+                          <h3 className="text-xl">{projectTitle}</h3>
                           <span className={`px-3 py-1 rounded-full text-xs ${getStatusColor(bid.status)}`}>
                             {bid.status.replace('_', ' ')}
                           </span>
-                          {bid.invited && (
+                          {bid.isShortlisted && (
                             <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
-                              Invited
+                              Shortlisted
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
                           <div className="flex items-center gap-1">
                             <Users className="size-4" />
-                            <span>{bid.freelancer_name}</span>
-                            {freelancer && (
+                            <span>{bidderName}</span>
+                            {bidderRating && (
                               <>
                                 <span className="mx-2">•</span>
                                 <span className="flex items-center gap-1">
-                                  ⭐ {freelancer.rating} ({freelancer.total_reviews} reviews)
+                                  ⭐ {bidderRating.toFixed(1)}
+                                  {bidderCompletedProjects !== undefined && ` (${bidderCompletedProjects} projects)`}
                                 </span>
                               </>
                             )}
                           </div>
                           <div className="flex items-center gap-1">
                             <Calendar className="size-4" />
-                            <span>Submitted {new Date(bid.submitted_at).toLocaleDateString()}</span>
+                            <span>Submitted {new Date(bid.submittedAt).toLocaleDateString()}</span>
                           </div>
                         </div>
-                        {bid.cover_letter && (
+                        {bid.description && (
                           <p className="text-sm text-gray-700 line-clamp-2 mb-3">
-                            {bid.cover_letter}
+                            {bid.description}
                           </p>
                         )}
-                        {bid.milestones && bid.milestones.length > 0 && (
+                        {bid.timeline && (
                           <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <FileText className="size-4" />
-                            <span>{bid.milestones.length} milestones proposed</span>
+                            <Clock className="size-4" />
+                            <span>Timeline: {bid.timeline}</span>
                           </div>
                         )}
                       </div>
                       <div className="text-right ml-4">
                         <div className="text-sm text-gray-500">Bid Amount</div>
-                        <div className="text-2xl">${bid.amount.toLocaleString()}</div>
-                        {bid.estimated_duration && (
+                        <div className="text-2xl">${bid.bidAmount.toLocaleString()}</div>
+                        {bid.timeline && (
                           <div className="text-sm text-gray-500 mt-1">
                             <Clock className="size-3 inline mr-1" />
-                            {bid.estimated_duration}
+                            {bid.timeline}
                           </div>
                         )}
                       </div>
@@ -278,25 +380,48 @@ export default function AdminBidManagement() {
                             Reject
                           </Button>
                         </>
+                      ) : bid.status === 'accepted' ? (
+                        <Button variant="outline" size="sm" onClick={() => handleUndoAcceptBid(bid.id)}>
+                          <XCircle className="size-4 mr-2" />
+                          Undo Accept
+                        </Button>
+                      ) : bid.status === 'rejected' ? (
+                        <Button variant="outline" size="sm" onClick={() => handleUndoRejectBid(bid.id)}>
+                          <XCircle className="size-4 mr-2" />
+                          Undo Reject
+                        </Button>
                       ) : null}
                       <Button asChild variant="outline" size="sm">
-                        <Link to={`/admin/bids/${bid.id}/proposal`}>
+                        <Link to={`/admin/bids/${bid.id}`}>
                           <FileText className="size-4 mr-2" />
-                          View Full Proposal
+                          View Details
                         </Link>
                       </Button>
-                      <Button asChild variant="outline" size="sm">
-                        <Link to={`/admin/freelancers/${bid.freelancer_id}`}>
-                          <Users className="size-4 mr-2" />
-                          View Profile
-                        </Link>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => handleDeleteBid(bid.id)}
+                      >
+                        <Trash2 className="size-4 mr-2" />
+                        Delete
                       </Button>
-                      <Button asChild variant="outline" size="sm">
-                        <Link to={`/admin/projects/${project.id}`}>
-                          <FileText className="size-4 mr-2" />
-                          View Project
-                        </Link>
-                      </Button>
+                      {bid.bidderId && (
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/admin/users/${bid.bidderId}/freelancer`}>
+                            <Users className="size-4 mr-2" />
+                            View Profile
+                          </Link>
+                        </Button>
+                      )}
+                      {bid.projectId && (
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/admin/projects/${bid.projectId}/review`}>
+                            <FileText className="size-4 mr-2" />
+                            View Project
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 );

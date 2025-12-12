@@ -41,8 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for existing session on mount
     const initializeAuth = async () => {
       try {
-    const storedUser = localStorage.getItem('connect_accel_user');
-        const token = localStorage.getItem('auth_token');
+    const storedUser = sessionStorage.getItem('connect_accel_user');
+        const token = sessionStorage.getItem('auth_token');
 
         if (storedUser && token) {
           const userData = JSON.parse(storedUser);
@@ -59,9 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Error initializing auth:', error);
         // Clear invalid data
-        localStorage.removeItem('connect_accel_user');
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('refresh_token');
+        sessionStorage.removeItem('connect_accel_user');
+        sessionStorage.removeItem('auth_token');
+        sessionStorage.removeItem('refresh_token');
       } finally {
     setLoading(false);
       }
@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // If first login, don't set user yet - they need to change password
         if (userData.isFirstLogin) {
           // Store token temporarily for password change
-          localStorage.setItem('auth_token', response.token);
+          sessionStorage.setItem('auth_token', response.token);
           return { isFirstLogin: true };
         }
     
@@ -230,7 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) {
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
-      localStorage.setItem('connect_accel_user', JSON.stringify(updatedUser));
+      sessionStorage.setItem('connect_accel_user', JSON.stringify(updatedUser));
     }
   };
 

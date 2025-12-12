@@ -257,9 +257,9 @@ export default function AdminSettings() {
         {activeTab === 'profile' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl mb-1">Profile</h2>
-                <p className="text-sm text-gray-600">Update admin details</p>
+            <div>
+              <h2 className="text-xl mb-1">Profile</h2>
+              <p className="text-sm text-gray-600">Update admin details</p>
               </div>
               {!isEditing && (
                 <Button
@@ -350,7 +350,7 @@ export default function AdminSettings() {
             </div>
 
             <div>
-              <Label htmlFor="bio">Admin Notes / Bio</Label>
+                <Label htmlFor="bio">Admin Notes / Bio</Label>
               {isEditing ? (
                 <div className="space-y-2 mt-1">
                   <RichTextEditor
@@ -486,7 +486,7 @@ export default function AdminSettings() {
             {isEditing && (
               <div className="flex gap-2">
                 <Button onClick={handleSaveProfile} disabled={loading || settingsLoading}>
-                  <Save className="w-4 h-4 mr-2" />
+              <Save className="w-4 h-4 mr-2" />
                   {loading ? 'Saving...' : 'Save Profile'}
                 </Button>
                 <Button
@@ -531,7 +531,7 @@ export default function AdminSettings() {
                 >
                   <X className="w-4 h-4 mr-2" />
                   Cancel
-                </Button>
+            </Button>
               </div>
             )}
           </div>

@@ -75,8 +75,8 @@ router.get(
 
 // @desc    Get user by ID
 // @route   GET /api/users/:id
-// @access  Private (Admin+Superadmin)
-router.get('/:id', protect, authorize('admin', 'superadmin'), getUserById);
+// @access  Private (Admin+Superadmin+Agent)
+router.get('/:id', protect, authorize('admin', 'superadmin', 'agent'), getUserById);
 
 // @desc    Update user role
 // @route   PUT /api/users/:id/role

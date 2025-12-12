@@ -21,7 +21,7 @@ import {
   CheckCircle,
   XCircle,
   MessageSquare,
-  DollarSign,
+  IndianRupee,
   Clock,
   User,
   Briefcase,
@@ -168,7 +168,7 @@ export default function BiddingManagement() {
           <div className="grid grid-cols-3 gap-4 py-4 border-y">
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                <DollarSign className="size-4" />
+                <IndianRupee className="size-4" />
                 Bid Amount
               </div>
               <div className="text-xl">₹{bid.amount.toLocaleString()}</div>

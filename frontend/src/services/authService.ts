@@ -64,8 +64,8 @@ export const login = async (credentials: LoginCredentials): Promise<AuthResponse
 
     if (success && token && user) {
       // Store token and user data
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('connect_accel_user', JSON.stringify({
+      sessionStorage.setItem('auth_token', token);
+      sessionStorage.setItem('connect_accel_user', JSON.stringify({
         id: user.id,
         userID: user.userID,
         name: user.name,
@@ -113,10 +113,10 @@ export const logout = async (): Promise<void> => {
     console.error('Logout error:', error);
   } finally {
     // Always clear local storage
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('connect_accel_user');
-    localStorage.removeItem('connect_accel_data');
+    sessionStorage.removeItem('auth_token');
+    sessionStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('connect_accel_user');
+    sessionStorage.removeItem('connect_accel_data');
   }
 };
 
@@ -126,7 +126,7 @@ export const logout = async (): Promise<void> => {
 export const refreshToken = async (refreshTokenValue?: string): Promise<RefreshTokenResponse> => {
   try {
     const token = refreshTokenValue || 
-                 localStorage.getItem('refresh_token') ||
+                 sessionStorage.getItem('refresh_token') ||
                  document.cookie.split('; ').find(row => row.startsWith('refreshToken='))?.split('=')[1];
 
     if (!token) {
@@ -141,8 +141,8 @@ export const refreshToken = async (refreshTokenValue?: string): Promise<RefreshT
     const { token: newToken, user } = response.data;
 
     if (newToken) {
-      localStorage.setItem('auth_token', newToken);
-      localStorage.setItem('connect_accel_user', JSON.stringify({
+      sessionStorage.setItem('auth_token', newToken);
+      sessionStorage.setItem('connect_accel_user', JSON.stringify({
         id: user.id,
         userID: user.userID,
         name: user.name,
@@ -173,8 +173,8 @@ export const verifyOTP = async (email: string, otpCode: string): Promise<AuthRes
     const { success, token, user } = response.data;
 
     if (success && token && user) {
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('connect_accel_user', JSON.stringify({
+      sessionStorage.setItem('auth_token', token);
+      sessionStorage.setItem('connect_accel_user', JSON.stringify({
         id: user.id,
         userID: user.userID,
         name: user.name,
@@ -235,8 +235,8 @@ export const resetPassword = async (resetToken: string, password: string): Promi
     const { success, token, user } = response.data;
 
     if (success && token && user) {
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('connect_accel_user', JSON.stringify({
+      sessionStorage.setItem('auth_token', token);
+      sessionStorage.setItem('connect_accel_user', JSON.stringify({
         id: user.id,
         userID: user.userID,
         name: user.name,
@@ -303,8 +303,8 @@ export const firstLoginChangePassword = async (
     const { success, token, user } = response.data;
 
     if (success && token && user) {
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('connect_accel_user', JSON.stringify({
+      sessionStorage.setItem('auth_token', token);
+      sessionStorage.setItem('connect_accel_user', JSON.stringify({
         id: user.id,
         userID: user.userID,
         name: user.name,

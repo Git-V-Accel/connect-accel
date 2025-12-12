@@ -3,7 +3,7 @@ import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { 
-  Users, Briefcase, TrendingUp, DollarSign, 
+  Users, Briefcase, TrendingUp, IndianRupee, 
   Clock, CheckCircle, AlertTriangle, UserPlus,
   MessageSquare, Calendar, Target, Award
 } from 'lucide-react';
@@ -82,7 +82,7 @@ export default function AgentDashboard() {
           <div className="bg-white rounded-lg border p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-600">Revenue Generated</span>
-              <DollarSign className="w-5 h-5 text-green-600" />
+              <IndianRupee className="w-5 h-5 text-green-600" />
             </div>
             <p className="text-3xl mb-1">₹{(totalRevenue / 1000).toFixed(0)}K</p>
             <p className="text-sm text-green-600">{completedProjects} completed</p>
@@ -350,7 +350,7 @@ export default function AgentDashboard() {
               <div className="pt-4 border-t">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-600">Average Margin</span>
-                  <DollarSign className="w-4 h-4 text-purple-600" />
+                  <IndianRupee className="w-4 h-4 text-purple-600" />
                 </div>
                 <p className="text-2xl font-medium text-purple-600">
                   {completedProjects > 0 ? Math.round((totalRevenue / completedProjects)) : 0}₹

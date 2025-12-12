@@ -4,7 +4,7 @@ import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { ArrowLeft, User, Mail, Phone, Building, Calendar, DollarSign, Briefcase, TrendingUp, CheckCircle, Clock, XCircle, Globe, MapPin, BriefcaseIcon, Award, Shield, CheckCircle2, XCircle as XCircleIcon } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Building, Calendar, IndianRupee, Briefcase, TrendingUp, CheckCircle, Clock, XCircle, Globe, MapPin, BriefcaseIcon, Award, Shield, CheckCircle2, XCircle as XCircleIcon } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import * as userService from '../../services/userService';
@@ -269,7 +269,7 @@ export default function UserDetail() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {user.hourlyRate !== undefined && (
                   <div className="flex items-center gap-3">
-                    <DollarSign className="size-5 text-gray-400" />
+                    <IndianRupee className="size-5 text-gray-400" />
                     <div>
                       <p className="text-sm text-gray-600">Hourly Rate</p>
                       <p className="font-medium">₹{user.hourlyRate.toLocaleString()}/hr</p>
@@ -344,7 +344,7 @@ export default function UserDetail() {
                   <p className="text-sm text-gray-600">Total Spent</p>
                   <p className="text-2xl font-medium">₹{(totalSpent / 100000).toFixed(1)}L</p>
                 </div>
-                <DollarSign className="size-8 text-green-500" />
+                <IndianRupee className="size-8 text-green-500" />
               </div>
             </Card>
           )}

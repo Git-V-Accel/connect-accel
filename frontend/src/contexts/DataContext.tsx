@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { socketService } from '../services/socketService';
 import { SocketEvents } from '../constants/socketConstants';
@@ -311,8 +311,9 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const isLoadingProjectsRef = useRef(false);
   const [data, setData] = useState(() => {
-    const stored = localStorage.getItem('connect_accel_data');
+    const stored = sessionStorage.getItem('connect_accel_data');
     if (stored) {
       try {
       return JSON.parse(stored);
@@ -342,6 +343,36 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const loadProjects = async () => {
       if (!user) return;
       
+      // Prevent multiple simultaneous calls
+      if (isLoadingProjectsRef.current) return;
+      
+      // Check if we have cached projects and they're recent (less than 30 seconds old)
+      const lastLoadTime = sessionStorage.getItem('projects_last_load_time');
+      const stored = sessionStorage.getItem('connect_accel_data');
+      let hasProjects = false;
+      
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          hasProjects = parsed.projects && parsed.projects.length > 0;
+        } catch {
+          // Ignore parse errors
+        }
+      }
+      
+      if (hasProjects && lastLoadTime) {
+        const timeSinceLastLoad = Date.now() - parseInt(lastLoadTime, 10);
+        // If we have projects and they were loaded less than 30 seconds ago, skip reload
+        if (timeSinceLastLoad < 30000) {
+          return;
+        }
+      }
+      
+      isLoadingProjectsRef.current = true;
+      
+      // Add a delay to prevent race conditions with other components
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
       try {
         const result = await projectService.listProjects();
         const normalizedProjects = result.projects.map(projectService.normalizeProject);
@@ -364,9 +395,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
           projects: normalizedProjects,
           milestones: allMilestones,
         }));
+        
+        // Store timestamp of successful load
+        sessionStorage.setItem('projects_last_load_time', Date.now().toString());
       } catch (error: any) {
         console.error('Failed to load projects:', error);
         // Keep existing data if fetch fails
+        // If it's a 429 error, we'll retry after a delay
+        if (error.response?.status === 429) {
+          // Retry after 5 seconds
+          setTimeout(() => {
+            if (user && !isLoadingProjectsRef.current) {
+              loadProjects();
+            }
+          }, 5000);
+        }
+      } finally {
+        isLoadingProjectsRef.current = false;
       }
     };
 
@@ -375,7 +420,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user) {
-      localStorage.setItem('connect_accel_data', JSON.stringify(data));
+      sessionStorage.setItem('connect_accel_data', JSON.stringify(data));
     }
   }, [data, user]);
 
@@ -551,8 +596,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getProject = async (id: string): Promise<Project | undefined> => {
-    // Always fetch from backend to ensure we have the latest data with populated client information
+  const getProject = async (id: string, forceRefresh: boolean = false): Promise<Project | undefined> => {
+    // Check if project exists in local state first (unless force refresh is requested)
+    if (!forceRefresh) {
+      const localProject = data.projects.find((p: Project) => p.id === id);
+      if (localProject) {
+        // Return local project immediately to avoid redundant API calls
+        // Components can call with forceRefresh=true if they need fresh data
+        return localProject;
+      }
+    }
+    
+    // Fetch from backend if not in local state or force refresh requested
     try {
       const project = await projectService.getProjectById(id);
       const normalizedProject = projectService.normalizeProject(project);
@@ -1058,8 +1113,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // User management methods
   const getAllUsers = () => {
-    // Get created users from localStorage
-    const storedCreatedUsers = localStorage.getItem('connect_accel_created_users');
+    // Get created users from sessionStorage
+    const storedCreatedUsers = sessionStorage.getItem('connect_accel_created_users');
     const createdUsers = storedCreatedUsers ? JSON.parse(storedCreatedUsers) : [];
 
     const clientUsers = data.clients.map((c: Client) => ({
@@ -1134,11 +1189,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ],
       }));
     } else if (userData.role === 'admin' || userData.role === 'agent' || userData.role === 'superadmin') {
-      // Store admin, agent, and superadmin users in localStorage
-      const storedCreatedUsers = localStorage.getItem('connect_accel_created_users');
+      // Store admin, agent, and superadmin users in sessionStorage
+      const storedCreatedUsers = sessionStorage.getItem('connect_accel_created_users');
       const createdUsers = storedCreatedUsers ? JSON.parse(storedCreatedUsers) : [];
       createdUsers.push(newUser);
-      localStorage.setItem('connect_accel_created_users', JSON.stringify(createdUsers));
+      sessionStorage.setItem('connect_accel_created_users', JSON.stringify(createdUsers));
     }
   };
 

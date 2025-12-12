@@ -336,15 +336,6 @@ export default function ConsultationDetail() {
                 <div className="bg-white rounded-lg border p-6">
                   <h3 className="text-lg mb-4">Actions</h3>
                   <div className="space-y-2">
-                    {consultation.status === 'requested' && (
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
-                      >
-                        <Calendar className="w-4 h-4" />
-                        Schedule Consultation
-                      </button>
-                    )}
                     <button
                       onClick={handleCancel}
                       className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2"

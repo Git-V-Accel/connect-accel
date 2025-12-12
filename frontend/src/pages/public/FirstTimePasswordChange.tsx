@@ -19,8 +19,8 @@ export default function FirstTimePasswordChange() {
 
   useEffect(() => {
     // Check if user has token (from login) but redirect if already active
-    const token = localStorage.getItem('auth_token');
-    const storedUser = localStorage.getItem('connect_accel_user');
+    const token = sessionStorage.getItem('auth_token');
+    const storedUser = sessionStorage.getItem('connect_accel_user');
     
     if (!token) {
       // No token means user didn't login, redirect to login

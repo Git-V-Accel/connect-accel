@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import * as bidService from '../../services/bidService';
+import type { Bid } from '../../services/bidService';
 import { 
   Search, 
   Filter,
@@ -22,40 +24,89 @@ import { toast } from '../../utils/toast';
 export default function AgentBidManagement() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects, freelancers, bids, updateBid } = useData();
+  const { projects } = useData();
   const { user } = useAuth();
+  const [bids, setBids] = useState<Bid[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   // Get project if ID is provided
   const project = id ? projects.find(p => p.id === id) : null;
 
-  // Get bids for agent's projects
-  const agentProjects = projects.filter(p => p.assigned_agent_id === user?.id);
-  const agentProjectIds = agentProjects.map(p => p.id);
-  const agentBids = bids.filter(b => agentProjectIds.includes(b.project_id));
+  useEffect(() => {
+    loadBids();
+  }, [statusFilter, id]);
 
-  // Filter to specific project if provided
+  const loadBids = async () => {
+    try {
+      setLoading(true);
+      const params: any = {
+        page: 1,
+        limit: 100,
+      };
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
+      if (id) {
+        params.projectId = id;
+      }
+      const response = await bidService.getAllBids(params);
+      // Backend already filters bids for agent's assigned projects
+      setBids(response.bids);
+    } catch (error: any) {
+      console.error('Failed to load bids:', error);
+      toast.error(error.message || 'Failed to load bids');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter to specific project if provided (backend already handles this, but we filter client-side too)
   const relevantBids = project 
-    ? agentBids.filter(b => b.project_id === project.id)
-    : agentBids;
+    ? bids.filter(b => b.projectId === project.id)
+    : bids;
 
   const filteredBids = relevantBids.filter(bid => {
-    const project = projects.find(p => p.id === bid.project_id);
-    const freelancer = freelancers.find(f => f.id === bid.freelancer_id);
+    const bidProject = projects.find(p => p.id === bid.projectId);
     const matchesSearch = 
-      (freelancer?.name.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (project?.title.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+      (bid.bidderName?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (bid.projectTitle?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (bidProject?.title.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     const matchesStatus = statusFilter === 'all' || bid.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const getFreelancerName = (freelancerId: string) => {
-    return freelancers.find(f => f.id === freelancerId)?.name || 'Unknown';
+  const getProjectTitle = (projectId: string) => {
+    const bid = bids.find(b => b.projectId === projectId);
+    return bid?.projectTitle || projects.find(p => p.id === projectId)?.title || 'Unknown Project';
   };
 
-  const getProjectTitle = (projectId: string) => {
-    return projects.find(p => p.id === projectId)?.title || 'Unknown Project';
+  const getBidderName = (bid: Bid) => {
+    return bid.bidderName || bid.bidder?.name || 'Unknown Bidder';
+  };
+
+  const getBidderRating = (bid: Bid) => {
+    return bid.bidder?.rating || null;
+  };
+
+  // Check if bid was created by admin/superadmin or the agent themselves
+  const canManageBid = (bid: Bid) => {
+    if (!user) return false;
+    
+    // If bid was created by the agent themselves, hide management buttons
+    if (bid.bidderId === user.id) {
+      return false;
+    }
+    
+    // If bid was created by admin or superadmin, hide management buttons
+    const bidderRole = bid.bidder?.role;
+    if (bidderRole === 'admin' || bidderRole === 'superadmin') {
+      return false;
+    }
+    
+    // Otherwise, allow management (bid created by another agent)
+    return true;
   };
 
   const getStatusColor = (status: string) => {
@@ -85,14 +136,59 @@ export default function AgentBidManagement() {
     }
   };
 
-  const handleAcceptBid = (bidId: string) => {
-    updateBid(bidId, { status: 'accepted' });
-    toast.success('Bid accepted successfully!');
+  const handleAcceptBid = async (bidId: string) => {
+    try {
+      await bidService.updateBidAcceptance(bidId, true);
+      toast.success('Bid accepted successfully!');
+      loadBids(); // Reload bids to reflect changes
+    } catch (error: any) {
+      console.error('Failed to accept bid:', error);
+      toast.error(error?.response?.data?.message || 'Failed to accept bid');
+    }
   };
 
-  const handleRejectBid = (bidId: string) => {
-    updateBid(bidId, { status: 'rejected' });
-    toast.success('Bid rejected');
+  const handleRejectBid = async (bidId: string) => {
+    try {
+      await bidService.updateBidDecline(bidId, true);
+      toast.success('Bid rejected successfully!');
+      loadBids(); // Reload bids to reflect changes
+    } catch (error: any) {
+      console.error('Failed to reject bid:', error);
+      toast.error(error?.response?.data?.message || 'Failed to reject bid');
+    }
+  };
+
+  const handleShortlistBid = async (bidId: string, isShortlisted: boolean) => {
+    try {
+      await bidService.updateBidShortlist(bidId, isShortlisted);
+      toast.success(`Bid ${isShortlisted ? 'shortlisted' : 'removed from shortlist'} successfully!`);
+      loadBids(); // Reload bids to reflect changes
+    } catch (error: any) {
+      console.error('Failed to update shortlist status:', error);
+      toast.error(error?.response?.data?.message || 'Failed to update shortlist status');
+    }
+  };
+
+  const handleUndoAcceptBid = async (bidId: string) => {
+    try {
+      await bidService.updateBidAcceptance(bidId, false);
+      toast.success('Bid acceptance undone successfully!');
+      loadBids(); // Reload bids to reflect changes
+    } catch (error: any) {
+      console.error('Failed to undo accept bid:', error);
+      toast.error(error?.response?.data?.message || 'Failed to undo accept bid');
+    }
+  };
+
+  const handleUndoRejectBid = async (bidId: string) => {
+    try {
+      await bidService.updateBidDecline(bidId, false);
+      toast.success('Bid rejection undone successfully!');
+      loadBids(); // Reload bids to reflect changes
+    } catch (error: any) {
+      console.error('Failed to undo reject bid:', error);
+      toast.error(error?.response?.data?.message || 'Failed to undo reject bid');
+    }
   };
 
   const stats = [
@@ -110,7 +206,7 @@ export default function AgentBidManagement() {
     },
     {
       label: 'Shortlisted',
-      value: relevantBids.filter(b => b.status === 'shortlisted').length,
+      value: relevantBids.filter(b => b.isShortlisted || b.status === 'shortlisted').length,
       icon: <User className="size-5" />,
       color: 'bg-blue-500',
     },
@@ -215,17 +311,17 @@ export default function AgentBidManagement() {
             </div>
           ) : (
             filteredBids
-              .sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())
+              .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
               .map((bid) => {
-                const freelancer = freelancers.find(f => f.id === bid.freelancer_id);
-                const bidProject = projects.find(p => p.id === bid.project_id);
+                const bidProject = projects.find(p => p.id === bid.projectId);
+                const bidderRating = getBidderRating(bid);
                 
                 return (
                   <div key={bid.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl">{!project ? getProjectTitle(bid.project_id) : getFreelancerName(bid.freelancer_id)}</h3>
+                          <h3 className="text-xl">{!project ? getProjectTitle(bid.projectId) : getBidderName(bid)}</h3>
                           <span className={`px-3 py-1 rounded-full text-xs ${getStatusColor(bid.status)}`}>
                             {bid.status.replace('_', ' ')}
                           </span>
@@ -233,53 +329,60 @@ export default function AgentBidManagement() {
                         <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
                           <div className="flex items-center gap-1">
                             <User className="size-4" />
-                            <span>{getFreelancerName(bid.freelancer_id)}</span>
-                            {freelancer && (
+                            <span>{getBidderName(bid)}</span>
+                            {bidderRating !== null && (
                               <>
                                 <span className="mx-2">•</span>
                                 <span className="flex items-center gap-1">
-                                  ⭐ {freelancer.rating || 'N/A'} ({freelancer.total_reviews || 0} reviews)
+                                  ⭐ {bidderRating} ({bid.bidder?.completedProjects || 0} projects)
                                 </span>
                               </>
                             )}
                           </div>
                           <div className="flex items-center gap-1">
                             <Calendar className="size-4" />
-                            <span>Submitted {new Date(bid.submitted_at).toLocaleDateString()}</span>
+                            <span>Submitted {new Date(bid.submittedAt).toLocaleDateString()}</span>
                           </div>
                         </div>
-                        {bid.cover_letter && (
+                        {bid.description && (
                           <p className="text-sm text-gray-700 line-clamp-2 mb-3">
-                            {bid.cover_letter}
+                            {bid.description}
                           </p>
                         )}
-                        {bid.milestones && bid.milestones.length > 0 && (
+                        {bid.attachments && bid.attachments.length > 0 && (
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <FileText className="size-4" />
-                            <span>{bid.milestones.length} milestones proposed</span>
+                            <span>{bid.attachments.length} attachment{bid.attachments.length > 1 ? 's' : ''}</span>
                           </div>
                         )}
                       </div>
                       <div className="text-right ml-4">
                         <div className="text-sm text-gray-500">Bid Amount</div>
-                        <div className="text-2xl">${bid.amount.toLocaleString()}</div>
-                        {bid.estimated_duration && (
+                        <div className="text-2xl">₹{bid.bidAmount.toLocaleString()}</div>
+                        {bid.timeline && (
                           <div className="text-sm text-gray-500 mt-1">
                             <Clock className="size-3 inline mr-1" />
-                            {bid.estimated_duration}
+                            {bid.timeline}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {bid.milestones && bid.milestones.length > 0 && (
+                    {bid.attachments && bid.attachments.length > 0 && (
                       <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                        <h4 className="text-sm mb-2">Proposed Milestones:</h4>
+                        <h4 className="text-sm mb-2">Attachments:</h4>
                         <div className="space-y-2">
-                          {bid.milestones.map((milestone, index) => (
+                          {bid.attachments.map((attachment, index) => (
                             <div key={index} className="flex items-center justify-between text-sm">
-                              <span>{milestone.title}</span>
-                              <span className="text-gray-600">${milestone.amount.toLocaleString()}</span>
+                              <a 
+                                href={attachment.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline"
+                              >
+                                {attachment.name}
+                              </a>
+                              <span className="text-gray-600">{(attachment.size / 1024).toFixed(2)} KB</span>
                             </div>
                           ))}
                         </div>
@@ -287,46 +390,82 @@ export default function AgentBidManagement() {
                     )}
 
                     <div className="flex items-center gap-2 pt-4 border-t border-gray-200">
-                      {bid.status === 'pending' || bid.status === 'under_review' ? (
+                      {canManageBid(bid) && (
                         <>
-                          <Button size="sm" onClick={() => handleAcceptBid(bid.id)}>
-                            <CheckCircle2 className="size-4 mr-2" />
-                            Accept
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleRejectBid(bid.id)}
-                          >
-                            <XCircle className="size-4 mr-2" />
-                            Reject
-                          </Button>
+                          {bid.status === 'pending' || bid.status === 'under_review' ? (
+                            <>
+                              <Button size="sm" onClick={() => handleAcceptBid(bid.id)}>
+                                <CheckCircle2 className="size-4 mr-2" />
+                                Accept
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleRejectBid(bid.id)}
+                              >
+                                <XCircle className="size-4 mr-2" />
+                                Reject
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleShortlistBid(bid.id, !bid.isShortlisted)}
+                              >
+                                {bid.isShortlisted ? 'Remove from Shortlist' : 'Shortlist'}
+                              </Button>
+                            </>
+                          ) : bid.status === 'shortlisted' ? (
+                            <>
+                              <Button size="sm" onClick={() => handleAcceptBid(bid.id)}>
+                                <CheckCircle2 className="size-4 mr-2" />
+                                Accept
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleRejectBid(bid.id)}
+                              >
+                                <XCircle className="size-4 mr-2" />
+                                Reject
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleShortlistBid(bid.id, false)}
+                              >
+                                Remove from Shortlist
+                              </Button>
+                            </>
+                          ) : bid.status === 'accepted' ? (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleUndoAcceptBid(bid.id)}
+                            >
+                              Undo Accept
+                            </Button>
+                          ) : bid.status === 'rejected' ? (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleUndoRejectBid(bid.id)}
+                            >
+                              Undo Reject
+                            </Button>
+                          ) : null}
                         </>
-                      ) : bid.status === 'shortlisted' ? (
-                        <>
-                          <Button size="sm" onClick={() => handleAcceptBid(bid.id)}>
-                            <CheckCircle2 className="size-4 mr-2" />
-                            Accept
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleRejectBid(bid.id)}
-                          >
-                            <XCircle className="size-4 mr-2" />
-                            Reject
-                          </Button>
-                        </>
-                      ) : null}
-                      <Button asChild variant="outline" size="sm">
-                        <Link to={`/agent/freelancers/${bid.freelancer_id}`}>
-                          <User className="size-4 mr-2" />
-                          View Profile
-                        </Link>
-                      </Button>
+                      )}
+                      {canManageBid(bid) && (
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/admin/users/${bid.bidderId}/freelancer`}>
+                            <User className="size-4 mr-2" />
+                            View Bidder Profile
+                          </Link>
+                        </Button>
+                      )}
                       {!project && (
                         <Button asChild variant="outline" size="sm">
-                          <Link to={`/agent/projects/${bid.project_id}`}>
+                          <Link to={`/agent/projects/${bid.projectId}`}>
                             <FileText className="size-4 mr-2" />
                             View Project
                           </Link>

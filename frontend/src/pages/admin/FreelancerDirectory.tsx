@@ -37,7 +37,7 @@ import {
   Award,
   TrendingUp,
   Calendar,
-  DollarSign,
+  IndianRupee,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 

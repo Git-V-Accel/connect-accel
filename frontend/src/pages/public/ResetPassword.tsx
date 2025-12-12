@@ -55,8 +55,8 @@ export default function ResetPassword() {
         setPasswordReset(true);
         toast.success(response.message || 'Password reset successfully!');
 
-        // The authService.resetPassword already stores token and user in localStorage
-        // Reload the page to trigger AuthContext to read from localStorage
+        // The authService.resetPassword already stores token and user in sessionStorage
+        // Reload the page to trigger AuthContext to read from sessionStorage
         // Navigate to appropriate dashboard after a short delay
         setTimeout(() => {
           if (response.user) {

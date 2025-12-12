@@ -19,7 +19,7 @@ import {
   Search,
   Filter,
   Clock,
-  DollarSign,
+  IndianRupee,
   Eye,
   ArrowUpDown,
   FileText,

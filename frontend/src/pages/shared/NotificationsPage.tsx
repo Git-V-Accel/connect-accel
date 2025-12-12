@@ -7,12 +7,12 @@ import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { Bell, CheckCircle2, DollarSign, MessageSquare, Briefcase, Flag, Check, Trash2 } from 'lucide-react';
+import { Bell, CheckCircle2, IndianRupee, MessageSquare, Briefcase, Flag, Check, Trash2 } from 'lucide-react';
 
 const notificationIcons = {
   project: Briefcase,
   milestone: CheckCircle2,
-  payment: DollarSign,
+  payment: IndianRupee,
   message: MessageSquare,
   bid: Briefcase,
   dispute: Flag,

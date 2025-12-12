@@ -12,7 +12,7 @@ import { useData } from '../../contexts/DataContext';
 import { 
   Briefcase, 
   Calendar, 
-  DollarSign, 
+  IndianRupee, 
   Clock, 
   Search,
   ArrowRight,
@@ -98,7 +98,7 @@ export default function ActiveProjects() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div className="text-center p-3 bg-green-50 rounded">
-            <DollarSign className="size-5 mx-auto mb-1 text-green-600" />
+            <IndianRupee className="size-5 mx-auto mb-1 text-green-600" />
             <div className="text-xs text-gray-600">Earned</div>
             <div className="font-medium">₹{earned.toLocaleString()}</div>
           </div>

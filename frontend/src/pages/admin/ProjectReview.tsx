@@ -40,7 +40,7 @@ import {
   CheckCircle,
   XCircle,
   Edit,
-  DollarSign,
+  IndianRupee,
   Clock,
   User,
   Mail,
@@ -63,6 +63,9 @@ import {
 import { toast } from "../../utils/toast";
 import ProjectTimeline from "../../components/project/ProjectTimeline";
 import * as userService from "../../services/userService";
+import * as bidService from "../../services/bidService";
+import type { Bid } from "../../services/bidService";
+import DeleteWithReasonDialog from "../../components/common/DeleteWithReasonDialog";
 
 export default function ProjectReview() {
   const { id } = useParams();
@@ -79,11 +82,11 @@ export default function ProjectReview() {
     updateMilestone,
     deleteMilestone,
     getMilestonesByProject,
-    getBidsByProject,
   } = useData();
 
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [projectBids, setProjectBids] = useState<Bid[]>([]);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -150,8 +153,22 @@ export default function ProjectReview() {
     loadAgents();
   }, [isAdmin]);
 
+  // Load bids for the project
+  useEffect(() => {
+    const loadBids = async () => {
+      if (!id) return;
+      try {
+        const response = await bidService.getProjectBids(id);
+        setProjectBids(Array.isArray(response) ? response : []);
+      } catch (error: any) {
+        console.error('Failed to load bids:', error);
+        setProjectBids([]);
+      }
+    };
+    loadBids();
+  }, [id]);
+
   const projectMilestones = project ? getMilestonesByProject(project.id) : [];
-  const projectBids = project && getBidsByProject ? getBidsByProject(project.id) : [];
   const isSuperAdmin = user?.role === "superadmin";
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
@@ -167,6 +184,8 @@ export default function ProjectReview() {
   const [isAssignAgentDialogOpen, setIsAssignAgentDialogOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [isEditingAgent, setIsEditingAgent] = useState(false);
+  const [isWithdrawBidDialogOpen, setIsWithdrawBidDialogOpen] = useState(false);
+  const [bidToWithdraw, setBidToWithdraw] = useState<Bid | null>(null);
 
   // Form states
   const [editedTitle, setEditedTitle] = useState(project?.title || "");
@@ -348,6 +367,33 @@ export default function ProjectReview() {
     setIsEditingAgent(true);
     setIsAssignAgentDialogOpen(true);
     setSelectedAgentId(project?.assigned_agent_id || "");
+  };
+
+  const handleWithdrawBid = () => {
+    const existingBid = projectBids.find(b => b.projectId === project?.id);
+    if (existingBid) {
+      setBidToWithdraw(existingBid);
+      setIsWithdrawBidDialogOpen(true);
+    }
+  };
+
+  const handleConfirmWithdrawBid = async (reason: string) => {
+    if (!bidToWithdraw) return;
+    
+    try {
+      await bidService.deleteBid(bidToWithdraw.id, reason);
+      toast.success('Bid withdrawn successfully');
+      setIsWithdrawBidDialogOpen(false);
+      setBidToWithdraw(null);
+      // Reload bids
+      if (id) {
+        const response = await bidService.getProjectBids(id);
+        setProjectBids(Array.isArray(response) ? response : []);
+      }
+    } catch (error: any) {
+      console.error('Failed to withdraw bid:', error);
+      toast.error(error.message || 'Failed to withdraw bid');
+    }
   };
 
   const handleAddMilestone = () => {
@@ -790,7 +836,7 @@ export default function ProjectReview() {
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                  <DollarSign className="size-3" />
+                                  <IndianRupee className="size-3" />
                                   <span className="font-medium text-gray-700">
                                     ₹{milestone.amount.toLocaleString()}
                                   </span>
@@ -1152,7 +1198,7 @@ export default function ProjectReview() {
                       <div className="space-y-4">
                         {projectBids.map((bid) => {
                           const freelancer = freelancers.find(
-                            (f) => f.id === bid.freelancer_id
+                            (f) => f.id === bid.bidderId
                           );
                           const getStatusColor = (status: string) => {
                             switch (status) {
@@ -1182,18 +1228,18 @@ export default function ProjectReview() {
                                     </div>
                                     <div>
                                       <h4 className="font-medium text-lg">
-                                        {bid.freelancer_name || "Unknown Freelancer"}
+                                        {bid.bidderName || "Unknown Freelancer"}
                                       </h4>
                                       {freelancer && (
                                         <div className="flex items-center gap-2 mt-1">
                                           <div className="flex items-center gap-1">
                                             <Star className="size-3 text-yellow-500 fill-yellow-500" />
                                             <span className="text-sm text-gray-600">
-                                              {freelancer.rating.toFixed(1)}
+                                              {freelancer.rating?.toFixed(1) || 'N/A'}
                                             </span>
                                           </div>
                                           <span className="text-sm text-gray-500">
-                                            ({freelancer.total_reviews} reviews)
+                                            ({freelancer.total_reviews || 0} reviews)
                                           </span>
                                         </div>
                                       )}
@@ -1211,12 +1257,12 @@ export default function ProjectReview() {
                                         Bid Amount
                                       </Label>
                                       <p className="text-xl font-medium mt-1">
-                                        ₹{bid.amount.toLocaleString()}
+                                        ₹{bid.bidAmount?.toLocaleString() || '0'}
                                       </p>
-                                      {project && (
+                                      {project && project.budget && (
                                         <p className="text-xs text-gray-500 mt-1">
                                           {(
-                                            (bid.amount / project.client_budget) *
+                                            (bid.bidAmount / project.budget) *
                                             100
                                           ).toFixed(1)}% of budget
                                         </p>
@@ -1227,28 +1273,26 @@ export default function ProjectReview() {
                                         Duration
                                       </Label>
                                       <p className="text-lg font-medium mt-1">
-                                        {bid.duration_weeks
-                                          ? `${bid.duration_weeks} weeks`
-                                          : bid.estimated_duration || "N/A"}
+                                        {bid.timeline || "N/A"}
                                       </p>
                                     </div>
                                     <div>
                                       <Label className="text-gray-600">
                                         Platform Margin
                                       </Label>
-                                      {project && (
+                                      {project && project.budget && (
                                         <>
                                           <p className="text-lg font-medium mt-1 text-purple-600">
                                             ₹
                                             {(
-                                              project.client_budget - bid.amount
+                                              project.budget - bid.bidAmount
                                             ).toLocaleString()}
                                           </p>
                                           <p className="text-xs text-gray-500 mt-1">
                                             {(
-                                              ((project.client_budget -
-                                                bid.amount) /
-                                                project.client_budget) *
+                                              ((project.budget -
+                                                bid.bidAmount) /
+                                                project.budget) *
                                               100
                                             ).toFixed(1)}% margin
                                           </p>
@@ -1257,24 +1301,24 @@ export default function ProjectReview() {
                                     </div>
                                   </div>
 
-                                  {bid.cover_letter && (
+                                  {bid.description && (
                                     <div className="mt-4 pt-4 border-t">
                                       <Label className="text-gray-600">
-                                        Cover Letter
+                                        Description
                                       </Label>
                                       <p className="text-sm text-gray-700 mt-2 line-clamp-3">
-                                        {bid.cover_letter}
+                                        {bid.description}
                                       </p>
                                     </div>
                                   )}
 
-                                  {bid.submitted_at && (
+                                  {bid.submittedAt && (
                                     <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
                                       <Calendar className="size-3" />
                                       <span>
                                         Submitted:{" "}
                                         {new Date(
-                                          bid.submitted_at
+                                          bid.submittedAt
                                         ).toLocaleDateString()}
                                       </span>
                                     </div>
@@ -1297,16 +1341,23 @@ export default function ProjectReview() {
                       <p className="text-gray-600 mb-4">
                         This project doesn't have any bids submitted yet.
                       </p>
-                      {project.status === "in_bidding" && (
-                        <Button
-                          onClick={() =>
-                            navigate(isAgent ? `/agent/projects/${project.id}/create-bid` : `/admin/projects/${project.id}/create-bid`)
-                          }
-                        >
-                          <Award className="size-4 mr-2" />
-                          Create Bid
-                        </Button>
-                      )}
+                      {project.status === "in_bidding" && (() => {
+                        const existingBid = projectBids.find(b => b.projectId === project?.id);
+                        const bidCreatedByAdminOrSuperadmin = existingBid && (existingBid.bidder?.role === 'admin' || existingBid.bidder?.role === 'superadmin');
+                        const bidCreatedByAgent = existingBid && existingBid.bidderId === user?.id;
+                        const shouldHideAddBid = bidCreatedByAdminOrSuperadmin || bidCreatedByAgent;
+                        
+                        return !shouldHideAddBid ? (
+                          <Button
+                            onClick={() =>
+                              navigate(isAgent ? `/agent/projects/${project.id}/create-bid` : `/admin/projects/${project.id}/create-bid`)
+                            }
+                          >
+                            <Award className="size-4 mr-2" />
+                            Create Bid
+                          </Button>
+                        ) : null;
+                      })()}
                     </div>
                   </Card>
                 )}
@@ -1319,14 +1370,24 @@ export default function ProjectReview() {
             <Card className="p-6">
               <h3 className="font-medium mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => navigate(isAgent ? `/agent/projects/${project.id}/create-bid` : `/admin/projects/${project.id}/create-bid`)}
-                >
-                  <Users className="size-4 mr-2" />
-                  Add Bids
-                </Button>
+                {/* Hide "Add Bids" button if project already has a bid created by admin/superadmin or the agent themselves */}
+                {(() => {
+                  const existingBid = projectBids.find(b => b.projectId === project?.id);
+                  const bidCreatedByAdminOrSuperadmin = existingBid && (existingBid.bidder?.role === 'admin' || existingBid.bidder?.role === 'superadmin');
+                  const bidCreatedByAgent = existingBid && existingBid.bidderId === user?.id;
+                  const shouldHideAddBid = bidCreatedByAdminOrSuperadmin || bidCreatedByAgent;
+                  
+                  return !shouldHideAddBid ? (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => navigate(isAgent ? `/agent/projects/${project.id}/create-bid` : `/admin/projects/${project.id}/create-bid`)}
+                    >
+                      <Users className="size-4 mr-2" />
+                      Add Bids
+                    </Button>
+                  ) : null;
+                })()}
                 <Button
                   variant="outline"
                   className="w-full justify-start"
@@ -1335,6 +1396,20 @@ export default function ProjectReview() {
                   <Target className="size-4 mr-2" />
                   Add Milestone
                 </Button>
+                {/* Withdraw Bids - Only show for admin/superadmin if bid exists */}
+                {isAdmin && (() => {
+                  const existingBid = projectBids.find(b => b.projectId === project?.id);
+                  return existingBid ? (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={handleWithdrawBid}
+                    >
+                      <Trash2 className="size-4 mr-2" />
+                      Withdraw Bids
+                    </Button>
+                  ) : null;
+                })()}
                 {/* Assign to Agent - Only show for admin/superadmin */}
                 {!isAgent && (
                   !project?.assigned_agent_id ? (
@@ -1887,6 +1962,23 @@ export default function ProjectReview() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Withdraw Bid Dialog */}
+        <DeleteWithReasonDialog
+          open={isWithdrawBidDialogOpen}
+          onOpenChange={(open) => {
+            setIsWithdrawBidDialogOpen(open);
+            if (!open) {
+              setBidToWithdraw(null);
+            }
+          }}
+          onConfirm={handleConfirmWithdrawBid}
+          title="Withdraw Bid"
+          description="Are you sure you want to withdraw this bid? Please provide a reason for withdrawal."
+          confirmText="Withdraw Bid"
+          cancelText="Cancel"
+          reasonPlaceholder="Please provide a reason for withdrawing this bid (e.g., 'Project requirements changed', 'Client requested cancellation')"
+        />
       </div>
     </DashboardLayout>
   );

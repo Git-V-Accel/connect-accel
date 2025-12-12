@@ -2,6 +2,7 @@ const Bid = require('../models/Bid');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Bidding = require('../models/Bidding');
+const DeletionRemark = require('../models/DeletionRemark');
 const ActivityLogger = require('../services/activityLogger');
 const socketService = require('../services/socketService');
 const { validationResult } = require('express-validator');
@@ -51,21 +52,34 @@ const submitBid = async (req, res) => {
 
     const bidderId = req.user.id;
 
+    // Only Admin/Superadmin/Agent can post the "admin bid" for a project
+    // Freelancers submit proposals via /api/bidding (not /api/bids)
+    const canCreateProjectBid = ['admin', 'superadmin', 'agent'].includes(req.user.role);
+    if (!canCreateProjectBid) {
+      return sendResponse(res, false, null, 'Access denied. Only admin, superadmin, or agent can create project bids.', 403);
+    }
+
     // Verify project exists and is available for bidding
     const project = await Project.findById(projectId);
     if (!project) {
       return sendResponse(res, false, null, 'Project not found', 404);
     }
 
+    // Enforce: each project can have ONLY ONE posted bid (by admin/superadmin/assigned agent)
+    const existingProjectBid = await Bid.findOne({ projectId }).select('_id bidderId status');
+    if (existingProjectBid) {
+      return sendResponse(
+        res,
+        false,
+        { bidId: existingProjectBid._id },
+        'A bid has already been posted for this project. You cannot create another bid for the same project.',
+        400
+      );
+    }
+
     // Check if project is still open for bidding
     if (project.status === 'completed' || project.status === 'closed' || project.assignedFreelancer) {
       return sendResponse(res, false, null, 'Project is no longer available for bidding', 400);
-    }
-
-    // Check if user has already bid on this project
-    const existingBid = await Bid.findOne({ projectId, bidderId });
-    if (existingBid) {
-      return sendResponse(res, false, null, 'You have already submitted a bid for this project', 400);
     }
 
     // Get bidder information
@@ -168,6 +182,13 @@ const getAllBids = async (req, res) => {
     if (projectId) filter.projectId = projectId;
     if (bidderId) filter.bidderId = bidderId;
 
+    // For agents, filter bids to only show bids for projects assigned to them
+    if (req.user.role === 'agent') {
+      const assignedProjects = await Project.find({ assignedAgentId: req.user.id }).select('_id');
+      const assignedProjectIds = assignedProjects.map(p => p._id);
+      filter.projectId = { $in: assignedProjectIds };
+    }
+
     // Build sort object
     const sort = {};
     sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
@@ -182,7 +203,7 @@ const getAllBids = async (req, res) => {
         select: 'title description budget timeline status client assignedFreelancer assignedFreelancerId',
         populate: { path: 'assignedFreelancerId', select: 'name email userID' }
       })
-      .populate('bidderId', 'name email avatar userID')
+      .populate('bidderId', 'name email avatar userID role')
       .populate('clientId', 'name email')
       .populate('reviewedBy', 'name email')
       .sort(sort)
@@ -246,8 +267,9 @@ const getProjectBids = async (req, res) => {
     // Check if user has permission to view bids
     const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     const isProjectOwner = project.client.toString() === req.user.id;
+    const isAssignedAgent = req.user.role === 'agent' && project.assignedAgentId && project.assignedAgentId.toString() === req.user.id;
     
-    if (!isAdmin && !isProjectOwner) {
+    if (!isAdmin && !isProjectOwner && !isAssignedAgent) {
       return sendResponse(res, false, null, 'Unauthorized to view project bids', 403);
     }
 
@@ -260,7 +282,7 @@ const getProjectBids = async (req, res) => {
     sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
     let bids = await Bid.find(filter)
-      .populate('bidderId', 'name email avatar rating completedProjects userID')
+      .populate('bidderId', 'name email avatar rating completedProjects userID role')
       .populate('reviewedBy', 'name email')
       .populate({
         path: 'projectId',
@@ -308,8 +330,10 @@ const getUserBids = async (req, res) => {
     // Check if user has permission to view these bids
     const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     const isOwnBids = userId === req.user.id;
+    // Agents can view bids for users if they have assigned projects
+    const isAgent = req.user.role === 'agent';
     
-    if (!isAdmin && !isOwnBids) {
+    if (!isAdmin && !isOwnBids && !isAgent) {
       return sendResponse(res, false, null, 'Unauthorized to view user bids', 403);
     }
 
@@ -366,7 +390,7 @@ const getBidDetails = async (req, res) => {
     const { bidId } = req.params;
 
     let bid = await Bid.findById(bidId)
-      .populate('bidderId', 'name email avatar rating completedProjects userID')
+      .populate('bidderId', 'name email avatar rating completedProjects userID role')
       .populate('clientId', 'name email')
       .populate('reviewedBy', 'name email')
       .populate({
@@ -384,14 +408,21 @@ const getBidDetails = async (req, res) => {
     const isBidOwner = bid.bidderId._id.toString() === req.user.id;
 
     let isProjectOwner = false;
+    let isAssignedAgent = false;
     if (!isAdmin && !isBidOwner) {
       const project = await Project.findById(bid.projectId);
-      if (project && project.client.toString() === req.user.id) {
-        isProjectOwner = true;
+      if (project) {
+        if (project.client.toString() === req.user.id) {
+          isProjectOwner = true;
+        }
+        // Check if agent is assigned to this project
+        if (req.user.role === 'agent' && project.assignedAgentId && project.assignedAgentId.toString() === req.user.id) {
+          isAssignedAgent = true;
+        }
       }
     }
 
-    let canAccess = isAdmin || isBidOwner || isProjectOwner;
+    let canAccess = isAdmin || isBidOwner || isProjectOwner || isAssignedAgent;
 
     // Allow freelancers to view open admin bids so they can submit proposals
     if (!canAccess && req.user.role === 'freelancer') {
@@ -451,7 +482,7 @@ const updateBidStatus = async (req, res) => {
 
     const bid = await Bid.findById(bidId)
       .populate('projectId')
-      .populate('bidderId', 'name email');
+      .populate('bidderId', 'name email role');
 
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
@@ -460,8 +491,9 @@ const updateBidStatus = async (req, res) => {
     // Check if user has permission to update bid status
     const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     const isProjectOwner = bid.projectId.client.toString() === req.user.id;
+    const isAssignedAgent = req.user.role === 'agent' && bid.projectId.assignedAgentId && bid.projectId.assignedAgentId.toString() === req.user.id;
     
-    if (!isAdmin && !isProjectOwner) {
+    if (!isAdmin && !isProjectOwner && !isAssignedAgent) {
       return sendResponse(res, false, null, 'Unauthorized to update bid status', 403);
     }
 
@@ -573,30 +605,68 @@ const updateBid = async (req, res) => {
 
 // @desc    Delete/Withdraw a bid
 // @route   DELETE /api/bids/:bidId
-// @access  Private (Bid owner only)
+// @access  Private (Bid owner OR Admin/Superadmin)
 const deleteBid = async (req, res) => {
   try {
     const { bidId } = req.params;
+    const reasonRaw = req.body?.reason;
+    const reason = typeof reasonRaw === 'string' ? reasonRaw.trim() : '';
 
-    const bid = await Bid.findById(bidId);
+    const bid = await Bid.findById(bidId).populate('projectId', 'title');
 
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
     }
 
-    // Check if user is the bid owner
-    if (bid.bidderId.toString() !== req.user.id) {
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+    const isOwner = bid.bidderId.toString() === req.user.id;
+    const isAssignedAgent = req.user.role === 'agent' && bid.projectId.assignedAgentId && bid.projectId.assignedAgentId.toString() === req.user.id;
+    
+    if (!isAdmin && !isOwner && !isAssignedAgent) {
       return sendResponse(res, false, null, 'Unauthorized to delete this bid', 403);
     }
 
-    // Check if bid can be withdrawn
-    if (!bid.canWithdraw()) {
+    // Require deletion reason for admin/superadmin/agent deletes (tracked)
+    if ((isAdmin || isAssignedAgent) && !reason) {
+      return sendResponse(res, false, null, 'Deletion reason is required', 400);
+    }
+
+    // Owners can only withdraw if pending; Admin/Superadmin can delete regardless of status
+    if (!isAdmin && !bid.canWithdraw()) {
       return sendResponse(res, false, null, 'Bid cannot be withdrawn', 400);
+    }
+
+    // Track deletion remark + activity log for admin/superadmin/agent deletes
+    if (isAdmin || isAssignedAgent) {
+      try {
+        await DeletionRemark.create({
+          entityType: 'bid',
+          entityId: bid._id,
+          projectId: bid.projectId?._id || undefined,
+          reason,
+          deletedBy: req.user.id,
+          deletedByRole: req.user.role,
+          metadata: {
+            bidId: bid._id,
+            projectId: bid.projectId?._id,
+            projectTitle: bid.projectId?.title,
+            bidderId: bid.bidderId,
+          },
+        });
+      } catch (e) {
+        console.error('Failed to store deletion remark:', e?.message || e);
+      }
+
+      try {
+        await ActivityLogger.logBidDeleted(bid.projectId?._id || null, req.user.id, bid._id, reason, req);
+      } catch (e) {
+        console.error('Failed to log bid deletion activity:', e?.message || e);
+      }
     }
 
     await Bid.findByIdAndDelete(bidId);
 
-    sendResponse(res, true, null, 'Bid withdrawn successfully');
+    sendResponse(res, true, null, isAdmin ? 'Bid deleted successfully' : 'Bid withdrawn successfully');
   } catch (error) {
     handleError(res, error, 'Failed to withdraw bid');
   }
@@ -671,7 +741,7 @@ const getAvailableAdminBids = async (req, res) => {
     // Get bids with pagination
     const bids = await Bid.find(filter)
       .populate('projectId', 'title description budget timeline status')
-      .populate('bidderId', 'name email')
+      .populate('bidderId', 'name email role')
       .sort(sort)
       .limit(parseInt(limit))
       .skip(skip);
@@ -705,20 +775,23 @@ const getAvailableAdminBids = async (req, res) => {
 
 // @desc    Update proposal shortlist status
 // @route   PATCH /api/bids/:id/shortlist
-// @access  Private (Admin or Super Admin)
+// @access  Private (Admin, Super Admin, or Assigned Agent)
 const updateShortlistStatus = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id || req.params.bidId;
     const { isShortlisted } = req.body;
 
-    // Check if user is admin or superadmin
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      return sendResponse(res, false, null, 'Access denied. Admin or Super Admin role required.', 403);
-    }
-
-    const bid = await Bid.findById(id);
+    const bid = await Bid.findById(id).populate('projectId', 'assignedAgentId');
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
+    }
+
+    // Check if user is admin, superadmin, or assigned agent
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+    const isAssignedAgent = req.user.role === 'agent' && bid.projectId.assignedAgentId && bid.projectId.assignedAgentId.toString() === req.user.id;
+    
+    if (!isAdmin && !isAssignedAgent) {
+      return sendResponse(res, false, null, 'Access denied. Admin, Super Admin, or Assigned Agent role required.', 403);
     }
 
     // Update shortlist status
@@ -736,7 +809,7 @@ const updateShortlistStatus = async (req, res) => {
         const { sendShortlistedEmail } = require('../services/emailService');
         // Ensure bidder and project info loaded
         const populatedBid = await Bid.findById(id)
-          .populate('bidderId', 'name email')
+          .populate('bidderId', 'name email role')
           .populate('projectId', 'title');
         if (populatedBid?.bidderId?.email) {
           await sendShortlistedEmail({
@@ -759,20 +832,23 @@ const updateShortlistStatus = async (req, res) => {
 
 // @desc    Update proposal acceptance status
 // @route   PATCH /api/bids/:id/accept
-// @access  Private (Admin or Super Admin)
+// @access  Private (Admin, Super Admin, or Assigned Agent)
 const updateAcceptanceStatus = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id || req.params.bidId;
     const { isAccepted } = req.body;
 
-    // Check if user is admin or superadmin
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      return sendResponse(res, false, null, 'Access denied. Admin or Super Admin role required.', 403);
-    }
-
-    const bid = await Bid.findById(id).populate('projectId').populate('bidderId', 'name email');
+    const bid = await Bid.findById(id).populate('projectId', 'assignedAgentId').populate('bidderId', 'name email');
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
+    }
+
+    // Check if user is admin, superadmin, or assigned agent
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+    const isAssignedAgent = req.user.role === 'agent' && bid.projectId.assignedAgentId && bid.projectId.assignedAgentId.toString() === req.user.id;
+    
+    if (!isAdmin && !isAssignedAgent) {
+      return sendResponse(res, false, null, 'Access denied. Admin, Super Admin, or Assigned Agent role required.', 403);
     }
 
     // Update acceptance status
@@ -826,7 +902,7 @@ const updateAcceptanceStatus = async (req, res) => {
           // Notify other freelancers (not selected)
           const otherBids = await Bid.find({
             projectId: bid.projectId._id,
-            _id: { $ne: bidId },
+            _id: { $ne: id },
           }).populate('bidderId', 'name email');
           for (const ob of otherBids) {
             if (ob?.bidderId?.email) {
@@ -856,20 +932,23 @@ const updateAcceptanceStatus = async (req, res) => {
 
 // @desc    Update proposal decline status
 // @route   PATCH /api/bids/:id/decline
-// @access  Private (Admin or Super Admin)
+// @access  Private (Admin, Super Admin, or Assigned Agent)
 const updateDeclineStatus = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id || req.params.bidId;
     const { isDeclined } = req.body;
 
-    // Check if user is admin or superadmin
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      return sendResponse(res, false, null, 'Access denied. Admin or Super Admin role required.', 403);
-    }
-
-    const bid = await Bid.findById(id);
+    const bid = await Bid.findById(id).populate('projectId', 'assignedAgentId');
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
+    }
+
+    // Check if user is admin, superadmin, or assigned agent
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+    const isAssignedAgent = req.user.role === 'agent' && bid.projectId.assignedAgentId && bid.projectId.assignedAgentId.toString() === req.user.id;
+    
+    if (!isAdmin && !isAssignedAgent) {
+      return sendResponse(res, false, null, 'Access denied. Admin, Super Admin, or Assigned Agent role required.', 403);
     }
 
     // Update decline status
@@ -896,14 +975,23 @@ const updateDeclineStatus = async (req, res) => {
 
 // @desc    Get shortlisted proposals for a project
 // @route   GET /api/bids/project/:projectId/shortlisted
-// @access  Private (Admin or Super Admin)
+// @access  Private (Admin, Super Admin, or Assigned Agent)
 const getShortlistedProposals = async (req, res) => {
   try {
     const { projectId } = req.params;
 
-    // Check if user is admin or superadmin
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      return sendResponse(res, false, null, 'Access denied. Admin or Super Admin role required.', 403);
+    // Verify project exists and check if user has access
+    const project = await Project.findById(projectId).select('assignedAgentId');
+    if (!project) {
+      return sendResponse(res, false, null, 'Project not found', 404);
+    }
+
+    // Check if user is admin, superadmin, or assigned agent
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+    const isAssignedAgent = req.user.role === 'agent' && project.assignedAgentId && project.assignedAgentId.toString() === req.user.id;
+    
+    if (!isAdmin && !isAssignedAgent) {
+      return sendResponse(res, false, null, 'Access denied. Admin, Super Admin, or Assigned Agent role required.', 403);
     }
 
     const shortlistedBids = await Bid.find({ 

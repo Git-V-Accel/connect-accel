@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 // Progress bar will be inline for simplicity
-import { Calendar, DollarSign, User, Clock } from 'lucide-react';
+import { Calendar, IndianRupee, User, Clock } from 'lucide-react';
 import { statusColors as defaultStatusColors, statusLabels as defaultStatusLabels } from '../../constants/projectConstants';
 
 export interface ProjectCardData {
@@ -107,7 +107,7 @@ export function ProjectCard({
 
       {showBudget && (project.client_budget || project.freelancer_budget) && (
         <div className="flex items-center gap-1 text-sm font-medium mb-3">
-          <DollarSign className="size-4" />
+          <IndianRupee className="size-4" />
           <span>₹{(project.client_budget || project.freelancer_budget || 0).toLocaleString()}</span>
         </div>
       )}

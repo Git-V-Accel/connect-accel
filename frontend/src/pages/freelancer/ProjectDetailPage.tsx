@@ -17,7 +17,7 @@ import { useData } from '../../contexts/DataContext';
 import { 
   ArrowLeft, 
   Calendar, 
-  DollarSign, 
+  IndianRupee, 
   Clock, 
   Send, 
   Building2, 
@@ -162,7 +162,7 @@ export default function ProjectDetailPage() {
           {/* Key Details */}
           <div className="grid grid-cols-4 gap-6">
             <div className="text-center p-4 bg-green-50 rounded-lg">
-              <DollarSign className="size-8 mx-auto mb-2 text-green-600" />
+              <IndianRupee className="size-8 mx-auto mb-2 text-green-600" />
               <div className="text-sm text-gray-600">Budget</div>
               <div className="text-2xl">₹{project.client_budget.toLocaleString()}</div>
             </div>
@@ -287,7 +287,7 @@ export default function ProjectDetailPage() {
                         <p className="text-gray-600 mb-3 ml-11">{milestone.description}</p>
                         <div className="flex items-center gap-6 ml-11 text-sm text-gray-600">
                           <div className="flex items-center gap-2">
-                            <DollarSign className="size-4" />
+                            <IndianRupee className="size-4" />
                             <span>₹{milestone.amount.toLocaleString()}</span>
                           </div>
                           <div className="flex items-center gap-2">

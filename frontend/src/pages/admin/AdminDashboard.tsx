@@ -6,7 +6,7 @@ import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { useData } from '../../contexts/DataContext';
-import { Briefcase, Users, DollarSign, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Briefcase, Users, IndianRupee, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
 import { statusColors, statusLabels } from '../../constants/projectConstants';
 
 export default function AdminDashboard() {

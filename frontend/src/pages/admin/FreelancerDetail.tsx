@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
-import { ArrowLeft, Star, Briefcase, DollarSign, CheckCircle, Award, Mail, Phone, MapPin } from 'lucide-react';
+import { ArrowLeft, Star, Briefcase, IndianRupee, CheckCircle, Award, Mail, Phone, MapPin } from 'lucide-react';
 
 export default function FreelancerDetail() {
   const { id } = useParams<{ id: string }>();

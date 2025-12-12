@@ -22,7 +22,7 @@ import {
   UserCircle,
   FileText,
   Users,
-  DollarSign,
+  IndianRupee,
   AlertCircle,
   BarChart,
   Shield,
@@ -106,7 +106,7 @@ export default function DashboardLayout({
           },
           {
             label: "Payments",
-            icon: <DollarSign className="size-5" />,
+            icon: <IndianRupee className="size-5" />,
             path: "/client/payments",
           },
           {
@@ -146,7 +146,7 @@ export default function DashboardLayout({
           },
           {
             label: "Earnings",
-            icon: <DollarSign className="size-5" />,
+            icon: <IndianRupee className="size-5" />,
             path: "/freelancer/earnings",
           },
           {
@@ -244,6 +244,11 @@ export default function DashboardLayout({
             path: "/admin/projects",
           },
           {
+            label: "Bidding",
+            icon: <FileText className="size-5" />,
+            path: "/admin/bids",
+          },
+          {
             label: "Freelancers",
             icon: <Briefcase className="size-5" />,
             path: "/admin/freelancers-management",
@@ -260,7 +265,7 @@ export default function DashboardLayout({
           },
           {
             label: "Financials",
-            icon: <DollarSign className="size-5" />,
+            icon: <IndianRupee className="size-5" />,
             path: "/superadmin/financials",
           },
           {
@@ -306,11 +311,6 @@ export default function DashboardLayout({
             label: "Consultations",
             icon: <Users className="size-5" />,
             path: "/agent/consultations",
-          },
-          {
-            label: "Clients",
-            icon: <User className="size-5" />,
-            path: "/admin/clients",
           },
           {
             label: "Reports",
@@ -368,8 +368,7 @@ export default function DashboardLayout({
               {mounted && (
                 <ThemeSwitch
                   checked={theme === "dark"}
-                  // onChange={(e, checked) => setTheme(checked ? "dark" : "light")}
-                  // onChange={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  onChange={(e, checked) => setTheme(checked ? "dark" : "light")}
                 />
               )}
               <Button 

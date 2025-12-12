@@ -65,7 +65,11 @@ const getProjects = async (req, res) => {
     
     // Filter by user role
     if (req.user.role === 'client') {
+      // Clients can only see their own projects
+      // Draft projects are only visible to the owner client
       query.client = req.user.id;
+      // Exclude draft projects for other clients (only show drafts to owner)
+      // This is already handled by query.client = req.user.id, but we ensure drafts are only visible to owner
     } else if (req.user.role === 'freelancer') {
       // Freelancers can see:
       // 1. Projects assigned to them
@@ -87,7 +91,12 @@ const getProjects = async (req, res) => {
       // Agents can only see projects assigned to them
       query.assignedAgentId = req.user.id;
     }
-    // Admin and superadmin can see all projects
+    // Admin and superadmin can see all projects (including drafts)
+    // But for other roles, exclude draft projects unless they own them
+    if (req.user.role !== 'client' && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      // For non-client, non-admin roles, exclude draft projects
+      query.status = { $ne: 'draft' };
+    }
     
     // Optional filtering for admin views
     if (

@@ -8,7 +8,7 @@ import {
   ArrowLeft,
   Star,
   Briefcase,
-  DollarSign,
+  IndianRupee,
   Award,
   Calendar,
   FileText,
@@ -72,7 +72,7 @@ export default function AgentFreelancerDetail() {
     {
       label: 'Hourly Rate',
       value: `$${freelancer.hourly_rate}`,
-      icon: <DollarSign className="size-5" />,
+      icon: <IndianRupee className="size-5" />,
       color: 'bg-purple-500',
     },
   ];
@@ -196,7 +196,7 @@ export default function AgentFreelancerDetail() {
                         <p className="text-xs text-gray-600 mb-2">{project.description}</p>
                         <div className="flex items-center gap-4 text-xs text-gray-500">
                           <div className="flex items-center gap-1">
-                            <DollarSign className="size-3" />
+                            <IndianRupee className="size-3" />
                             <span>${bid?.amount.toLocaleString()}</span>
                           </div>
                           <div className="flex items-center gap-1">

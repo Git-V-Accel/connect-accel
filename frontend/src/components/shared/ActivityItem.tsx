@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { CheckCircle, FolderKanban, Clock, DollarSign, MessageSquare, AlertCircle, User } from 'lucide-react';
+import { CheckCircle, FolderKanban, Clock, IndianRupee, MessageSquare, AlertCircle, User } from 'lucide-react';
 
 export type ActivityType = 'milestone' | 'status' | 'message' | 'payment' | 'project' | 'user' | 'alert';
 
@@ -16,7 +16,7 @@ const activityIcons: Record<ActivityType, ReactNode> = {
   milestone: <CheckCircle className="size-4" />,
   status: <FolderKanban className="size-4" />,
   message: <MessageSquare className="size-4" />,
-  payment: <DollarSign className="size-4" />,
+  payment: <IndianRupee className="size-4" />,
   project: <FolderKanban className="size-4" />,
   user: <User className="size-4" />,
   alert: <AlertCircle className="size-4" />,

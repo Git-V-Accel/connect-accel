@@ -295,9 +295,9 @@ const getAdmins = async (req, res) => {
   }
 };
 
-// @desc    Get user by ID (Admin+Superadmin)
+// @desc    Get user by ID (Admin+Superadmin+Agent)
 // @route   GET /api/users/:id
-// @access  Private (Admin+Superadmin)
+// @access  Private (Admin+Superadmin+Agent)
 const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password');
@@ -317,6 +317,19 @@ const getUserById = async (req, res) => {
           message: 'Access denied. You can only view client, freelancer, and agent profiles.'
         });
       }
+    }
+
+    // Agents can only view freelancers and clients (not admins or superadmins)
+    if (req.user.role === USER_ROLES.AGENT) {
+      // Agents cannot view admins or superadmins
+      if (user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.SUPERADMIN) {
+        return res.status(STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: 'Access denied. You can only view freelancer and client profiles.'
+        });
+      }
+      // Agents can view freelancers and clients (they manage bids for their projects)
+      // No additional restriction needed as agents need to view bidder profiles
     }
 
     res.status(STATUS_CODES.OK).json({

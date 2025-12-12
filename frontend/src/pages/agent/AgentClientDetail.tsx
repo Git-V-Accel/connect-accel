@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
@@ -11,7 +11,7 @@ import {
   MapPin,
   Calendar,
   FolderKanban,
-  DollarSign,
+  IndianRupee,
   TrendingUp,
   CheckCircle2,
   Clock,
@@ -22,21 +22,76 @@ import {
 
 export default function AgentClientDetail() {
   const { id } = useParams();
-  const { clients, projects, consultations } = useData();
+  const { clients, projects, consultations, getProject } = useData();
   const { user } = useAuth();
+  const [client, setClient] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   
-  const client = clients.find(c => c.id === id);
+  useEffect(() => {
+    const loadClient = () => {
+      if (!id) return;
+      setLoading(true);
+      try {
+        // First try to find in local clients array
+        let foundClient = clients.find(c => c.id === id);
+        
+        // If not found, extract from agent's projects
+        if (!foundClient) {
+          const agentProjects = projects.filter(p => p.assigned_agent_id === user?.id);
+          const clientProject = agentProjects.find(p => p.client_id === id);
+          
+          if (clientProject) {
+            // Create client object from project data
+            foundClient = {
+              id: clientProject.client_id,
+              name: clientProject.client_name || 'Unknown Client',
+              email: clientProject.client_email || '',
+              phone: clientProject.client_phone || '',
+              company: '', // Not available in project data
+              location: '', // Not available in project data
+              created_at: clientProject.created_at || new Date().toISOString(),
+              // Try to get additional info from local clients array if available
+              ...(clients.find(c => c.id === clientProject.client_id) || {})
+            };
+          }
+        }
+        
+        setClient(foundClient || null);
+      } catch (error: any) {
+        console.error('Failed to load client:', error);
+        setClient(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadClient();
+  }, [id, clients, projects, user?.id]);
+  
   const clientProjects = client ? projects.filter(p => p.client_id === client.id && p.assigned_agent_id === user?.id) : [];
   const clientConsultations = client ? consultations.filter(c => c.client_id === client.id && c.agent_id === user?.id) : [];
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading client details...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (!client) {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
           <h2 className="text-2xl mb-4">Client not found</h2>
+          <p className="text-gray-600 mb-4">This client may not have any projects assigned to you.</p>
           <Button asChild>
             <Link to="/agent/clients">
               <ArrowLeft className="size-4 mr-2" />
+              Back to Clients
             </Link>
           </Button>
         </div>
@@ -77,7 +132,7 @@ export default function AgentClientDetail() {
     {
       label: 'Total Spent',
       value: `$${totalSpent.toLocaleString()}`,
-      icon: <DollarSign className="size-5" />,
+      icon: <IndianRupee className="size-5" />,
       color: 'bg-emerald-500',
     },
   ];
@@ -126,12 +181,6 @@ export default function AgentClientDetail() {
               <Link to={`/messages?client=${client.id}`}>
                 <MessageSquare className="size-4 mr-2" />
                 Message
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link to={`/agent/consultations?client=${client.id}`}>
-                <Calendar className="size-4 mr-2" />
-                Schedule Consultation
               </Link>
             </Button>
           </div>
@@ -331,12 +380,6 @@ export default function AgentClientDetail() {
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <h2 className="text-lg mb-4">Quick Actions</h2>
               <div className="space-y-2">
-                <Button asChild variant="outline" size="sm" className="w-full justify-start">
-                  <Link to={`/agent/consultations?client=${client.id}`}>
-                    <Calendar className="size-4 mr-2" />
-                    Schedule Consultation
-                  </Link>
-                </Button>
                 <Button asChild variant="outline" size="sm" className="w-full justify-start">
                   <Link to={`/messages?client=${client.id}`}>
                     <MessageSquare className="size-4 mr-2" />

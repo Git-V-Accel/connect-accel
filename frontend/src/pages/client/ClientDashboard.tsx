@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Link } from 'react-router-dom';
-import { Plus, FolderKanban, CheckCircle, Clock, DollarSign, ArrowRight } from 'lucide-react';
+import { Plus, FolderKanban, CheckCircle, Clock, IndianRupee, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { statusLabels, statusColors } from '../../constants/projectConstants';
@@ -55,7 +55,7 @@ export default function ClientDashboard() {
     { label: 'Active Projects', value: activeProjectsCount.toString(), icon: <FolderKanban className="size-5" />, color: 'text-blue-600', bgColor: 'bg-blue-50' },
     { label: 'Pending Approvals', value: pendingApprovals.toString(), icon: <CheckCircle className="size-5" />, color: 'text-green-600', bgColor: 'bg-green-50' },
     { label: 'Upcoming Deadlines', value: upcomingDeadlines.toString(), icon: <Clock className="size-5" />, color: 'text-orange-600', bgColor: 'bg-orange-50' },
-    { label: 'Total Spent', value: `₹${(totalSpent / 100000).toFixed(1)}L`, icon: <DollarSign className="size-5" />, color: 'text-purple-600', bgColor: 'bg-purple-50' },
+    { label: 'Total Spent', value: `₹${(totalSpent / 100000).toFixed(1)}L`, icon: <IndianRupee className="size-5" />, color: 'text-purple-600', bgColor: 'bg-purple-50' },
   ];
 
   // Get active projects (in_progress or assigned)

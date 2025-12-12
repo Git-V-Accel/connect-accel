@@ -175,31 +175,36 @@ router.put('/:bidId', auth, validateMongoId('bidId'), validateBidUpdate, updateB
 
 // @route   DELETE /api/bids/:bidId
 // @desc    Delete/Withdraw a bid
-// @access  Private (Bid owner only)
-router.delete('/:bidId', auth, validateMongoId('bidId'), deleteBid);
+// @access  Private (Bid owner OR Admin/Superadmin)
+router.delete('/:bidId', auth, validateMongoId('bidId'), [
+  body('reason')
+    .optional()
+    .isLength({ min: 1, max: 500 })
+    .withMessage('Deletion reason must be between 1 and 500 characters')
+], deleteBid);
 
-// @route   PATCH /api/bids/:bidId/shortlist
+// @route   PATCH /api/bids/:id/shortlist
 // @desc    Update proposal shortlist status
 // @access  Private (Admin or Super Admin)
-router.patch('/:bidId/shortlist', auth, validateMongoId('bidId'), [
+router.patch('/:id/shortlist', auth, validateMongoId('id'), [
   body('isShortlisted')
     .isBoolean()
     .withMessage('isShortlisted must be a boolean value')
 ], updateShortlistStatus);
 
-// @route   PATCH /api/bids/:bidId/accept
+// @route   PATCH /api/bids/:id/accept
 // @desc    Update proposal acceptance status
 // @access  Private (Admin or Super Admin)
-router.patch('/:bidId/accept', auth, validateMongoId('bidId'), [
+router.patch('/:id/accept', auth, validateMongoId('id'), [
   body('isAccepted')
     .isBoolean()
     .withMessage('isAccepted must be a boolean value')
 ], updateAcceptanceStatus);
 
-// @route   PATCH /api/bids/:bidId/decline
+// @route   PATCH /api/bids/:id/decline
 // @desc    Update proposal decline status
 // @access  Private (Admin or Super Admin)
-router.patch('/:bidId/decline', auth, validateMongoId('bidId'), [
+router.patch('/:id/decline', auth, validateMongoId('id'), [
   body('isDeclined')
     .isBoolean()
     .withMessage('isDeclined must be a boolean value')
