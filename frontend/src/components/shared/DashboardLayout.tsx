@@ -130,11 +130,6 @@ export default function DashboardLayout({
             path: "/freelancer/projects",
           },
           {
-            label: "Bid Invitations",
-            icon: <Mail className="size-5" />,
-            path: "/freelancer/bid-invitations",
-          },
-          {
             label: "My Bids",
             icon: <FileText className="size-5" />,
             path: "/freelancer/bids",
@@ -158,11 +153,6 @@ export default function DashboardLayout({
             label: "Analytics",
             icon: <BarChart className="size-5" />,
             path: "/freelancer/analytics",
-          },
-          {
-            label: "Profile",
-            icon: <UserCircle className="size-5" />,
-            path: "/freelancer/profile",
           },
           {
             label: "Messages",

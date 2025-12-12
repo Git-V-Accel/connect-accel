@@ -33,7 +33,6 @@ import BrowseProjects from "./pages/freelancer/BrowseProjects";
 import FreelancerBids from "./pages/freelancer/FreelancerBids";
 import FreelancerProjects from "./pages/freelancer/FreelancerProjects";
 import FreelancerWallet from "./pages/freelancer/FreelancerWallet";
-import FreelancerProfile from "./pages/freelancer/FreelancerProfile";
 import FreelancerSettings from "./pages/freelancer/FreelancerSettings";
 import ProjectDetailPage from "./pages/freelancer/ProjectDetailPage";
 import ActiveProjects from "./pages/freelancer/ActiveProjects";
@@ -42,7 +41,6 @@ import EarningsPage from "./pages/freelancer/EarningsPage";
 import PortfolioPage from "./pages/freelancer/PortfolioPage";
 import FreelancerAnalytics from "./pages/freelancer/FreelancerAnalytics";
 import OnboardingWizard from "./pages/freelancer/OnboardingWizard";
-import BidInvitations from "./pages/freelancer/BidInvitations";
 import SubmitBid from "./pages/freelancer/SubmitBid";
 import FreelancerBidDetail from "./pages/freelancer/FreelancerBidDetail";
 import SubmitProposal from "./pages/freelancer/SubmitProposal";
@@ -151,10 +149,8 @@ function AppRoutes() {
       <Route path="/freelancer/portfolio" element={<ProtectedRoute allowedRoles={['freelancer']}><PortfolioPage /></ProtectedRoute>} />
       <Route path="/freelancer/analytics" element={<ProtectedRoute allowedRoles={['freelancer']}><FreelancerAnalytics /></ProtectedRoute>} />
       <Route path="/freelancer/wallet" element={<ProtectedRoute allowedRoles={['freelancer']}><FreelancerWallet /></ProtectedRoute>} />
-      <Route path="/freelancer/profile" element={<ProtectedRoute allowedRoles={['freelancer']}><FreelancerProfile /></ProtectedRoute>} />
       <Route path="/freelancer/settings" element={<ProtectedRoute allowedRoles={['freelancer']}><FreelancerSettings /></ProtectedRoute>} />
       <Route path="/freelancer/onboarding" element={<ProtectedRoute allowedRoles={['freelancer']}><OnboardingWizard /></ProtectedRoute>} />
-      <Route path="/freelancer/bid-invitations" element={<ProtectedRoute allowedRoles={['freelancer']}><BidInvitations /></ProtectedRoute>} />
       <Route path="/freelancer/submit-bid/:projectId" element={<ProtectedRoute allowedRoles={['freelancer']}><SubmitBid /></ProtectedRoute>} />
       <Route path="/freelancer/bids/:id/view" element={<ProtectedRoute allowedRoles={['freelancer']}><FreelancerBidDetail /></ProtectedRoute>} />
       <Route path="/freelancer/bids/:id/submit-proposal" element={<ProtectedRoute allowedRoles={['freelancer']}><SubmitProposal /></ProtectedRoute>} />
