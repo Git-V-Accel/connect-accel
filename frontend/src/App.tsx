@@ -168,8 +168,8 @@ function AppRoutes() {
       <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminReports /></ProtectedRoute>} />
       <Route path="/admin/bids" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminBidManagement /></ProtectedRoute>} />
       <Route path="/admin/bids/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><CreateBid /></ProtectedRoute>} />
-      <Route path="/admin/bids/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminBidDetail /></ProtectedRoute>} />
-      <Route path="/admin/bids/:bidId/proposal" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'freelancer']}><ViewProposal /></ProtectedRoute>} />
+      <Route path="/admin/bids/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'agent']}><AdminBidDetail /></ProtectedRoute>} />
+      <Route path="/admin/bids/:bidId/proposal" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'freelancer', 'agent']}><ViewProposal /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminSettings /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><UserManagement /></ProtectedRoute>} />
       <Route path="/admin/users/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><CreateUser /></ProtectedRoute>} />

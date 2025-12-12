@@ -258,7 +258,10 @@ const getBiddingsByAdminBid = async (req, res) => {
     const { adminBidId } = req.params;
 
     // Verify admin owns this bid or project is accessible
-    const adminBid = await Bid.findById(adminBidId).populate('projectId');
+    const adminBid = await Bid.findById(adminBidId).populate({
+      path: 'projectId',
+      select: 'title description budget timeline status client assignedAgentId assignedFreelancerId assignedFreelancer'
+    });
     if (!adminBid) {
       return sendResponse(res, false, null, 'Admin bid not found', 404);
     }
@@ -266,9 +269,16 @@ const getBiddingsByAdminBid = async (req, res) => {
     const isAdminBidOwner = adminBid.bidderId.toString() === req.user.id;
     const isElevatedAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
     let freelancerHasAccess = false;
+    let agentHasAccess = false;
+
+    const project = adminBid.projectId;
+    
+    // Check if agent is assigned to the project
+    if (req.user.role === 'agent') {
+      agentHasAccess = project?.assignedAgentId?.toString() === req.user.id;
+    }
 
     if (req.user.role === 'freelancer') {
-      const project = adminBid.projectId;
       const isAssignedFreelancer = project?.assignedFreelancerId?.toString() === req.user.id
         || project?.assignedFreelancer?._id?.toString() === req.user.id;
       const isProjectOpen = ['pending', 'active', 'in_progress'].includes(project?.status);
@@ -277,7 +287,7 @@ const getBiddingsByAdminBid = async (req, res) => {
       freelancerHasAccess = isAssignedFreelancer || isProjectOpen || !!existingBid;
     }
 
-    if (!isAdminBidOwner && !isElevatedAdmin && !freelancerHasAccess) {
+    if (!isAdminBidOwner && !isElevatedAdmin && !freelancerHasAccess && !agentHasAccess) {
       return sendResponse(res, false, null, 'Access denied', 403);
     }
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getProjectActivityLogs, ActivityLog } from "../../services/activityLogService";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -66,6 +66,8 @@ import * as userService from "../../services/userService";
 import * as bidService from "../../services/bidService";
 import type { Bid } from "../../services/bidService";
 import DeleteWithReasonDialog from "../../components/common/DeleteWithReasonDialog";
+import apiClient from "../../services/apiService";
+import { API_CONFIG } from "../../config/api";
 
 export default function ProjectReview() {
   const { id } = useParams();
@@ -87,6 +89,7 @@ export default function ProjectReview() {
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [projectBids, setProjectBids] = useState<Bid[]>([]);
+  const [biddingsByBidId, setBiddingsByBidId] = useState<Map<string, any[]>>(new Map());
 
   useEffect(() => {
     const loadProject = async () => {
@@ -159,7 +162,26 @@ export default function ProjectReview() {
       if (!id) return;
       try {
         const response = await bidService.getProjectBids(id);
-        setProjectBids(Array.isArray(response) ? response : []);
+        const bids = Array.isArray(response) ? response : [];
+        setProjectBids(bids);
+        
+        // Load freelancer proposals (biddings) for each admin bid
+        const biddingsMap = new Map<string, any[]>();
+        await Promise.all(
+          bids.map(async (bid: Bid) => {
+            try {
+              const biddingsResponse = await apiClient.get(API_CONFIG.BIDDING.GET_BY_ADMIN_BID(bid.id));
+              if (biddingsResponse.data.success && biddingsResponse.data.data) {
+                const biddings = Array.isArray(biddingsResponse.data.data) ? biddingsResponse.data.data : [];
+                biddingsMap.set(bid.id, biddings);
+              }
+            } catch (error) {
+              console.error(`Failed to load biddings for bid ${bid.id}:`, error);
+              biddingsMap.set(bid.id, []);
+            }
+          })
+        );
+        setBiddingsByBidId(biddingsMap);
       } catch (error: any) {
         console.error('Failed to load bids:', error);
         setProjectBids([]);
@@ -1321,6 +1343,80 @@ export default function ProjectReview() {
                                           bid.submittedAt
                                         ).toLocaleDateString()}
                                       </span>
+                                    </div>
+                                  )}
+
+                                  {/* Freelancer Proposals Section */}
+                                  {biddingsByBidId.has(bid.id) && biddingsByBidId.get(bid.id)!.length > 0 && (
+                                    <div className="mt-4 pt-4 border-t">
+                                      <div className="flex items-center justify-between mb-3">
+                                        <Label className="text-gray-600">
+                                          Freelancer Proposals ({biddingsByBidId.get(bid.id)!.length})
+                                        </Label>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          asChild
+                                        >
+                                          <Link to={`/admin/bids/${bid.id}`}>
+                                            <Eye className="size-4 mr-2" />
+                                            View All Proposals
+                                          </Link>
+                                        </Button>
+                                      </div>
+                                      <div className="space-y-2">
+                                        {biddingsByBidId.get(bid.id)!.slice(0, 3).map((bidding: any) => {
+                                          const freelancerId = bidding.freelancerId?._id || bidding.freelancerId;
+                                          const freelancerName = bidding.freelancerId?.name || 'Unknown Freelancer';
+                                          
+                                          return (
+                                            <div key={bidding._id || bidding.id} className="p-3 bg-gray-50 rounded-lg border">
+                                              <div className="flex items-center justify-between">
+                                                <div className="flex-1">
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="font-medium text-sm">{freelancerName}</span>
+                                                    <Badge className={getStatusColor(bidding.status)}>
+                                                      {bidding.status}
+                                                    </Badge>
+                                                  </div>
+                                                  <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
+                                                    <span>₹{bidding.bidAmount?.toLocaleString() || '0'}</span>
+                                                    {bidding.timeline && (
+                                                      <span>
+                                                        <Clock className="size-3 inline mr-1" />
+                                                        {bidding.timeline}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  asChild
+                                                >
+                                                  <Link to={`/admin/bids/${bid.id}/proposal?biddingId=${bidding._id || bidding.id}`}>
+                                                    <Eye className="size-3 mr-1" />
+                                                    View
+                                                  </Link>
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                        {biddingsByBidId.get(bid.id)!.length > 3 && (
+                                          <div className="text-center pt-2">
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              asChild
+                                            >
+                                              <Link to={`/admin/bids/${bid.id}`}>
+                                                View {biddingsByBidId.get(bid.id)!.length - 3} more proposal{biddingsByBidId.get(bid.id)!.length - 3 !== 1 ? 's' : ''}
+                                              </Link>
+                                            </Button>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                   )}
                                 </div>

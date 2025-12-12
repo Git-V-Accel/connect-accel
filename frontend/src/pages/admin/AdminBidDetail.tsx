@@ -3,9 +3,14 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
+import { Card } from '../../components/ui/card';
+import { Badge } from '../../components/ui/badge';
 import { useData } from '../../contexts/DataContext';
 import * as bidService from '../../services/bidService';
 import type { Bid as ApiBid } from '../../services/bidService';
+import apiClient from '../../services/apiService';
+import { API_CONFIG } from '../../config/api';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { 
   ArrowLeft,
   IndianRupee,
@@ -20,7 +25,9 @@ import {
   Award,
   Mail,
   Phone,
-  MapPin
+  MapPin,
+  Users,
+  Eye
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
@@ -30,6 +37,8 @@ export default function AdminBidDetail() {
   const { bids, projects, freelancers, getProjectsByUser } = useData();
   const [apiBid, setApiBid] = useState<ApiBid | null>(null);
   const [loadingBid, setLoadingBid] = useState(false);
+  const [biddings, setBiddings] = useState<any[]>([]);
+  const [loadingBiddings, setLoadingBiddings] = useState(false);
 
   const localBid = bids.find((b) => b.id === id);
 
@@ -51,6 +60,26 @@ export default function AdminBidDetail() {
     };
     load();
   }, [id, localBid]);
+
+  // Load freelancer proposals (biddings) for this admin bid
+  useEffect(() => {
+    const loadBiddings = async () => {
+      if (!id) return;
+      try {
+        setLoadingBiddings(true);
+        const response = await apiClient.get(API_CONFIG.BIDDING.GET_BY_ADMIN_BID(id));
+        if (response.data.success && response.data.data) {
+          setBiddings(Array.isArray(response.data.data) ? response.data.data : []);
+        }
+      } catch (error) {
+        console.error('Failed to load biddings:', error);
+        setBiddings([]);
+      } finally {
+        setLoadingBiddings(false);
+      }
+    };
+    loadBiddings();
+  }, [id]);
 
   const mappedBid = useMemo(() => {
     if (!apiBid) return null;
@@ -298,6 +327,103 @@ export default function AdminBidDetail() {
 
             {/* Admin Notes */}
             {/* Admin Notes removed as requested */}
+
+            {/* Freelancer Proposals Section */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl">Freelancer Proposals</h2>
+                <Badge variant="outline" className="text-lg">
+                  {loadingBiddings ? 'Loading...' : biddings.length}
+                </Badge>
+              </div>
+              
+              {loadingBiddings ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4" />
+                  <p className="text-gray-600">Loading proposals...</p>
+                </div>
+              ) : biddings.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="size-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg mb-2">No Proposals Yet</h3>
+                  <p className="text-gray-600">No freelancers have submitted proposals for this bid yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {biddings.map((bidding: any) => {
+                    const freelancerId = bidding.freelancerId?._id || bidding.freelancerId;
+                    const freelancerName = bidding.freelancerId?.name || 'Unknown Freelancer';
+                    const freelancerEmail = bidding.freelancerId?.email || '';
+                    const submittedDate = bidding.submittedAt ? new Date(bidding.submittedAt).toLocaleDateString() : 'N/A';
+                    
+                    return (
+                      <Card key={bidding._id || bidding.id} className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="font-medium">{freelancerName}</h3>
+                                <Badge className={getStatusColor(bidding.status)}>
+                                  {bidding.status}
+                                </Badge>
+                              </div>
+                              {freelancerEmail && (
+                                <p className="text-sm text-gray-600">{freelancerEmail}</p>
+                              )}
+                              <p className="text-xs text-gray-500 mt-1">Submitted {submittedDate}</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm text-gray-500">Bid Amount</div>
+                              <div className="text-lg font-semibold">₹{bidding.bidAmount?.toLocaleString() || '0'}</div>
+                              {bidding.timeline && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  <Clock className="size-3 inline mr-1" />
+                                  {bidding.timeline}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {bidding.description && (
+                            <div className="pt-3 border-t">
+                              <div className="text-sm text-gray-600 mb-2">Proposal:</div>
+                              <div className="text-sm">
+                                <RichTextViewer content={bidding.description} />
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center gap-2 pt-2 border-t">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              asChild
+                            >
+                              <Link to={`/admin/bids/${id}/proposal?biddingId=${bidding._id || bidding.id}`}>
+                                <Eye className="size-4 mr-2" />
+                                View Full Proposal
+                              </Link>
+                            </Button>
+                            {freelancerId && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                asChild
+                              >
+                                <Link to={`/admin/users/${freelancerId}/freelancer`}>
+                                  <User className="size-4 mr-2" />
+                                  View Profile
+                                </Link>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* Actions */}
             {bid.status !== 'accepted' && bid.status !== 'rejected' && (

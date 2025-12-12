@@ -7,6 +7,8 @@ import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import * as bidService from '../../services/bidService';
 import type { Bid } from '../../services/bidService';
+import apiClient from '../../services/apiService';
+import { API_CONFIG } from '../../config/api';
 import { 
   Search, 
   Filter,
@@ -30,6 +32,7 @@ export default function AgentBidManagement() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [biddingsCount, setBiddingsCount] = useState<Map<string, number>>(new Map());
 
   // Get project if ID is provided
   const project = id ? projects.find(p => p.id === id) : null;
@@ -54,6 +57,24 @@ export default function AgentBidManagement() {
       const response = await bidService.getAllBids(params);
       // Backend already filters bids for agent's assigned projects
       setBids(response.bids);
+      
+      // Fetch biddings count for each bid
+      const countsMap = new Map<string, number>();
+      await Promise.all(
+        response.bids.map(async (bid: Bid) => {
+          try {
+            const biddingsResponse = await apiClient.get(API_CONFIG.BIDDING.GET_BY_ADMIN_BID(bid.id));
+            if (biddingsResponse.data.success && biddingsResponse.data.data) {
+              const biddings = Array.isArray(biddingsResponse.data.data) ? biddingsResponse.data.data : [];
+              countsMap.set(bid.id, biddings.length);
+            }
+          } catch (error) {
+            console.error(`Failed to load biddings for bid ${bid.id}:`, error);
+            countsMap.set(bid.id, 0);
+          }
+        })
+      );
+      setBiddingsCount(countsMap);
     } catch (error: any) {
       console.error('Failed to load bids:', error);
       toast.error(error.message || 'Failed to load bids');
@@ -355,6 +376,15 @@ export default function AgentBidManagement() {
                             <span>{bid.attachments.length} attachment{bid.attachments.length > 1 ? 's' : ''}</span>
                           </div>
                         )}
+                        {/* Freelancer Proposals Count */}
+                        {biddingsCount.has(bid.id) && (
+                          <div className="flex items-center gap-2 text-sm text-blue-600 mt-2">
+                            <User className="size-4" />
+                            <span>
+                              {biddingsCount.get(bid.id)} Freelancer Proposal{biddingsCount.get(bid.id) !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right ml-4">
                         <div className="text-sm text-gray-500">Bid Amount</div>
@@ -390,6 +420,19 @@ export default function AgentBidManagement() {
                     )}
 
                     <div className="flex items-center gap-2 pt-4 border-t border-gray-200">
+                      {/* View Proposals Button */}
+                      {biddingsCount.has(bid.id) && biddingsCount.get(bid.id)! > 0 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          asChild
+                        >
+                          <Link to={`/admin/bids/${bid.id}`}>
+                            <User className="size-4 mr-2" />
+                            View Proposals ({biddingsCount.get(bid.id)})
+                          </Link>
+                        </Button>
+                      )}
                       {canManageBid(bid) && (
                         <>
                           {bid.status === 'pending' || bid.status === 'under_review' ? (
