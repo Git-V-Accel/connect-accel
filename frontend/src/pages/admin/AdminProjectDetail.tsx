@@ -17,9 +17,6 @@ export default function AdminProjectDetail() {
   const projectBids = project ? getBidsByProject(project.id) : [];
   const projectDisputes = project ? getDisputesByProject(project.id) : [];
   
-  const [isEditingMargin, setIsEditingMargin] = useState(false);
-  const [clientBudget, setClientBudget] = useState(project?.client_budget || 0);
-  const [freelancerBudget, setFreelancerBudget] = useState(project?.freelancer_budget || 0);
 
   if (!project) {
     return (
@@ -39,9 +36,6 @@ export default function AdminProjectDetail() {
     );
   }
 
-  const margin = project.margin || (project.client_budget - (project.freelancer_budget || 0));
-  const marginPercentage = project.client_budget > 0 ? (margin / project.client_budget * 100).toFixed(1) : 0;
-
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-800',
@@ -54,29 +48,6 @@ export default function AdminProjectDetail() {
       disputed: 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
-  const handleSaveMargin = () => {
-    const newMargin = clientBudget - freelancerBudget;
-    
-    if (newMargin < 0) {
-      toast.error('Freelancer budget cannot exceed client budget');
-      return;
-    }
-
-    if (freelancerBudget <= 0) {
-      toast.error('Freelancer budget must be greater than 0');
-      return;
-    }
-
-    updateProject(project.id, {
-      client_budget: clientBudget,
-      freelancer_budget: freelancerBudget,
-      margin: newMargin,
-    });
-
-    toast.success('Budget and margin updated successfully');
-    setIsEditingMargin(false);
   };
 
   const calculateProjectProgress = () => {
@@ -150,14 +121,6 @@ export default function AdminProjectDetail() {
               <p className="text-2xl">₹{(project.freelancer_budget || 0).toLocaleString()}</p>
             </div>
 
-            <div className="bg-white rounded-lg border p-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">Platform Margin</span>
-                <TrendingUp className="w-5 h-5 text-purple-600" />
-              </div>
-              <p className="text-2xl">₹{margin.toLocaleString()}</p>
-              <p className="text-xs text-gray-600 mt-1">{marginPercentage}% margin</p>
-            </div>
 
             <div className="bg-white rounded-lg border p-6">
               <div className="flex items-center justify-between mb-2">
@@ -223,85 +186,6 @@ export default function AdminProjectDetail() {
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* Budget & Margin Management */}
-              <div className="bg-white rounded-lg border p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl">Budget & Margin</h2>
-                  {!isEditingMargin && project.status !== 'completed' && (
-                    <button
-                      onClick={() => setIsEditingMargin(true)}
-                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                      Edit
-                    </button>
-                  )}
-                </div>
-
-                {isEditingMargin ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm text-gray-600 block mb-2">Client Budget (₹)</label>
-                      <input
-                        type="number"
-                        value={clientBudget}
-                        onChange={(e) => setClientBudget(Number(e.target.value))}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-gray-600 block mb-2">Freelancer Budget (₹)</label>
-                      <input
-                        type="number"
-                        value={freelancerBudget}
-                        onChange={(e) => setFreelancerBudget(Number(e.target.value))}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                    <div className="bg-purple-50 p-4 rounded-lg">
-                      <label className="text-sm text-gray-600">Platform Margin</label>
-                      <p className="text-2xl text-purple-600">₹{(clientBudget - freelancerBudget).toLocaleString()}</p>
-                      <p className="text-sm text-gray-600">
-                        {((clientBudget - freelancerBudget) / clientBudget * 100).toFixed(1)}% margin
-                      </p>
-                    </div>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={handleSaveMargin}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                      >
-                        Save Changes
-                      </button>
-                      <button
-                        onClick={() => {
-                          setClientBudget(project.client_budget);
-                          setFreelancerBudget(project.freelancer_budget || 0);
-                          setIsEditingMargin(false);
-                        }}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Client sees:</span>
-                      <span className="text-lg">₹{project.client_budget.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Freelancer receives:</span>
-                      <span className="text-lg">₹{(project.freelancer_budget || 0).toLocaleString()}</span>
-                    </div>
-                    <div className="border-t pt-3 flex justify-between items-center">
-                      <span className="text-gray-600">Platform earns:</span>
-                      <span className="text-lg text-purple-600">₹{margin.toLocaleString()} ({marginPercentage}%)</span>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Milestones */}

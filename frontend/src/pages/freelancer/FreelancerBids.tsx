@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -6,11 +6,11 @@ import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
-import { Textarea } from '../../components/ui/textarea';
 import { Label } from '../../components/ui/label';
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
+import { RichTextEditor } from '../../components/common/RichTextEditor';
 import apiClient from '../../services/apiService';
 import { API_CONFIG } from '../../config/api';
 import {
@@ -114,15 +114,24 @@ export default function FreelancerBids() {
   // Fetch my biddings from API
   useEffect(() => {
     const loadBiddings = async () => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+      
       try {
         setLoading(true);
         const response = await apiClient.get(API_CONFIG.BIDDING.GET_BY_FREELANCER(user.id));
         if (response.data.success && response.data.data) {
           setMyBiddings(Array.isArray(response.data.data) ? response.data.data : []);
+        } else {
+          setMyBiddings([]);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to load biddings:', error);
+        // If it's a 401, the interceptor should handle token refresh and retry
+        // If refresh fails, it will redirect to login
+        setMyBiddings([]);
       } finally {
         setLoading(false);
       }
@@ -564,11 +573,12 @@ export default function FreelancerBids() {
 
                   <div>
                     <Label>Cover Letter / Proposal *</Label>
-                    <Textarea
-                      placeholder="Explain why you're the best fit for this project. Include relevant experience, approach, and any questions..."
-                      rows={8}
+                    <RichTextEditor
                       value={proposal}
-                      onChange={(e) => setProposal(e.target.value)}
+                      onChange={setProposal}
+                      placeholder="Explain why you're the best fit for this project. Include relevant experience, approach, and any questions..."
+                      className="mt-1"
+                      minHeight="200px"
                     />
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-xs text-gray-500">

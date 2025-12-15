@@ -119,8 +119,13 @@ const normalizeProject = (project: ProjectResponse) => {
 
   const freelancer = project.assignedFreelancerId 
     ? (typeof project.assignedFreelancerId === 'object' && project.assignedFreelancerId !== null 
-        ? project.assignedFreelancerId 
-        : { _id: project.assignedFreelancerId, name: '', email: '' })
+        ? {
+            _id: project.assignedFreelancerId._id?.toString() || project.assignedFreelancerId._id || '',
+            name: project.assignedFreelancerId.name || '',
+            email: project.assignedFreelancerId.email || '',
+            userID: project.assignedFreelancerId.userID || ''
+          }
+        : { _id: project.assignedFreelancerId?.toString() || project.assignedFreelancerId || '', name: '', email: '' })
     : undefined;
 
   const agent = project.assignedAgentId 

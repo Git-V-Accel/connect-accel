@@ -19,7 +19,7 @@ import {
   DialogFooter,
 } from "../../components/ui/dialog";
 import { RichTextViewer } from "../../components/common/RichTextViewer";
-import { Textarea } from "../../components/ui/textarea";
+import { RichTextEditor } from "../../components/common/RichTextEditor";
 import { Progress } from "../../components/ui/progress";
 import { Avatar, AvatarFallback } from "../../components/ui/avatar";
 import { useData } from "../../contexts/DataContext";
@@ -861,11 +861,12 @@ export default function ProjectDetail() {
                 notified.
               </DialogDescription>
             </DialogHeader>
-            <Textarea
-              placeholder="Describe the issues and what needs to be fixed..."
+            <RichTextEditor
               value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              rows={4}
+              onChange={setRejectionReason}
+              placeholder="Describe the issues and what needs to be fixed..."
+              className="mt-1"
+              minHeight="150px"
             />
             <DialogFooter>
               <Button

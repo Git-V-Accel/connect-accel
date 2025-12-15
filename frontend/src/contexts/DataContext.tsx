@@ -229,7 +229,7 @@ interface DataContextType {
   // Project methods
   createProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => Promise<Project>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<Project>;
-  getProject: (id: string) => Promise<Project | undefined>;
+  getProject: (id: string, forceRefresh?: boolean) => Promise<Project | undefined>;
   getProjectsByUser: (userId: string, role: string) => Project[];
   getProjectsByAgent: (agentId: string) => Project[];
   

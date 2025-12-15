@@ -5,7 +5,7 @@ import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
-import { Textarea } from "../../components/ui/textarea";
+import { RichTextEditor } from "../../components/common/RichTextEditor";
 import {
   Select,
   SelectContent,
@@ -267,18 +267,18 @@ export default function CreateUser() {
 
             <div>
               <Label htmlFor="bio">About</Label>
-              <Textarea
-                id="bio"
+              <RichTextEditor
+                value={newUser.bio}
+                onChange={(value) =>
+                  setNewUser({ ...newUser, bio: value })
+                }
                 placeholder={
                   newUser.role === "freelancer"
                     ? "Tell us about yourself, your skills, and experience..."
                     : "Tell us about yourself..."
                 }
-                value={newUser.bio}
-                onChange={(e) =>
-                  setNewUser({ ...newUser, bio: e.target.value })
-                }
-                rows={4}
+                className="mt-1"
+                minHeight="150px"
               />
             </div>
 

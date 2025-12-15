@@ -42,26 +42,31 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Try to refresh token
-        const refreshToken = sessionStorage.getItem('refresh_token') || 
-                            document.cookie.split('; ').find(row => row.startsWith('refreshToken='))?.split('=')[1];
-        
-        if (refreshToken) {
-          const response = await axios.post(
-            `${API_CONFIG.BASE_URL}${API_CONFIG.AUTH.REFRESH_TOKEN}`,
-            { refreshToken },
-            { withCredentials: true }
-          );
+        // Try to refresh token - backend stores it in httpOnly cookie, so we don't need to send it in body
+        // The cookie will be sent automatically with withCredentials: true
+        const response = await axios.post(
+          `${API_CONFIG.BASE_URL}${API_CONFIG.AUTH.REFRESH_TOKEN}`,
+          {}, // Empty body - refresh token is in cookie
+          { withCredentials: true }
+        );
 
-          const { token } = response.data;
-          if (token) {
-            sessionStorage.setItem('auth_token', token);
-            
-            // Retry original request with new token
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            return apiClient(originalRequest);
+        // Handle different response structures - backend returns { success: true, token: ... }
+        const token = response.data?.token || response.data?.data?.token || response.data?.data?.accessToken;
+        if (token && response.data?.success) {
+          sessionStorage.setItem('auth_token', token);
+          
+          // Retry original request with new token
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+          }
+          return apiClient(originalRequest);
+        } else {
+          // Token refresh failed - redirect to login
+          sessionStorage.removeItem('auth_token');
+          sessionStorage.removeItem('refresh_token');
+          sessionStorage.removeItem('connect_accel_user');
+          if (window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+            window.location.href = '/login';
           }
         }
       } catch (refreshError) {

@@ -6,6 +6,7 @@ import { Label } from '../../components/ui/label';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { useData } from '../../contexts/DataContext';
+import { useAuth } from '../../contexts/AuthContext';
 import * as bidService from '../../services/bidService';
 import type { Bid as ApiBid } from '../../services/bidService';
 import apiClient from '../../services/apiService';
@@ -27,38 +28,42 @@ import {
   Phone,
   MapPin,
   Users,
-  Eye
+  Eye,
+  RotateCcw
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
 export default function AdminBidDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { bids, projects, freelancers, getProjectsByUser } = useData();
   const [apiBid, setApiBid] = useState<ApiBid | null>(null);
   const [loadingBid, setLoadingBid] = useState(false);
   const [biddings, setBiddings] = useState<any[]>([]);
   const [loadingBiddings, setLoadingBiddings] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const localBid = bids.find((b) => b.id === id);
 
+  const loadBid = async () => {
+    if (!id) return;
+    // If we already have it in memory, no need to fetch.
+    if (localBid) return;
+    try {
+      setLoadingBid(true);
+      const b = await bidService.getBidDetails(id);
+      setApiBid(b);
+    } catch (e) {
+      console.error('Failed to fetch bid details:', e);
+      setApiBid(null);
+    } finally {
+      setLoadingBid(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      if (!id) return;
-      // If we already have it in memory, no need to fetch.
-      if (localBid) return;
-      try {
-        setLoadingBid(true);
-        const b = await bidService.getBidDetails(id);
-        setApiBid(b);
-      } catch (e) {
-        console.error('Failed to fetch bid details:', e);
-        setApiBid(null);
-      } finally {
-        setLoadingBid(false);
-      }
-    };
-    load();
+    loadBid();
   }, [id, localBid]);
 
   // Load freelancer proposals (biddings) for this admin bid
@@ -94,6 +99,9 @@ export default function AdminBidDetail() {
       cover_letter: apiBid.description,
       proposal: apiBid.description,
       status: apiBid.status,
+      isShortlisted: apiBid.isShortlisted,
+      isAccepted: apiBid.isAccepted,
+      isDeclined: apiBid.isDeclined,
       submitted_at: apiBid.submittedAt,
       created_at: apiBid.submittedAt,
       admin_notes: '',
@@ -166,30 +174,79 @@ export default function AdminBidDetail() {
 
   const handleAccept = async () => {
     try {
+      setActionLoading(true);
       await bidService.updateBidAcceptance(bid.id, true);
       toast.success('Bid accepted successfully!');
-      navigate('/admin/bids');
+      loadBid();
     } catch (e: any) {
       toast.error(e.message || 'Failed to accept bid');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUndoAccept = async () => {
+    try {
+      setActionLoading(true);
+      await bidService.updateBidAcceptance(bid.id, false);
+      toast.success('Acceptance undone successfully!');
+      loadBid();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to undo accept');
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleReject = async () => {
     try {
+      setActionLoading(true);
       await bidService.updateBidDecline(bid.id, true);
       toast.success('Bid rejected');
-      navigate('/admin/bids');
+      loadBid();
     } catch (e: any) {
       toast.error(e.message || 'Failed to reject bid');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUndoReject = async () => {
+    try {
+      setActionLoading(true);
+      await bidService.updateBidDecline(bid.id, false);
+      toast.success('Rejection undone successfully!');
+      loadBid();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to undo reject');
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleShortlist = async () => {
     try {
+      setActionLoading(true);
       await bidService.updateBidShortlist(bid.id, true);
       toast.success('Bid shortlisted');
+      loadBid();
     } catch (e: any) {
       toast.error(e.message || 'Failed to shortlist bid');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUndoShortlist = async () => {
+    try {
+      setActionLoading(true);
+      await bidService.updateBidShortlist(bid.id, false);
+      toast.success('Shortlist removed successfully!');
+      loadBid();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to undo shortlist');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -281,8 +338,10 @@ export default function AdminBidDetail() {
 
                 {/* Full Proposal */}
                 <div className="pt-4 border-t">
-                  <h4 className="font-medium mb-3">Cover Letter</h4>
-                  <p className="text-gray-700 whitespace-pre-wrap">{bid.proposal || bid.cover_letter || 'No proposal provided.'}</p>
+                  <h4 className="font-medium mb-3">Description</h4>
+                  <p className="text-gray-700 whitespace-pre-wrap">
+                    <RichTextViewer content={bid.proposal || bid.cover_letter || 'No proposal provided.'} />
+                  </p>
                 </div>
 
                 {/* Submitted Date */}
@@ -425,25 +484,120 @@ export default function AdminBidDetail() {
               )}
             </div>
 
-            {/* Actions */}
-            {bid.status !== 'accepted' && bid.status !== 'rejected' && (
+            {/* Actions - Hide for agents */}
+            {user?.role !== 'agent' && (
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h2 className="text-xl mb-4">Actions</h2>
-                <div className="flex items-center gap-3">
-                  <Button onClick={handleAccept}>
-                    <CheckCircle2 className="size-4 mr-2" />
-                    Accept Bid
-                  </Button>
-                  {bid.status !== 'shortlisted' && (
-                    <Button variant="outline" onClick={handleShortlist}>
-                      <Star className="size-4 mr-2" />
+                <div className="flex flex-wrap items-center gap-3">
+                {(bid.status === 'pending' || bid.status === 'under_review') && !bid.isShortlisted ? (
+                  <>
+                    <Button 
+                      onClick={handleAccept}
+                      disabled={actionLoading}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle2 className="size-4 mr-2" />
+                      Accept
+                    </Button>
+                    <Button 
+                      onClick={handleReject}
+                      disabled={actionLoading}
+                      variant="destructive"
+                    >
+                      <XCircle className="size-4 mr-2" />
+                      Reject
+                    </Button>
+                    <Button 
+                      onClick={handleShortlist}
+                      disabled={actionLoading}
+                      variant="outline"
+                    >
+                      <Users className="size-4 mr-2" />
                       Shortlist
                     </Button>
-                  )}
-                  <Button variant="outline" onClick={handleReject}>
-                    <XCircle className="size-4 mr-2" />
-                    Reject
-                  </Button>
+                  </>
+                ) : bid.status === 'accepted' || bid.isAccepted ? (
+                  <>
+                    <Button 
+                      onClick={handleUndoAccept}
+                      disabled={actionLoading}
+                      variant="outline"
+                    >
+                      <RotateCcw className="size-4 mr-2" />
+                      Undo Accept
+                    </Button>
+                    <Button 
+                      onClick={handleReject}
+                      disabled={actionLoading}
+                      variant="destructive"
+                    >
+                      <XCircle className="size-4 mr-2" />
+                      Reject
+                    </Button>
+                    <Button 
+                      onClick={handleShortlist}
+                      disabled={actionLoading}
+                      variant="outline"
+                    >
+                      <Users className="size-4 mr-2" />
+                      Shortlist
+                    </Button>
+                  </>
+                ) : bid.status === 'rejected' || bid.isDeclined ? (
+                  <>
+                    <Button 
+                      onClick={handleAccept}
+                      disabled={actionLoading}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle2 className="size-4 mr-2" />
+                      Accept
+                    </Button>
+                    <Button 
+                      onClick={handleUndoReject}
+                      disabled={actionLoading}
+                      variant="outline"
+                    >
+                      <RotateCcw className="size-4 mr-2" />
+                      Undo Reject
+                    </Button>
+                    <Button 
+                      onClick={handleShortlist}
+                      disabled={actionLoading}
+                      variant="outline"
+                    >
+                      <Users className="size-4 mr-2" />
+                      Shortlist
+                    </Button>
+                  </>
+                ) : (bid.status === 'shortlisted' || bid.isShortlisted) && !bid.isAccepted && !bid.isDeclined ? (
+                  <>
+                    <Button 
+                      onClick={handleAccept}
+                      disabled={actionLoading}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle2 className="size-4 mr-2" />
+                      Accept
+                    </Button>
+                    <Button 
+                      onClick={handleReject}
+                      disabled={actionLoading}
+                      variant="destructive"
+                    >
+                      <XCircle className="size-4 mr-2" />
+                      Reject
+                    </Button>
+                    <Button 
+                      onClick={handleUndoShortlist}
+                      disabled={actionLoading}
+                      variant="outline"
+                    >
+                      <RotateCcw className="size-4 mr-2" />
+                      Undo Shortlist
+                    </Button>
+                  </>
+                ) : null}
                 </div>
               </div>
             )}
@@ -485,59 +639,6 @@ export default function AdminBidDetail() {
                 </Button>
               </div>
             </div>
-
-            {/* Freelancer Info */}
-            {freelancer && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg mb-4">Freelancer Profile</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="size-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg">
-                      {freelancer.name.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="text-sm">{freelancer.name}</div>
-                      <div className="text-xs text-gray-500">{freelancer.title}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Star className="size-4 text-yellow-500 fill-yellow-500" />
-                    <span className="text-sm">{freelancer.rating}</span>
-                    <span className="text-sm text-gray-500">({freelancer.total_reviews} reviews)</span>
-                  </div>
-
-                  <div>
-                    <div className="text-sm text-gray-500 mb-2">Skills</div>
-                    <div className="flex flex-wrap gap-1">
-                      {freelancer.skills.slice(0, 6).map(skill => (
-                        <span key={skill} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <IndianRupee className="size-4" />
-                      <span>${freelancer.hourly_rate}/hr</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Briefcase className="size-4" />
-                      <span className="capitalize">{freelancer.availability}</span>
-                    </div>
-                  </div>
-
-                  <Button asChild variant="outline" size="sm" className="w-full">
-                    <Link to={`/admin/freelancers/${freelancer.id}`}>
-                      <User className="size-4 mr-2" />
-                      View Full Profile
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            )}
 
             {/* Comparison */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">

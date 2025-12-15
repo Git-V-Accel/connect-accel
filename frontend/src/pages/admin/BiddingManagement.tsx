@@ -4,7 +4,7 @@ import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { Textarea } from '../../components/ui/textarea';
+import { RichTextEditor } from '../../components/common/RichTextEditor';
 import { Label } from '../../components/ui/label';
 import {
   Dialog,
@@ -407,11 +407,12 @@ export default function BiddingManagement() {
 
                 <div>
                   <Label>Admin Notes (Optional)</Label>
-                  <Textarea
-                    placeholder="Add notes about why this bid was selected..."
+                  <RichTextEditor
                     value={adminNotes}
-                    onChange={(e) => setAdminNotes(e.target.value)}
-                    rows={3}
+                    onChange={setAdminNotes}
+                    placeholder="Add notes about why this bid was selected..."
+                    className="mt-1"
+                    minHeight="120px"
                   />
                 </div>
               </div>
@@ -442,20 +443,22 @@ export default function BiddingManagement() {
             <div className="space-y-4">
               <div>
                 <Label>Rejection Reason *</Label>
-                <Textarea
-                  placeholder="Explain why this bid is being rejected..."
+                <RichTextEditor
                   value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  rows={4}
+                  onChange={setRejectionReason}
+                  placeholder="Explain why this bid is being rejected..."
+                  className="mt-1"
+                  minHeight="150px"
                 />
               </div>
               <div>
                 <Label>Admin Notes (Optional)</Label>
-                <Textarea
-                  placeholder="Internal notes..."
+                <RichTextEditor
                   value={adminNotes}
-                  onChange={(e) => setAdminNotes(e.target.value)}
-                  rows={2}
+                  onChange={setAdminNotes}
+                  placeholder="Internal notes..."
+                  className="mt-1"
+                  minHeight="100px"
                 />
               </div>
             </div>

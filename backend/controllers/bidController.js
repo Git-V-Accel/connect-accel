@@ -510,15 +510,14 @@ const updateBidStatus = async (req, res) => {
 
     await bid.save();
 
-    // If bid is accepted, update project
+    // Note: When accepting a Bid (admin/superadmin/agent bid), we should NOT set assignedFreelancerId
+    // because the bidderId is the admin/superadmin/agent, not a freelancer.
+    // Only when accepting a Bidding (freelancer proposal) should we set assignedFreelancerId.
+    // This endpoint is for updating the admin bid status, not for assigning freelancers.
+    // Freelancer proposals are accepted via the biddingController.js updateAcceptanceStatus endpoint.
+    
+    // If bid is accepted, reject all other pending bids for this project
     if (status === 'accepted') {
-      await Project.findByIdAndUpdate(bid.projectId._id, {
-        assignedFreelancer: bid.bidderId.name,
-        assignedFreelancerId: bid.bidderId._id,
-        status: 'active'
-      });
-
-      // Reject all other pending bids for this project
       await Bid.updateMany(
         { 
           projectId: bid.projectId._id, 
@@ -529,7 +528,7 @@ const updateBidStatus = async (req, res) => {
           status: 'rejected',
           reviewedBy: req.user.id,
           reviewedAt: new Date(),
-          reviewNotes: 'Project assigned to another freelancer'
+          reviewNotes: 'Another bid was accepted for this project'
         }
       );
     }
@@ -719,17 +718,21 @@ const getAvailableAdminBids = async (req, res) => {
 
     const {
       page = 1,
-      limit = 10,
-      status = 'pending', // Only show pending bids by default
+      limit = 50, // Increased limit to show more bids
+      status, // No default - show all bids if not specified
       sortBy = 'submittedAt',
       sortOrder = 'desc'
     } = req.query;
 
-    // Build filter object - only show pending admin bids
-    const filter = {
-      status: status,
-      // Only show bids that are open for freelancer bidding
-    };
+    // Build filter object - show all bids that are open for freelancer bidding
+    const filter = {};
+    // Only filter by status if explicitly provided
+    if (status && status !== 'all') {
+      filter.status = status;
+    } else {
+      // Exclude withdrawn and rejected bids as they're not available for bidding
+      filter.status = { $nin: ['withdrawn', 'rejected'] };
+    }
 
     // Build sort object
     const sort = {};
@@ -740,7 +743,7 @@ const getAvailableAdminBids = async (req, res) => {
 
     // Get bids with pagination
     const bids = await Bid.find(filter)
-      .populate('projectId', 'title description budget timeline status')
+      .populate('projectId', 'title description budget timeline status category')
       .populate('bidderId', 'name email role')
       .sort(sort)
       .limit(parseInt(limit))
@@ -788,7 +791,7 @@ const updateShortlistStatus = async (req, res) => {
 
     // Check if user is admin, superadmin, or assigned agent
     const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
-    const isAssignedAgent = req.user.role === 'agent' && bid.projectId.assignedAgentId && bid.projectId.assignedAgentId.toString() === req.user.id;
+    const isAssignedAgent = req.user.role === 'agent' && bid.projectId && bid.projectId.assignedAgentId && bid.projectId.assignedAgentId.toString() === req.user.id;
     
     if (!isAdmin && !isAssignedAgent) {
       return sendResponse(res, false, null, 'Access denied. Admin, Super Admin, or Assigned Agent role required.', 403);
@@ -796,6 +799,11 @@ const updateShortlistStatus = async (req, res) => {
 
     // Update shortlist status
     bid.isShortlisted = isShortlisted;
+    if (isShortlisted && bid.status === 'pending') {
+      bid.status = 'shortlisted';
+    } else if (!isShortlisted && bid.status === 'shortlisted' && !bid.isAccepted && !bid.isDeclined) {
+      bid.status = 'pending';
+    }
     await bid.save();
 
     sendResponse(res, true, { 
@@ -862,62 +870,11 @@ const updateAcceptanceStatus = async (req, res) => {
     
     await bid.save();
 
-    // If accepted, assign freelancer to project and log activity
-    if (isAccepted) {
-      if (bid.projectId) {
-        await Project.findByIdAndUpdate(bid.projectId._id, {
-          assignedFreelancer: bid.bidderId.name,
-          assignedFreelancerId: bid.bidderId._id,
-          status: 'active'
-        });
-
-        // Log assignment activity (best-effort)
-        try {
-          await ActivityLogger.logFreelancerAssigned(bid.projectId._id, req.user.id, bid.bidderId.name, req);
-        } catch (e) {
-          console.error('Failed to log freelancer assignment activity:', e);
-        }
-
-        // Emit realtime update (best-effort)
-        try {
-          socketService.emitProjectUpdate(bid.projectId._id, 'freelancer-assigned', {
-            freelancerName: bid.bidderId.name,
-            freelancerId: bid.bidderId._id
-          });
-        } catch (e) {
-          console.error('Failed to emit freelancer-assigned event:', e);
-        }
-
-        // Send email to accepted freelancer
-        try {
-          const { sendAcceptedEmail, sendNotSelectedEmail } = require('../services/emailService');
-          if (bid.bidderId?.email) {
-            await sendAcceptedEmail({
-              to: bid.bidderId.email,
-              freelancerName: bid.bidderId.name,
-              projectTitle: bid.projectId.title,
-            });
-          }
-
-          // Notify other freelancers (not selected)
-          const otherBids = await Bid.find({
-            projectId: bid.projectId._id,
-            _id: { $ne: id },
-          }).populate('bidderId', 'name email');
-          for (const ob of otherBids) {
-            if (ob?.bidderId?.email) {
-              await sendNotSelectedEmail({
-                to: ob.bidderId.email,
-                freelancerName: ob.bidderId.name,
-                projectTitle: bid.projectId.title,
-              });
-            }
-          }
-        } catch (mailErr) {
-          console.error('Acceptance email dispatch failed:', mailErr?.message || mailErr);
-        }
-      }
-    }
+    // Note: When accepting a Bid (admin/superadmin/agent bid), we should NOT set assignedFreelancerId
+    // because the bidderId is the admin/superadmin/agent, not a freelancer.
+    // Only when accepting a Bidding (freelancer proposal) should we set assignedFreelancerId.
+    // This endpoint is for accepting the admin bid itself, not freelancer proposals.
+    // Freelancer proposals are accepted via the biddingController.js updateAcceptanceStatus endpoint.
 
     sendResponse(res, true, { 
       bidId: bid._id, 

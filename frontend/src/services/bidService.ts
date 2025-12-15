@@ -46,6 +46,7 @@ export interface Bid {
     budget?: number;
     timeline?: string;
     status?: string;
+    category?: string;
   };
   bidder?: {
     id: string;
@@ -271,6 +272,7 @@ function normalizeBid(bid: any): Bid {
           budget: bid.projectId.budget,
           timeline: bid.projectId.timeline,
           status: bid.projectId.status,
+          category: bid.projectId.category,
         }
       : undefined,
     bidder: bid.bidderId

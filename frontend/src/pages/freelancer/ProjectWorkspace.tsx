@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
-import { Textarea } from '../../components/ui/textarea';
+import { RichTextEditor } from '../../components/common/RichTextEditor';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
@@ -49,6 +49,7 @@ export default function ProjectWorkspace() {
   const [showDisputeDialog, setShowDisputeDialog] = useState(false);
   const [disputeSubject, setDisputeSubject] = useState('');
   const [disputeDescription, setDisputeDescription] = useState('');
+  const [message, setMessage] = useState('');
 
   if (!user || !projectId) return null;
 
@@ -400,11 +401,19 @@ export default function ProjectWorkspace() {
 
               <div className="space-y-3">
                 <Label>Send a Message</Label>
-                <Textarea 
+                <RichTextEditor 
+                  value={message}
+                  onChange={setMessage}
                   placeholder="Type your message..."
-                  rows={4}
+                  className="mt-1"
+                  minHeight="120px"
                 />
-                <Button className="w-full">
+                <Button className="w-full" onClick={() => {
+                  if (message.trim()) {
+                    sendMessage(projectConversation?.id || '', message);
+                    setMessage('');
+                  }
+                }}>
                   <Send className="size-4 mr-2" />
                   Send Message
                 </Button>
@@ -471,11 +480,12 @@ export default function ProjectWorkspace() {
             <div className="space-y-4">
               <div>
                 <Label>Submission Notes</Label>
-                <Textarea
-                  placeholder="Describe what you've completed, any challenges faced, and additional notes..."
+                <RichTextEditor
                   value={submissionNotes}
-                  onChange={(e) => setSubmissionNotes(e.target.value)}
-                  rows={6}
+                  onChange={setSubmissionNotes}
+                  placeholder="Describe what you've completed, any challenges faced, and additional notes..."
+                  className="mt-1"
+                  minHeight="180px"
                 />
               </div>
             </div>
@@ -511,11 +521,12 @@ export default function ProjectWorkspace() {
               </div>
               <div>
                 <Label>Description</Label>
-                <Textarea
-                  placeholder="Provide detailed information about the dispute..."
+                <RichTextEditor
                   value={disputeDescription}
-                  onChange={(e) => setDisputeDescription(e.target.value)}
-                  rows={6}
+                  onChange={setDisputeDescription}
+                  placeholder="Provide detailed information about the dispute..."
+                  className="mt-1"
+                  minHeight="180px"
                 />
               </div>
             </div>

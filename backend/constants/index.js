@@ -193,13 +193,18 @@ const NOTIFICATION_TYPES_ARRAY = Object.values(NOTIFICATION_TYPES);
 const PROJECT_STATUS = {
   DRAFT: 'draft',
   PENDING: 'pending',
+  PENDING_REVIEW: 'pending_review',
   IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
   ACTIVE: 'active',
   HOLD: 'hold',
   CLOSED: 'closed',
-  BIDDING: 'bidding'
+  BIDDING: 'bidding',
+  IN_BIDDING: 'in_bidding',
+  ASSIGNED: 'assigned',
+  REJECTED: 'rejected',
+  DISPUTED: 'disputed'
 };
 const PROJECT_STATUS_ARRAY = Object.values(PROJECT_STATUS);
 
@@ -239,7 +244,9 @@ const BID_STATUS = {
   PENDING: 'pending',
   ACCEPTED: 'accepted',
   REJECTED: 'rejected',
-  WITHDRAWN: 'withdrawn'
+  WITHDRAWN: 'withdrawn',
+  SHORTLISTED: 'shortlisted',
+  UNDER_REVIEW: 'under_review'
 };
 const BID_STATUS_ARRAY = Object.values(BID_STATUS);
 

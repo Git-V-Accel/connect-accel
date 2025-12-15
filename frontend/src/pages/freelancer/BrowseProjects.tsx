@@ -16,6 +16,7 @@ import * as bidService from '../../services/bidService';
 import type { Bid } from '../../services/bidService';
 import apiClient from '../../services/apiService';
 import { API_CONFIG } from '../../config/api';
+import { toast } from '../../utils/toast';
 
 export default function BrowseProjects() {
   const { user } = useAuth();
@@ -32,8 +33,8 @@ export default function BrowseProjects() {
       if (!user) return;
       setLoading(true);
       try {
-        // Fetch available admin bids
-        const response = await bidService.getAvailableAdminBids({ status: 'pending' });
+        // Fetch all available admin bids (not filtering by status to show all bids)
+        const response = await bidService.getAvailableAdminBids({});
         setAvailableBids(response.bids || []);
         
         // Fetch freelancer's existing biddings to track which bids they've already submitted proposals for
@@ -78,11 +79,22 @@ export default function BrowseProjects() {
     const matchesSearch = !searchQuery || 
       bid.projectTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
       bid.description.toLowerCase().includes(searchQuery.toLowerCase());
-    // Note: Bids don't have categories, so we'll skip category filter for now
-    return matchesSearch;
+    
+    // Filter by category if selected
+    const matchesCategory = categoryFilter === 'all' || 
+      bid.project?.category === categoryFilter ||
+      (bid.projectId && projects.find(p => p.id === bid.projectId)?.category === categoryFilter);
+    
+    return matchesSearch && matchesCategory;
   });
 
-  const categories = [...new Set(projects.map(p => p.category))];
+  // Extract categories from bids' projects
+  const categories = [...new Set(
+    availableBids
+      .map(bid => bid.project?.category)
+      .filter((cat): cat is string => !!cat)
+      .concat(projects.map(p => p.category).filter(Boolean))
+  )].filter(Boolean);
 
   return (
     <DashboardLayout>

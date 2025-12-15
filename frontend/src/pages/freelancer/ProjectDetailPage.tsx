@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
+import { RichTextEditor } from '../../components/common/RichTextEditor';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
@@ -457,22 +458,22 @@ export default function ProjectDetailPage() {
               </div>
               <div>
                 <Label htmlFor="bidProposal">Cover Letter / Proposal</Label>
-                <Textarea
-                  id="bidProposal"
-                  placeholder="Describe your approach, relevant experience, and why you're the best fit for this project..."
+                <RichTextEditor
                   value={bidProposal}
-                  onChange={(e) => setBidProposal(e.target.value)}
-                  rows={8}
+                  onChange={setBidProposal}
+                  placeholder="Describe your approach, relevant experience, and why you're the best fit for this project..."
+                  className="mt-1"
+                  minHeight="200px"
                 />
               </div>
               <div>
                 <Label htmlFor="deliverables">Key Deliverables (Optional)</Label>
-                <Textarea
-                  id="deliverables"
-                  placeholder="List the key deliverables you'll provide..."
+                <RichTextEditor
                   value={deliverables}
-                  onChange={(e) => setDeliverables(e.target.value)}
-                  rows={4}
+                  onChange={setDeliverables}
+                  placeholder="List the key deliverables you'll provide..."
+                  className="mt-1"
+                  minHeight="150px"
                 />
               </div>
             </div>

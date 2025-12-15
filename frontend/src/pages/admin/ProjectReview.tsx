@@ -90,14 +90,19 @@ export default function ProjectReview() {
   const [loading, setLoading] = useState(true);
   const [projectBids, setProjectBids] = useState<Bid[]>([]);
   const [biddingsByBidId, setBiddingsByBidId] = useState<Map<string, any[]>>(new Map());
+  const [acceptedBidding, setAcceptedBidding] = useState<any>(null);
+  const [loadingAcceptedBidding, setLoadingAcceptedBidding] = useState(false);
+  const [assignedFreelancer, setAssignedFreelancer] = useState<any>(null);
+  const [loadingFreelancer, setLoadingFreelancer] = useState(false);
 
   useEffect(() => {
     const loadProject = async () => {
       if (!id) return;
       setLoading(true);
       try {
-        // Always fetch from backend to ensure we have populated client data (email, phone)
-        const fetchedProject = await getProject(id);
+        // Always fetch from backend with forceRefresh to ensure we have latest data
+        // This ensures all users (admin/superadmin/agent) see the same status regardless of who made the change
+        const fetchedProject = await getProject(id, true);
         setProject(fetchedProject || null);
       } catch (error: any) {
         console.error('Failed to load project:', error);
@@ -189,6 +194,154 @@ export default function ProjectReview() {
     };
     loadBids();
   }, [id]);
+
+  // Load accepted bidding for the project
+  useEffect(() => {
+    const loadAcceptedBidding = async () => {
+      if (!id || !project?.freelancer_id) {
+        setAcceptedBidding(null);
+        return;
+      }
+
+      setLoadingAcceptedBidding(true);
+      try {
+        // Find accepted bidding for this project
+        // We need to check all biddings for all bids of this project
+        const allBiddings: any[] = [];
+        for (const [bidId, biddings] of biddingsByBidId.entries()) {
+          allBiddings.push(...biddings);
+        }
+
+        // Find the accepted one
+        const accepted = allBiddings.find(
+          (bidding: any) => 
+            bidding.isAccepted === true && 
+            (bidding.freelancerId?._id?.toString() === project.freelancer_id || 
+             bidding.freelancerId?.toString() === project.freelancer_id)
+        );
+
+        if (accepted) {
+          setAcceptedBidding(accepted);
+        } else {
+          // If not found in loaded biddings, try to fetch directly
+          // We'll need to search through all bids and their biddings
+          const bids = await bidService.getProjectBids(id);
+          for (const bid of bids) {
+            try {
+              const response = await apiClient.get(API_CONFIG.BIDDING.GET_BY_ADMIN_BID(bid.id));
+              if (response.data.success && response.data.data) {
+                const biddings = Array.isArray(response.data.data) ? response.data.data : [];
+                const acceptedBid = biddings.find(
+                  (b: any) => 
+                    b.isAccepted === true && 
+                    (b.freelancerId?._id?.toString() === project.freelancer_id || 
+                     b.freelancerId?.toString() === project.freelancer_id)
+                );
+                if (acceptedBid) {
+                  setAcceptedBidding(acceptedBid);
+                  break;
+                }
+              }
+            } catch (error) {
+              console.error(`Failed to check biddings for bid ${bid.id}:`, error);
+            }
+          }
+        }
+      } catch (error: any) {
+        console.error('Failed to load accepted bidding:', error);
+      } finally {
+        setLoadingAcceptedBidding(false);
+      }
+    };
+
+    if (biddingsByBidId.size > 0 || projectBids.length > 0) {
+      loadAcceptedBidding();
+    }
+  }, [id, project?.freelancer_id, biddingsByBidId, projectBids]);
+
+  // Load assigned freelancer when project has freelancer_id
+  useEffect(() => {
+    const loadAssignedFreelancer = async () => {
+      if (!project?.freelancer_id) {
+        setAssignedFreelancer(null);
+        return;
+      }
+
+      // First check if freelancer is in local context
+      const localFreelancer = freelancers.find((f) => f.id === project.freelancer_id);
+      if (localFreelancer) {
+        setAssignedFreelancer(localFreelancer);
+        return;
+      }
+
+      // If we have freelancer_name from the project (populated data), use it directly
+      if (project.freelancer_name) {
+        setAssignedFreelancer({
+          id: project.freelancer_id,
+          name: project.freelancer_name,
+          email: project.freelancer_email || '',
+          title: '',
+          rating: 0,
+          total_reviews: 0,
+          bio: '',
+          hourly_rate: 0,
+          availability: 'unknown',
+          skills: [],
+          member_since: new Date().toISOString()
+        });
+        return;
+      }
+
+      // If not found locally and no populated data, try to fetch from backend
+      setLoadingFreelancer(true);
+      try {
+        const freelancerId = project.freelancer_id?.toString() || project.freelancer_id;
+        if (!freelancerId) {
+          throw new Error('Invalid freelancer ID');
+        }
+
+        const freelancerData = await userService.getUserById(freelancerId);
+        if (freelancerData && freelancerData.id) {
+          setAssignedFreelancer(freelancerData);
+        } else {
+          // Fallback: create minimal freelancer object with just ID
+          setAssignedFreelancer({
+            id: project.freelancer_id,
+            name: 'Assigned Freelancer',
+            email: '',
+            title: '',
+            rating: 0,
+            total_reviews: 0,
+            bio: '',
+            hourly_rate: 0,
+            availability: 'unknown',
+            skills: [],
+            member_since: new Date().toISOString()
+          });
+        }
+      } catch (error: any) {
+        console.error('Failed to load assigned freelancer:', error);
+        // Fallback: create minimal freelancer object
+        setAssignedFreelancer({
+          id: project.freelancer_id,
+          name: 'Assigned Freelancer',
+          email: '',
+          title: '',
+          rating: 0,
+          total_reviews: 0,
+          bio: '',
+          hourly_rate: 0,
+          availability: 'unknown',
+          skills: [],
+          member_since: new Date().toISOString()
+        });
+      } finally {
+        setLoadingFreelancer(false);
+      }
+    };
+
+    loadAssignedFreelancer();
+  }, [project?.freelancer_id, project?.freelancer_name, project?.freelancer_email, freelancers]);
 
   const projectMilestones = project ? getMilestonesByProject(project.id) : [];
   const isSuperAdmin = user?.role === "superadmin";
@@ -283,8 +436,17 @@ export default function ProjectReview() {
     });
       toast.success("Project approved and status changed to In Progress!");
     setIsApproveDialogOpen(false);
-      // Reload activity logs after approval
+      
+      // Reload project to get updated status
       if (id) {
+        try {
+          const updatedProject = await getProject(id);
+          setProject(updatedProject || project);
+        } catch (error) {
+          console.error('Failed to reload project:', error);
+        }
+        
+        // Reload activity logs after approval
         try {
           const logs = await getProjectActivityLogs(id);
           setActivityLogs(logs);
@@ -292,7 +454,6 @@ export default function ProjectReview() {
           console.error('Failed to reload activity logs:', error);
         }
       }
-    navigate(isAgent ? "/agent/projects" : "/admin/projects");
     } catch (error: any) {
       console.error('Failed to approve project:', error);
       toast.error(error?.response?.data?.message || "Failed to approve project");
@@ -606,7 +767,7 @@ export default function ProjectReview() {
         </div>
 
         {/* Action Buttons */}
-        {(project.status === "pending_review" || project.status === "active") && isAdmin && (
+        {project.status === "pending_review" && isAdmin && (
           <Card className="p-4 bg-yellow-50 border-yellow-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -963,90 +1124,89 @@ export default function ProjectReview() {
 
               {/* Assigned Freelancer Tab */}
               <TabsContent value="freelancer" className="space-y-4">
-                {project.freelancer_id ? (
-                  (() => {
-                    const freelancer = freelancers.find(
-                      (f) => f.id === project.freelancer_id
-                    );
-                    if (!freelancer) {
-                      return (
-                        <Card className="p-6">
-                          <div className="text-center py-8">
-                            <Users className="size-12 text-gray-400 mx-auto mb-4" />
-                            <h3 className="text-lg font-medium mb-2">
-                              Freelancer Not Found
-                            </h3>
-                            <p className="text-gray-600">
-                              Freelancer with ID {project.freelancer_id} could
-                              not be found.
-                            </p>
-                          </div>
-                        </Card>
-                      );
-                    }
+                {loadingFreelancer ? (
+                  <Card className="p-6">
+                    <div className="text-center py-8">
+                      <p className="text-gray-600">Loading freelancer details...</p>
+                    </div>
+                  </Card>
+                ) : project.freelancer_id ? (
+                  assignedFreelancer ? (
+                    (() => {
+                      const freelancer = assignedFreelancer;
                     return (
                       <>
                         <Card className="p-6">
                           <div className="flex items-start justify-between mb-6">
                             <div className="flex items-center gap-4">
                               <div className="size-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-medium">
-                                {freelancer.name.charAt(0).toUpperCase()}
+                                {freelancer.name?.charAt(0)?.toUpperCase() || 'F'}
                               </div>
                               <div>
                                 <h2 className="text-2xl font-medium">
                                   {freelancer.name}
                                 </h2>
                                 <p className="text-gray-600">
-                                  {freelancer.title}
+                                  {freelancer.title || 'Freelancer'}
                                 </p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-yellow-500">⭐</span>
-                                  <span className="font-medium">
-                                    {freelancer.rating.toFixed(1)}
-                                  </span>
-                                  <span className="text-gray-500">
-                                    ({freelancer.total_reviews} reviews)
-                                  </span>
-                                </div>
+                                {freelancer.rating !== undefined && freelancer.rating > 0 && (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-yellow-500">⭐</span>
+                                    <span className="font-medium">
+                                      {freelancer.rating.toFixed(1)}
+                                    </span>
+                                    <span className="text-gray-500">
+                                      ({freelancer.total_reviews || 0} reviews)
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            <Badge
-                              className={
-                                freelancer.availability === "available"
-                                  ? "bg-green-100 text-green-700"
-                                  : freelancer.availability === "busy"
-                                  ? "bg-yellow-100 text-yellow-700"
-                                  : "bg-gray-100 text-gray-700"
-                              }
-                            >
-                              {freelancer.availability}
-                            </Badge>
+                            {freelancer.availability && freelancer.availability !== 'unknown' && (
+                              <Badge
+                                className={
+                                  freelancer.availability === "available"
+                                    ? "bg-green-100 text-green-700"
+                                    : freelancer.availability === "busy"
+                                    ? "bg-yellow-100 text-yellow-700"
+                                    : "bg-gray-100 text-gray-700"
+                                }
+                              >
+                                {freelancer.availability}
+                              </Badge>
+                            )}
                           </div>
 
                           <div className="space-y-4 pt-4 border-t">
-                            <div>
-                              <Label className="text-gray-600">Email</Label>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Mail className="size-4 text-gray-400" />
-                                <p>{freelancer.email}</p>
+                            {freelancer.email && (
+                              <div>
+                                <Label className="text-gray-600">Email</Label>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Mail className="size-4 text-gray-400" />
+                                  <p>{freelancer.email}</p>
+                                </div>
                               </div>
-                            </div>
+                            )}
 
-                            <div>
-                              <Label className="text-gray-600">Bio</Label>
-                              <div className="mt-1">
-                                <RichTextViewer content={freelancer.bio || ''} />
+                            {freelancer.bio && (
+                              <div>
+                                <Label className="text-gray-600">Bio</Label>
+                                <div className="mt-1">
+                                  <RichTextViewer content={freelancer.bio || ''} />
+                                </div>
                               </div>
-                            </div>
+                            )}
 
-                            <div>
-                              <Label className="text-gray-600">
-                                Hourly Rate
-                              </Label>
-                              <p className="mt-1 font-medium">
-                                ₹{freelancer.hourly_rate}/hour
-                              </p>
-                            </div>
+                            {freelancer.hourly_rate && freelancer.hourly_rate > 0 && (
+                              <div>
+                                <Label className="text-gray-600">
+                                  Hourly Rate
+                                </Label>
+                                <p className="mt-1 font-medium">
+                                  ₹{freelancer.hourly_rate}/hour
+                                </p>
+                              </div>
+                            )}
 
                             {freelancer.skills &&
                               freelancer.skills.length > 0 && (
@@ -1064,25 +1224,70 @@ export default function ProjectReview() {
                                 </div>
                               )}
 
-                            <div>
-                              <Label className="text-gray-600">
-                                Member Since
-                              </Label>
-                              <p className="mt-1">
-                                {new Date(
-                                  freelancer.member_since
-                                ).toLocaleDateString()}
-                              </p>
-                            </div>
+                            {freelancer.member_since && (
+                              <div>
+                                <Label className="text-gray-600">
+                                  Member Since
+                                </Label>
+                                <p className="mt-1">
+                                  {new Date(
+                                    freelancer.member_since
+                                  ).toLocaleDateString()}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </Card>
 
-                        {freelancer.portfolio &&
-                          freelancer.portfolio.length > 0 && (
+                        {/* Accepted Proposal Section */}
+                        {loadingAcceptedBidding ? (
+                          <Card className="p-6">
+                            <div className="text-center py-4">
+                              <p className="text-gray-600">Loading proposal details...</p>
+                            </div>
+                          </Card>
+                        ) : acceptedBidding ? (
+                          <Card className="p-6">
+                            <h3 className="text-lg font-medium mb-4">Accepted Proposal</h3>
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label className="text-gray-600">Bid Amount</Label>
+                                  <p className="text-xl font-semibold mt-1">
+                                    ₹{acceptedBidding.bidAmount?.toLocaleString() || 'N/A'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <Label className="text-gray-600">Timeline</Label>
+                                  <p className="text-xl font-semibold mt-1">
+                                    {acceptedBidding.timeline || 'N/A'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-gray-600">Proposal</Label>
+                                <div className="mt-2">
+                                  <RichTextViewer content={acceptedBidding.proposal || acceptedBidding.description || 'No proposal provided.'} />
+                                </div>
+                              </div>
+                              {acceptedBidding.submittedAt && (
+                                <div>
+                                  <Label className="text-gray-600">Submitted On</Label>
+                                  <p className="mt-1">
+                                    {new Date(acceptedBidding.submittedAt).toLocaleString()}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </Card>
+                        ) : null}
+
+                        {(freelancer as any).portfolio &&
+                          (freelancer as any).portfolio.length > 0 && (
                             <Card className="p-6">
                               <h3 className="font-medium mb-4">Portfolio</h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {freelancer.portfolio.map((item, idx) => (
+                                {(freelancer as any).portfolio.map((item: any, idx: number) => (
                                   <div
                                     key={idx}
                                     className="border rounded-lg p-4"
@@ -1125,14 +1330,14 @@ export default function ProjectReview() {
                             </Card>
                           )}
 
-                        {freelancer.certifications &&
-                          freelancer.certifications.length > 0 && (
+                        {(freelancer as any).certifications &&
+                          (freelancer as any).certifications.length > 0 && (
                             <Card className="p-6">
                               <h3 className="font-medium mb-4">
                                 Certifications
                               </h3>
                               <div className="space-y-3">
-                                {freelancer.certifications.map((cert, idx) => (
+                                {(freelancer as any).certifications.map((cert: any, idx: number) => (
                                   <div
                                     key={idx}
                                     className="flex items-center justify-between border-b pb-3 last:border-0"
@@ -1157,7 +1362,7 @@ export default function ProjectReview() {
                               className="flex-1"
                               onClick={() =>
                                 navigate(
-                                  `/admin/freelancers/${freelancer.id}/detail`
+                                  `/admin/users/${freelancer.id}/freelancer`
                                 )
                               }
                             >
@@ -1173,6 +1378,19 @@ export default function ProjectReview() {
                       </>
                     );
                   })()
+                  ) : (
+                    <Card className="p-6">
+                      <div className="text-center py-8">
+                        <Users className="size-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium mb-2">
+                          Freelancer Not Found
+                        </h3>
+                        <p className="text-gray-600">
+                          Freelancer with ID {project.freelancer_id} could not be found.
+                        </p>
+                      </div>
+                    </Card>
+                  )
                 ) : (
                   <Card className="p-6">
                     <div className="text-center py-8">
@@ -1466,6 +1684,60 @@ export default function ProjectReview() {
             <Card className="p-6">
               <h3 className="font-medium mb-4">Quick Actions</h3>
               <div className="space-y-3">
+                {/* Project Status Update - Only for admin, agent, and superadmin */}
+                {(isAdmin || isAgent) && project && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Project Status</Label>
+                    <Select
+                      value={project.status}
+                      onValueChange={async (newStatus) => {
+                        if (newStatus === project.status) return;
+                        try {
+                          // Update project status
+                          await updateProject(project.id, { status: newStatus as any });
+                          toast.success(`Project status updated to ${statusLabels[newStatus as keyof typeof statusLabels] || newStatus}`);
+                          
+                          // Force refresh from backend to get latest data (bypass cache)
+                          // Small delay to ensure backend has processed the update
+                          setTimeout(async () => {
+                            try {
+                              const refreshedProject = await getProject(project.id, true);
+                              if (refreshedProject) {
+                                setProject(refreshedProject);
+                              }
+                            } catch (error) {
+                              console.error('Failed to refresh project after status update:', error);
+                            }
+                          }, 300);
+                        } catch (error: any) {
+                          console.error('Failed to update project status:', error);
+                          toast.error(error?.response?.data?.message || 'Failed to update project status');
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded text-xs ${statusColors[project.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-700'}`}>
+                              {statusLabels[project.status as keyof typeof statusLabels] || project.status}
+                            </span>
+                          </div>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(statusLabels).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 rounded text-xs ${statusColors[value as keyof typeof statusColors] || 'bg-gray-100 text-gray-700'}`}>
+                                {label}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 {/* Hide "Add Bids" button if project already has a bid created by admin/superadmin or the agent themselves */}
                 {(() => {
                   const existingBid = projectBids.find(b => b.projectId === project?.id);
@@ -1627,11 +1899,12 @@ export default function ProjectReview() {
             <div className="space-y-4">
               <div>
                 <Label>Rejection Reason *</Label>
-                <Textarea
-                  placeholder="Explain why this project is being rejected..."
+                <RichTextEditor
                   value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  rows={4}
+                  onChange={setRejectionReason}
+                  placeholder="Explain why this project is being rejected..."
+                  className="mt-1"
+                  minHeight="150px"
                 />
               </div>
             </div>
@@ -1781,12 +2054,12 @@ export default function ProjectReview() {
 
               <div>
                 <Label htmlFor="milestone-description">Description *</Label>
-                <Textarea
-                  id="milestone-description"
-                  placeholder="Describe what needs to be completed in this milestone..."
-                  rows={4}
+                <RichTextEditor
                   value={milestoneDescription}
-                  onChange={(e) => setMilestoneDescription(e.target.value)}
+                  onChange={setMilestoneDescription}
+                  placeholder="Describe what needs to be completed in this milestone..."
+                  className="mt-1"
+                  minHeight="150px"
                 />
               </div>
             </div>
@@ -1933,12 +2206,12 @@ export default function ProjectReview() {
                 <Label htmlFor="edit-milestone-description">
                   Description *
                 </Label>
-                <Textarea
-                  id="edit-milestone-description"
-                  placeholder="Describe what needs to be completed in this milestone..."
-                  rows={4}
+                <RichTextEditor
                   value={editMilestoneDescription}
-                  onChange={(e) => setEditMilestoneDescription(e.target.value)}
+                  onChange={setEditMilestoneDescription}
+                  placeholder="Describe what needs to be completed in this milestone..."
+                  className="mt-1"
+                  minHeight="150px"
                 />
               </div>
             </div>

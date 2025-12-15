@@ -18,8 +18,10 @@ export function useSocket() {
     }
 
     // Connect socket
-    const token = sessionStorage.getItem('token') || '';
-    socketService.connect(user.id, token);
+    const token = sessionStorage.getItem('auth_token') || '';
+    if (token && user.id) {
+      socketService.connect(user.id, token);
+    }
 
     // Listen to connection changes
     const unsubscribeConnection = socketService.onConnectionChange((connected) => {

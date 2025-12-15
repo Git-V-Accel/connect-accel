@@ -26,7 +26,20 @@ class SocketService {
    * Initialize socket connection
    */
   connect(userId: string, token: string, serverUrl?: string): void {
+    if (!token || !userId) {
+      console.warn('Socket connect called without token or userId');
+      return;
+    }
+
     if (this.isConnecting || (this.socket && this.socket.connected)) {
+      // If already connected but token changed, update auth
+      if (this.token !== token && this.socket) {
+        this.token = token;
+        this.socket.auth = {
+          token,
+          userId,
+        };
+      }
       return;
     }
 
@@ -111,6 +124,15 @@ class SocketService {
     this.socket.on(SocketEvents.RECONNECT_ATTEMPT, (attemptNumber) => {
       console.log('Reconnection attempt:', attemptNumber);
       this.reconnectAttempts = attemptNumber;
+      // Update auth token before reconnection attempt
+      const token = sessionStorage.getItem('auth_token');
+      if (token && this.socket) {
+        this.token = token;
+        this.socket.auth = {
+          token,
+          userId: this.userId,
+        };
+      }
     });
 
     this.socket.on(SocketEvents.RECONNECT_ERROR, (error) => {
@@ -630,8 +652,19 @@ class SocketService {
    * Reconnect manually
    */
   reconnect(): void {
-    if (this.socket && !this.socket.connected && this.userId && this.token) {
+    // Get fresh token from sessionStorage
+    const token = sessionStorage.getItem('auth_token');
+    if (this.socket && !this.socket.connected && this.userId && token) {
+      // Update token before reconnecting
+      this.token = token;
+      this.socket.auth = {
+        token,
+        userId: this.userId,
+      };
       this.socket.connect();
+    } else if (this.userId && token) {
+      // If socket doesn't exist, create a new connection
+      this.connect(this.userId, token);
     }
   }
 }

@@ -333,7 +333,10 @@ const getBiddingDetails = async (req, res) => {
 
     const bidding = await Bidding.findById(biddingId)
       .populate('adminBidId')
-      .populate('projectId')
+      .populate({
+        path: 'projectId',
+        select: 'title description budget timeline status client assignedAgentId assignedFreelancerId assignedFreelancer'
+      })
       .populate('freelancerId', 'name email');
 
     if (!bidding) {
@@ -344,8 +347,15 @@ const getBiddingDetails = async (req, res) => {
     const isBidder = bidding.freelancerId._id.toString() === req.user.id;
     const isAdminBidOwner = bidding.adminBidId.bidderId.toString() === req.user.id;
     const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+    
+    // Check if agent is assigned to the project
+    let agentHasAccess = false;
+    if (req.user.role === 'agent') {
+      const project = bidding.projectId;
+      agentHasAccess = project?.assignedAgentId?.toString() === req.user.id;
+    }
 
-    if (!isBidder && !isAdminBidOwner && !isAdmin) {
+    if (!isBidder && !isAdminBidOwner && !isAdmin && !agentHasAccess) {
       return sendResponse(res, false, null, 'Access denied', 403);
     }
 
@@ -493,18 +503,31 @@ const updateShortlistStatus = async (req, res) => {
     const { biddingId } = req.params;
     const { isShortlisted } = req.body;
 
-    // Check if user is admin or superadmin
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      return sendResponse(res, false, null, 'Access denied. Admin or Super Admin role required.', 403);
-    }
-
-    const bidding = await Bidding.findById(biddingId).populate('freelancerId', 'name email');
+    const bidding = await Bidding.findById(biddingId)
+      .populate('freelancerId', 'name email')
+      .populate({
+        path: 'projectId',
+        select: 'assignedAgentId title'
+      });
     if (!bidding) {
       return sendResponse(res, false, null, 'Bidding not found', 404);
     }
 
+    // Check if user is admin, superadmin, or agent assigned to the project
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+    const isAssignedAgent = req.user.role === 'agent' && bidding.projectId?.assignedAgentId?.toString() === req.user.id;
+    
+    if (!isAdmin && !isAssignedAgent) {
+      return sendResponse(res, false, null, 'Access denied. Admin, Super Admin, or assigned Agent role required.', 403);
+    }
+
     // Update shortlist status
     bidding.isShortlisted = isShortlisted;
+    if (isShortlisted && bidding.status === 'pending') {
+      bidding.status = 'shortlisted';
+    } else if (!isShortlisted && bidding.status === 'shortlisted' && !bidding.isAccepted && !bidding.isDeclined) {
+      bidding.status = 'pending';
+    }
     await bidding.save();
 
     sendResponse(res, true, { 
@@ -519,7 +542,7 @@ const updateShortlistStatus = async (req, res) => {
         await sendShortlistedEmail({
           to: bidding.freelancerId.email,
           freelancerName: bidding.freelancerId.name,
-          projectTitle: bidding.projectId?.title || 'Project',
+          projectTitle: bidding.projectId?.title || bidding.projectTitle || 'Project',
         });
 
         // Also create an in-app notification and emit via socket
@@ -527,7 +550,7 @@ const updateShortlistStatus = async (req, res) => {
           bidding.freelancerId._id,
           'system',
           'Your Proposal Was Shortlisted',
-          `Your proposal for ${bidding.projectId?.title || 'a project'} has been shortlisted by the admin.`,
+          `Your proposal for ${bidding.projectId?.title || bidding.projectTitle || 'a project'} has been shortlisted by the admin.`,
           bidding.projectId,
           { biddingId: bidding._id }
         );
@@ -565,17 +588,23 @@ const updateAcceptanceStatus = async (req, res) => {
     const { biddingId } = req.params;
     const { isAccepted } = req.body;
 
-    // Check if user is admin or superadmin
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      return sendResponse(res, false, null, 'Access denied. Admin or Super Admin role required.', 403);
-    }
-
     const bidding = await Bidding.findById(biddingId)
       .populate('freelancerId', 'name email')
-      .populate('projectId', 'title');
+      .populate({
+        path: 'projectId',
+        select: 'title assignedAgentId'
+      });
     
     if (!bidding) {
       return sendResponse(res, false, null, 'Bidding not found', 404);
+    }
+
+    // Check if user is admin, superadmin, or agent assigned to the project
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+    const isAssignedAgent = req.user.role === 'agent' && bidding.projectId?.assignedAgentId?.toString() === req.user.id;
+    
+    if (!isAdmin && !isAssignedAgent) {
+      return sendResponse(res, false, null, 'Access denied. Admin, Super Admin, or assigned Agent role required.', 403);
     }
 
     // Business rule: Only one freelancer can be accepted per project
@@ -612,6 +641,78 @@ const updateAcceptanceStatus = async (req, res) => {
       }
     } catch (e) {
       console.error('Failed to update parent admin bid status for acceptance:', e?.message || e);
+    }
+
+    // Update project's assignedFreelancerId when bidding is accepted/unaccepted
+    if (bidding.projectId) {
+      try {
+        const ActivityLogger = require('../services/activityLogger');
+        const projectId = bidding.projectId._id || bidding.projectId;
+        
+        if (isAccepted) {
+          // Assign freelancer to project
+          await Project.findByIdAndUpdate(projectId, {
+            assignedFreelancer: bidding.freelancerId.name,
+            assignedFreelancerId: bidding.freelancerId._id,
+            status: 'active'
+          });
+
+          // Log assignment activity
+          try {
+            await ActivityLogger.logFreelancerAssigned(
+              projectId,
+              req.user.id,
+              bidding.freelancerId.name,
+              req
+            );
+          } catch (e) {
+            console.error('Failed to log freelancer assignment activity:', e?.message || e);
+          }
+
+          // Log proposal acceptance activity
+          try {
+            await ActivityLogger.logActivity({
+              user: req.user.id,
+              project: projectId,
+              activityType: 'proposal_accepted',
+              title: 'Proposal Accepted',
+              description: `Freelancer "${bidding.freelancerId.name}"'s proposal was accepted for project "${bidding.projectId?.title || 'Project'}". Bid Amount: ₹${bidding.bidAmount?.toLocaleString() || 'N/A'}, Timeline: ${bidding.timeline || 'N/A'}`,
+              metadata: {
+                freelancerId: bidding.freelancerId._id,
+                freelancerName: bidding.freelancerId.name,
+                biddingId: bidding._id,
+                bidAmount: bidding.bidAmount,
+                timeline: bidding.timeline,
+                proposal: bidding.proposal || bidding.description || '',
+                acceptedBy: req.user.id,
+                acceptedByName: req.user.name,
+                acceptedByRole: req.user.role
+              },
+              tags: ['proposal', 'acceptance', 'freelancer', 'bidding'],
+              severity: 'high'
+            }, req);
+          } catch (e) {
+            console.error('Failed to log proposal acceptance activity:', e?.message || e);
+          }
+
+          // Emit realtime update
+          try {
+            socketService.emitProjectUpdate(projectId, 'freelancer-assigned', {
+              freelancerName: bidding.freelancerId.name,
+              freelancerId: bidding.freelancerId._id
+            });
+          } catch (e) {
+            console.error('Failed to emit freelancer-assigned event:', e?.message || e);
+          }
+        } else {
+          // Unassign freelancer from project
+          await Project.findByIdAndUpdate(projectId, {
+            $unset: { assignedFreelancer: '', assignedFreelancerId: '' }
+          });
+        }
+      } catch (e) {
+        console.error('Failed to update project assignedFreelancerId:', e?.message || e);
+      }
     }
 
     // If bid is accepted, send notification and email to freelancer
@@ -707,17 +808,23 @@ const updateDeclineStatus = async (req, res) => {
     const { biddingId } = req.params;
     const { isDeclined } = req.body;
 
-    // Check if user is admin or superadmin
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      return sendResponse(res, false, null, 'Access denied. Admin or Super Admin role required.', 403);
-    }
-
     const bidding = await Bidding.findById(biddingId)
       .populate('freelancerId', 'name email')
-      .populate('projectId', 'title');
+      .populate({
+        path: 'projectId',
+        select: 'title assignedAgentId'
+      });
     
     if (!bidding) {
       return sendResponse(res, false, null, 'Bidding not found', 404);
+    }
+
+    // Check if user is admin, superadmin, or agent assigned to the project
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+    const isAssignedAgent = req.user.role === 'agent' && bidding.projectId?.assignedAgentId?.toString() === req.user.id;
+    
+    if (!isAdmin && !isAssignedAgent) {
+      return sendResponse(res, false, null, 'Access denied. Admin, Super Admin, or assigned Agent role required.', 403);
     }
 
     // Update decline status
