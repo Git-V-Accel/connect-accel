@@ -615,7 +615,7 @@ export default function AdminBidDetail() {
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">Budget</div>
-                  <div className="text-sm">${project.budget.toLocaleString()}</div>
+                  <div className="text-sm">₹{project.budget.toLocaleString()}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">Category</div>
@@ -646,18 +646,18 @@ export default function AdminBidDetail() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Project Budget</span>
-                  <span className="text-sm">${project.budget.toLocaleString()}</span>
+                  <span className="text-sm">₹{project.budget.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">This Bid</span>
-                  <span className="text-sm">${bid.amount.toLocaleString()}</span>
+                  <span className="text-sm">₹{bid.amount.toLocaleString()}</span>
                 </div>
                 <div className="pt-2 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Difference</span>
                     <span className={`text-sm ${bid.amount <= project.budget ? 'text-green-600' : 'text-red-600'}`}>
                       {bid.amount <= project.budget ? '-' : '+'}
-                      ${Math.abs(project.budget - bid.amount).toLocaleString()}
+                      ₹{Math.abs(project.budget - bid.amount).toLocaleString()}
                     </span>
                   </div>
                 </div>

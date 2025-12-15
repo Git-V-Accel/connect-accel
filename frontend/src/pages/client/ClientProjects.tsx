@@ -11,6 +11,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useData, Project } from '../../contexts/DataContext';
 import { Plus, Search, Calendar, IndianRupee, User, ArrowRight, Filter } from 'lucide-react';
 import { statusColors, statusLabels } from '../../constants/projectConstants';
+import { RichTextViewer } from '../../components/common';
 
 export default function ClientProjects() {
   const { user } = useAuth();
@@ -73,7 +74,7 @@ export default function ClientProjects() {
                   {statusLabels[project.status]}
                 </Badge>
               </div>
-              <p className="text-sm text-gray-600 line-clamp-2">{project.description}</p>
+              <p className="text-sm text-gray-600 line-clamp-2"><RichTextViewer content={project.description || ''} /></p>
             </div>
           </div>
 

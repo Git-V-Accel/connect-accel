@@ -1,20 +1,25 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import DashboardLayout from '../../components/shared/DashboardLayout';
-import { Card } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Input } from '../../components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import DashboardLayout from "../../components/shared/DashboardLayout";
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Input } from "../../components/ui/input";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../../components/ui/tabs";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../components/ui/select';
-import { useData } from '../../contexts/DataContext';
-import { statusColors, statusLabels } from '../../constants/projectConstants';
+} from "../../components/ui/select";
+import { useData } from "../../contexts/DataContext";
+import { statusColors, statusLabels } from "../../constants/projectConstants";
 import {
   Search,
   Filter,
@@ -30,15 +35,15 @@ import {
   Calendar,
   User,
   TrendingUp,
-} from 'lucide-react';
+} from "lucide-react";
+import { RichTextViewer } from "../../components/common";
 
 export default function AdminProjects() {
   const { projects } = useData();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('date_desc');
-
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date_desc");
 
   const filterProjects = (statusValue: string) => {
     let filtered = projects;
@@ -54,25 +59,29 @@ export default function AdminProjects() {
     }
 
     // Status filter
-    if (statusValue !== 'all') {
+    if (statusValue !== "all") {
       filtered = filtered.filter((p) => p.status === statusValue);
     }
 
     // Category filter
-    if (categoryFilter !== 'all') {
+    if (categoryFilter !== "all") {
       filtered = filtered.filter((p) => p.category === categoryFilter);
     }
 
     // Sort
     filtered = [...filtered].sort((a, b) => {
       switch (sortBy) {
-        case 'date_desc':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case 'date_asc':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        case 'budget_desc':
+        case "date_desc":
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        case "date_asc":
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+        case "budget_desc":
           return b.client_budget - a.client_budget;
-        case 'budget_asc':
+        case "budget_asc":
           return a.client_budget - b.client_budget;
         default:
           return 0;
@@ -82,10 +91,10 @@ export default function AdminProjects() {
     return filtered;
   };
 
-  const pendingProjects = filterProjects('pending_review');
-  const biddingProjects = filterProjects('in_bidding');
-  const activeProjects = filterProjects('in_progress');
-  const completedProjects = filterProjects('completed');
+  const pendingProjects = filterProjects("pending_review");
+  const biddingProjects = filterProjects("in_bidding");
+  const activeProjects = filterProjects("in_progress");
+  const completedProjects = filterProjects("completed");
   const allProjects = filterProjects(statusFilter);
 
   const ProjectCard = ({ project }: { project: any }) => (
@@ -106,11 +115,13 @@ export default function AdminProjects() {
             </div>
           </div>
           <Badge className={statusColors[project.status]}>
-            {statusLabels[project.status] || project.status.replace('_', ' ')}
+            {statusLabels[project.status] || project.status.replace("_", " ")}
           </Badge>
         </div>
 
-        <p className="text-gray-700 line-clamp-2">{project.description}</p>
+        <p className="text-sm text-gray-600 line-clamp-2">
+          <RichTextViewer content={project.description || ""} />
+        </p>
 
         <div className="flex items-center gap-2">
           <Badge variant="outline">{project.category}</Badge>
@@ -124,9 +135,11 @@ export default function AdminProjects() {
         <div className="grid grid-cols-3 gap-4 py-4 border-y">
           <div>
             <div className="text-sm text-gray-600">Client Budget</div>
-            <div className="font-medium">₹{project.client_budget.toLocaleString()}</div>
+            <div className="font-medium">
+              ₹{project.client_budget.toLocaleString()}
+            </div>
           </div>
-         
+
           <div>
             <div className="text-sm text-gray-600">Timeline</div>
             <div className="font-medium">{project.timeline}</div>
@@ -134,27 +147,27 @@ export default function AdminProjects() {
         </div>
 
         <div className="flex items-center justify-between">
-          {project.status === 'pending_review' && (
+          {project.status === "pending_review" && (
             <div className="flex items-center gap-2 text-yellow-600">
               <AlertCircle className="size-4" />
               <span className="text-sm font-medium">Awaiting Review</span>
             </div>
           )}
-          {project.status === 'in_bidding' && (
+          {project.status === "in_bidding" && (
             <div className="flex items-center gap-2 text-blue-600">
               <FileText className="size-4" />
               <span className="text-sm font-medium">0 Bids Received</span>
             </div>
           )}
-          {project.status === 'in_progress' && (
+          {project.status === "in_progress" && (
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle className="size-4" />
               <span className="text-sm font-medium">In Progress</span>
             </div>
           )}
-          {!['pending_review', 'in_bidding', 'in_progress'].includes(project.status) && (
-            <div />
-          )}
+          {!["pending_review", "in_bidding", "in_progress"].includes(
+            project.status
+          ) && <div />}
 
           <Link to={`/admin/projects/${project.id}/review`}>
             <Button size="sm">
@@ -218,7 +231,10 @@ export default function AdminProjects() {
               <div>
                 <p className="text-sm text-gray-600">Total Revenue</p>
                 <p className="text-2xl mt-1">
-                  ₹{projects.reduce((sum, p) => sum + (p.margin || 0), 0).toLocaleString()}
+                  ₹
+                  {projects
+                    .reduce((sum, p) => sum + (p.margin || 0), 0)
+                    .toLocaleString()}
                 </p>
               </div>
               <div className="bg-purple-100 p-3 rounded-lg">
@@ -249,12 +265,18 @@ export default function AdminProjects() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="Web Development">Web Development</SelectItem>
-                  <SelectItem value="Mobile Development">Mobile Development</SelectItem>
+                  <SelectItem value="Web Development">
+                    Web Development
+                  </SelectItem>
+                  <SelectItem value="Mobile Development">
+                    Mobile Development
+                  </SelectItem>
                   <SelectItem value="UI/UX Design">UI/UX Design</SelectItem>
                   <SelectItem value="Data Science">Data Science</SelectItem>
                   <SelectItem value="DevOps">DevOps</SelectItem>
-                  <SelectItem value="Content Writing">Content Writing</SelectItem>
+                  <SelectItem value="Content Writing">
+                    Content Writing
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

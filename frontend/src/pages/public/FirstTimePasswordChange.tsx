@@ -8,6 +8,7 @@ import { Shield, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import * as authService from '../../services/authService';
 import { useAuth } from '../../contexts/AuthContext';
+import { socketService } from '../../services/socketService';
 
 export default function FirstTimePasswordChange() {
   const navigate = useNavigate();
@@ -87,20 +88,40 @@ export default function FirstTimePasswordChange() {
         setSuccess(true);
         toast.success(response.message || 'Password changed successfully! Your account has been activated.');
         
+        // Create updated user object
+        const updatedUser = {
+          id: response.user.id,
+          userID: response.user.userID,
+          email: response.user.email,
+          name: response.user.name,
+          role: response.user.role,
+          avatar: response.user.avatar,
+          email_verified: true,
+          isFirstLogin: false,
+          status: response.user.status || 'active',
+          created_at: new Date().toISOString(),
+        };
+
+        // Update sessionStorage with updated user data
+        sessionStorage.setItem('connect_accel_user', JSON.stringify(updatedUser));
+
         // Update user in context
         if (setUser) {
-          setUser({
-            ...user!,
-            isFirstLogin: false,
-            status: 'active',
-          });
+          setUser(updatedUser);
         }
 
-        // Redirect to dashboard after a short delay
+        // Connect socket with the user's token (token should already be in sessionStorage from login)
+        const token = sessionStorage.getItem('auth_token');
+        if (token && updatedUser.id) {
+          socketService.connect(updatedUser.id, token);
+        }
+
+        // Redirect to dashboard after a short delay to ensure context is updated
         setTimeout(() => {
-          const route = getRoleBasedRoute(response.user!.role);
-          navigate(route, { replace: true });
-        }, 2000);
+          const route = getRoleBasedRoute(response.user.role);
+          // Use window.location.href to force a full page reload and re-initialize auth context
+          window.location.href = route;
+        }, 1500);
       } else {
         toast.error(response.message || 'Failed to change password.');
       }

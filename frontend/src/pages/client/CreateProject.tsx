@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Calendar, IndianRupee, FileText, Settings, Plus, X, Phone } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { categories, commonSkills, projectTypes, projectPriorities } from '../../constants/projectConstants';
+import { RichTextViewer } from '../../components/common';
 
 export default function CreateProject() {
   const { user } = useAuth();
@@ -498,7 +499,7 @@ export default function CreateProject() {
             <Card className="p-6 space-y-4">
               <div>
                 <h3 className="text-lg font-medium mb-2">{formData.title}</h3>
-                <p className="text-gray-600">{formData.description}</p>
+                <p className="text-gray-600"><RichTextViewer content={formData.description || ''} /></p>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4 pt-4 border-t">

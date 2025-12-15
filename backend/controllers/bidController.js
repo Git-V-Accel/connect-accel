@@ -428,7 +428,13 @@ const getBidDetails = async (req, res) => {
     if (!canAccess && req.user.role === 'freelancer') {
       const project = bid.projectId && bid.projectId.client ? bid.projectId : await Project.findById(bid.projectId);
       const projectStatus = project?.status;
-      const isProjectOpenForBidding = project?.isOpenForBidding !== false && ['pending', 'active', 'in_progress'].includes(projectStatus);
+      
+      // Project is open for bidding if it's not completed, cancelled, rejected, or closed
+      const closedStatuses = ['completed', 'cancelled', 'rejected', 'closed'];
+      const isProjectOpenForBidding = project?.isOpenForBidding !== false && !closedStatuses.includes(projectStatus);
+      
+      // Allow freelancers to view bids that are pending and project is open for bidding
+      // OR if they already submitted a proposal for this bid
       if (bid.status === 'pending' && isProjectOpenForBidding) {
         canAccess = true;
       } else {

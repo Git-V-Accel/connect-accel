@@ -24,6 +24,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "../../utils/toast";
+import { RichTextViewer } from "../../components/common";
 
 export default function CreateBid() {
   const { id } = useParams();
@@ -232,7 +233,7 @@ export default function CreateBid() {
               <div className="space-y-4">
                 <div>
                   <Label className="text-gray-600">Description</Label>
-                  <p className="mt-2 text-gray-900">{project.description}</p>
+                  <p className="mt-2 text-gray-900"><RichTextViewer content={project.description || ''} /></p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4 pt-4 border-t">
