@@ -401,6 +401,196 @@ export default function ProjectReview() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
 
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState<{
+    editedTitle?: string;
+    editedDescription?: string;
+    editedBudget?: string;
+    editedTimeline?: string;
+    rejectionReason?: string;
+    milestoneTitle?: string;
+    milestoneStartDate?: string;
+    milestoneEndDate?: string;
+    milestoneAmountPercent?: string;
+    milestoneAmount?: string;
+    milestoneDescription?: string;
+    editMilestoneTitle?: string;
+    editMilestoneStartDate?: string;
+    editMilestoneEndDate?: string;
+    editMilestoneAmountPercent?: string;
+    editMilestoneAmount?: string;
+    editMilestoneDescription?: string;
+    selectedAgentId?: string;
+  }>({});
+
+  // Validation functions
+  const validateTitle = (title: string): string => {
+    if (!title.trim()) {
+      return "Title is required";
+    }
+    if (title.trim().length > 100) {
+      return "Title cannot exceed 100 characters";
+    }
+    return "";
+  };
+
+  const validateDescription = (description: string): string => {
+    if (!description.trim()) {
+      return "Description is required";
+    }
+    if (description.trim().length < 10) {
+      return "Description must be at least 10 characters";
+    }
+    return "";
+  };
+
+  const validateBudget = (budget: string): string => {
+    if (!budget.trim()) {
+      return "Budget is required";
+    }
+    const budgetNum = parseFloat(budget);
+    if (isNaN(budgetNum)) {
+      return "Budget must be a valid number";
+    }
+    if (budgetNum < 0) {
+      return "Budget cannot be negative";
+    }
+    if (budgetNum === 0) {
+      return "Budget must be greater than 0";
+    }
+    return "";
+  };
+
+  const validateTimeline = (timeline: string): string => {
+    if (!timeline.trim()) {
+      return "Timeline is required";
+    }
+    const weeksMatch = timeline.match(/(\d+)\s*(?:week|weeks?)/i);
+    if (!weeksMatch) {
+      return "Please enter timeline in format: 'X weeks' (e.g., '2 weeks')";
+    }
+    const weeks = parseInt(weeksMatch[1]);
+    if (weeks <= 0) {
+      return "Timeline must be at least 1 week";
+    }
+    if (weeks > 104) {
+      return "Timeline cannot exceed 104 weeks (2 years)";
+    }
+    return "";
+  };
+
+  const validateRejectionReason = (reason: string): string => {
+    if (!reason.trim()) {
+      return "Rejection reason is required";
+    }
+    if (reason.trim().length < 10) {
+      return "Rejection reason must be at least 10 characters";
+    }
+    return "";
+  };
+
+  const validateMilestoneTitle = (title: string): string => {
+    if (!title.trim()) {
+      return "Milestone title is required";
+    }
+    if (title.trim().length > 100) {
+      return "Milestone title cannot exceed 100 characters";
+    }
+    return "";
+  };
+
+  const validateDate = (date: string, fieldName: string): string => {
+    if (!date) {
+      return `${fieldName} is required`;
+    }
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return `Please enter a valid ${fieldName.toLowerCase()}`;
+    }
+    return "";
+  };
+
+  const validateDateRange = (startDate: string, endDate: string): string => {
+    if (!startDate || !endDate) {
+      return "";
+    }
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (end < start) {
+      return "End date must be after start date";
+    }
+    return "";
+  };
+
+  const validateMilestoneAmountPercent = (percent: string): string => {
+    if (!percent) {
+      return "";
+    }
+    const percentNum = parseFloat(percent);
+    if (isNaN(percentNum)) {
+      return "Percentage must be a valid number";
+    }
+    if (percentNum < 0) {
+      return "Percentage cannot be negative";
+    }
+    if (percentNum > 100) {
+      return "Percentage cannot exceed 100%";
+    }
+    return "";
+  };
+
+  const validateMilestoneAmount = (amount: string, projectBudget?: number): string => {
+    if (!amount) {
+      return "";
+    }
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum)) {
+      return "Amount must be a valid number";
+    }
+    if (amountNum < 0) {
+      return "Amount cannot be negative";
+    }
+    if (projectBudget && amountNum > projectBudget) {
+      return `Amount cannot exceed project budget of ₹${projectBudget.toLocaleString()}`;
+    }
+    return "";
+  };
+
+  const validateMilestoneDescription = (description: string): string => {
+    if (!description.trim()) {
+      return "Milestone description is required";
+    }
+    if (description.trim().length < 10) {
+      return "Description must be at least 10 characters";
+    }
+    return "";
+  };
+
+  const validateAgentSelection = (agentId: string): string => {
+    if (!agentId) {
+      return "Please select an agent";
+    }
+    return "";
+  };
+
+  const validateMilestoneAmountFields = (
+    amountPercent: string,
+    amount: string
+  ): string => {
+    if (!amountPercent && !amount) {
+      return "Please provide either amount percentage or amount";
+    }
+    return "";
+  };
+
+  // Helper function to update validation errors
+  const setFieldError = (field: keyof typeof validationErrors, error: string) => {
+    setValidationErrors((prev) => ({
+      ...prev,
+      [field]: error || undefined,
+    }));
+  };
+
   if (!project) {
     return (
       <DashboardLayout>
@@ -461,8 +651,11 @@ export default function ProjectReview() {
   };
 
   const handleRejectProject = async () => {
-    if (!rejectionReason.trim()) {
-      toast.error("Please provide a rejection reason");
+    const reasonError = validateRejectionReason(rejectionReason);
+    setFieldError("rejectionReason", reasonError);
+
+    if (reasonError) {
+      toast.error("Please provide a valid rejection reason");
       return;
     }
 
@@ -474,6 +667,7 @@ export default function ProjectReview() {
       toast.success("Project rejected successfully");
     setIsRejectDialogOpen(false);
       setRejectionReason("");
+      setFieldError("rejectionReason", "");
       // Reload activity logs after rejection
       if (id) {
         try {
@@ -491,8 +685,21 @@ export default function ProjectReview() {
   };
 
   const handleEditProject = () => {
-    if (!editedTitle.trim() || !editedDescription.trim() || !editedBudget) {
-      toast.error("Please fill all required fields");
+    // Validate all fields
+    const titleError = validateTitle(editedTitle);
+    const descriptionError = validateDescription(editedDescription);
+    const budgetError = validateBudget(editedBudget);
+    const timelineError = validateTimeline(editedTimeline);
+
+    setValidationErrors({
+      editedTitle: titleError,
+      editedDescription: descriptionError,
+      editedBudget: budgetError,
+      editedTimeline: timelineError,
+    });
+
+    if (titleError || descriptionError || budgetError || timelineError) {
+      toast.error("Please fix the validation errors");
       return;
     }
 
@@ -509,6 +716,7 @@ export default function ProjectReview() {
 
     toast.success("Project updated successfully");
     setIsEditing(false);
+    setValidationErrors({});
   };
 
   const handleCancelEdit = () => {
@@ -519,10 +727,14 @@ export default function ProjectReview() {
       project?.duration_weeks ? `${project.duration_weeks} weeks` : ""
     );
     setIsEditing(false);
+    setValidationErrors({});
   };
 
   const handleAssignAgent = async () => {
-    if (!selectedAgentId) {
+    const agentError = validateAgentSelection(selectedAgentId);
+    setFieldError("selectedAgentId", agentError);
+
+    if (agentError) {
       toast.error("Please select an agent");
       return;
     }
@@ -535,6 +747,7 @@ export default function ProjectReview() {
       setIsAssignAgentDialogOpen(false);
       setSelectedAgentId("");
       setIsEditingAgent(false);
+      setFieldError("selectedAgentId", "");
       // Reload project to get updated agent data
       if (id) {
         const fetchedProject = await getProject(id);
@@ -580,45 +793,30 @@ export default function ProjectReview() {
   };
 
   const handleAddMilestone = () => {
-    if (
-      !milestoneTitle.trim() ||
-      !milestoneStartDate ||
-      !milestoneEndDate ||
-      !milestoneDescription.trim()
-    ) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    if (!milestoneAmountPercent && !milestoneAmount) {
-      toast.error("Please provide either amount percentage or amount");
-      return;
-    }
-
     if (!project) return;
 
-    // Validate percentage range (0-100%)
-    if (milestoneAmountPercent) {
-      const percent = parseFloat(milestoneAmountPercent);
-      if (percent < 0 || percent > 100) {
-        toast.error("Percentage must be between 0% and 100%");
-        return;
-      }
-    }
+    // Validate all fields
+    const titleError = validateMilestoneTitle(milestoneTitle);
+    const startDateError = validateDate(milestoneStartDate, "Start date");
+    const endDateError = validateDate(milestoneEndDate, "End date");
+    const dateRangeError = validateDateRange(milestoneStartDate, milestoneEndDate);
+    const descriptionError = validateMilestoneDescription(milestoneDescription);
+    const amountPercentError = validateMilestoneAmountPercent(milestoneAmountPercent);
+    const amountError = validateMilestoneAmount(milestoneAmount, project.client_budget);
+    const amountFieldsError = validateMilestoneAmountFields(milestoneAmountPercent, milestoneAmount);
 
-    // Validate amount limit (cannot exceed project budget)
-    if (milestoneAmount) {
-      const amount = parseFloat(milestoneAmount);
-      if (amount < 0) {
-        toast.error("Amount cannot be negative");
-        return;
-      }
-      if (amount > project.client_budget) {
-        toast.error(
-          `Amount cannot exceed project budget of ₹${project.client_budget.toLocaleString()}`
-        );
-        return;
-      }
+    setValidationErrors({
+      milestoneTitle: titleError,
+      milestoneStartDate: startDateError,
+      milestoneEndDate: endDateError || dateRangeError,
+      milestoneDescription: descriptionError,
+      milestoneAmountPercent: amountPercentError || amountFieldsError,
+      milestoneAmount: amountError || amountFieldsError,
+    });
+
+    if (titleError || startDateError || endDateError || dateRangeError || descriptionError || amountPercentError || amountError || amountFieldsError) {
+      toast.error("Please fix the validation errors");
+      return;
     }
 
     const milestones = getMilestonesByProject
@@ -651,6 +849,14 @@ export default function ProjectReview() {
     setMilestoneAmountPercent("");
     setMilestoneAmount("");
     setMilestoneDescription("");
+    setValidationErrors({
+      milestoneTitle: "",
+      milestoneStartDate: "",
+      milestoneEndDate: "",
+      milestoneDescription: "",
+      milestoneAmountPercent: "",
+      milestoneAmount: "",
+    });
   };
 
   const handleEditMilestone = (milestone: any) => {
@@ -667,42 +873,26 @@ export default function ProjectReview() {
   const handleUpdateMilestone = () => {
     if (!editingMilestone || !project) return;
 
-    if (
-      !editMilestoneTitle.trim() ||
-      !editMilestoneEndDate ||
-      !editMilestoneDescription.trim()
-    ) {
-      toast.error("Please fill in all required fields");
+    // Validate all fields
+    const titleError = validateMilestoneTitle(editMilestoneTitle);
+    const endDateError = validateDate(editMilestoneEndDate, "End date");
+    const dateRangeError = editMilestoneStartDate ? validateDateRange(editMilestoneStartDate, editMilestoneEndDate) : "";
+    const descriptionError = validateMilestoneDescription(editMilestoneDescription);
+    const amountPercentError = validateMilestoneAmountPercent(editMilestoneAmountPercent);
+    const amountError = validateMilestoneAmount(editMilestoneAmount, project.client_budget);
+    const amountFieldsError = validateMilestoneAmountFields(editMilestoneAmountPercent, editMilestoneAmount);
+
+    setValidationErrors({
+      editMilestoneTitle: titleError,
+      editMilestoneEndDate: endDateError || dateRangeError,
+      editMilestoneDescription: descriptionError,
+      editMilestoneAmountPercent: amountPercentError || amountFieldsError,
+      editMilestoneAmount: amountError || amountFieldsError,
+    });
+
+    if (titleError || endDateError || dateRangeError || descriptionError || amountPercentError || amountError || amountFieldsError) {
+      toast.error("Please fix the validation errors");
       return;
-    }
-
-    if (!editMilestoneAmountPercent && !editMilestoneAmount) {
-      toast.error("Please provide either amount percentage or amount");
-      return;
-    }
-
-    // Validate percentage range (0-100%)
-    if (editMilestoneAmountPercent) {
-      const percent = parseFloat(editMilestoneAmountPercent);
-      if (percent < 0 || percent > 100) {
-        toast.error("Percentage must be between 0% and 100%");
-        return;
-      }
-    }
-
-    // Validate amount limit (cannot exceed project budget)
-    if (editMilestoneAmount) {
-      const amount = parseFloat(editMilestoneAmount);
-      if (amount < 0) {
-        toast.error("Amount cannot be negative");
-        return;
-      }
-      if (amount > project.client_budget) {
-        toast.error(
-          `Amount cannot exceed project budget of ₹${project.client_budget.toLocaleString()}`
-        );
-        return;
-      }
     }
 
     let finalAmount = 0;
@@ -730,6 +920,14 @@ export default function ProjectReview() {
     setEditMilestoneAmountPercent("");
     setEditMilestoneAmount("");
     setEditMilestoneDescription("");
+    setValidationErrors({
+      editMilestoneTitle: "",
+      editMilestoneStartDate: "",
+      editMilestoneEndDate: "",
+      editMilestoneDescription: "",
+      editMilestoneAmountPercent: "",
+      editMilestoneAmount: "",
+    });
   };
 
   const handleDeleteMilestone = () => {
@@ -829,12 +1027,20 @@ export default function ProjectReview() {
                 <Card className="p-6">
                   <div className="flex items-center justify-between mb-6">
                     {isEditing ? (
-                      <Input
-                        value={editedTitle}
-                        onChange={(e) => setEditedTitle(e.target.value)}
-                        placeholder="Enter project title"
-                        className="text-2xl font-semibold"
-                      />
+                      <div>
+                        <Input
+                          value={editedTitle}
+                          onChange={(e) => {
+                            setEditedTitle(e.target.value);
+                            setFieldError("editedTitle", validateTitle(e.target.value));
+                          }}
+                          placeholder="Enter project title"
+                          className={`text-2xl font-semibold ${validationErrors.editedTitle ? "border-red-500" : ""}`}
+                        />
+                        {validationErrors.editedTitle && (
+                          <p className="text-sm text-red-500 mt-1">{validationErrors.editedTitle}</p>
+                        )}
+                      </div>
                     ) : (
                       <h2 className="text-2xl">{project.title}</h2>
                     )}
@@ -862,13 +1068,21 @@ export default function ProjectReview() {
                     <div>
                       <Label className="text-gray-600">Description</Label>
                       {isEditing ? (
-                        <RichTextEditor
-                          value={editedDescription}
-                          onChange={(value) => setEditedDescription(value)}
-                          placeholder="Describe the project..."
-                          className="mt-2"
-                          minHeight="200px"
-                        />
+                        <div>
+                          <RichTextEditor
+                            value={editedDescription}
+                            onChange={(value) => {
+                              setEditedDescription(value);
+                              setFieldError("editedDescription", validateDescription(value));
+                            }}
+                            placeholder="Describe the project..."
+                            className={`mt-2 ${validationErrors.editedDescription ? "border-red-500" : ""}`}
+                            minHeight="200px"
+                          />
+                          {validationErrors.editedDescription && (
+                            <p className="text-sm text-red-500 mt-1">{validationErrors.editedDescription}</p>
+                          )}
+                        </div>
                       ) : (
                         <div className="mt-2">
                           <RichTextViewer content={project.description || ''} />
@@ -890,12 +1104,20 @@ export default function ProjectReview() {
                       <div>
                         <Label className="text-gray-600">Timeline</Label>
                         {isEditing ? (
-                          <Input
-                            value={editedTimeline}
-                            onChange={(e) => setEditedTimeline(e.target.value)}
-                            placeholder="e.g., 2-3 months"
-                            className="mt-1"
-                          />
+                          <div>
+                            <Input
+                              value={editedTimeline}
+                              onChange={(e) => {
+                                setEditedTimeline(e.target.value);
+                                setFieldError("editedTimeline", validateTimeline(e.target.value));
+                              }}
+                              placeholder="e.g., 2 weeks"
+                              className={`mt-1 ${validationErrors.editedTimeline ? "border-red-500" : ""}`}
+                            />
+                            {validationErrors.editedTimeline && (
+                              <p className="text-sm text-red-500 mt-1">{validationErrors.editedTimeline}</p>
+                            )}
+                          </div>
                         ) : (
                           <p className="mt-1">
                             {project.duration_weeks ? `${project.duration_weeks} weeks` : "N/A"}
@@ -905,13 +1127,23 @@ export default function ProjectReview() {
                       <div>
                         <Label className="text-gray-600">Budget</Label>
                         {isEditing ? (
-                          <Input
-                            type="number"
-                            value={editedBudget}
-                            onChange={(e) => setEditedBudget(e.target.value)}
-                            placeholder="Enter budget"
-                            className="mt-1"
-                          />
+                          <div>
+                            <Input
+                              type="number"
+                              value={editedBudget}
+                              onChange={(e) => {
+                                setEditedBudget(e.target.value);
+                                setFieldError("editedBudget", validateBudget(e.target.value));
+                              }}
+                              placeholder="Enter budget"
+                              className={`mt-1 ${validationErrors.editedBudget ? "border-red-500" : ""}`}
+                              min="0"
+                              step="0.01"
+                            />
+                            {validationErrors.editedBudget && (
+                              <p className="text-sm text-red-500 mt-1">{validationErrors.editedBudget}</p>
+                            )}
+                          </div>
                         ) : (
                           <p className="mt-1">
                             ₹{project.client_budget.toLocaleString()}
@@ -1888,7 +2120,13 @@ export default function ProjectReview() {
         </Dialog>
 
         {/* Reject Dialog */}
-        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <Dialog open={isRejectDialogOpen} onOpenChange={(open) => {
+          setIsRejectDialogOpen(open);
+          if (!open) {
+            setRejectionReason("");
+            setFieldError("rejectionReason", "");
+          }
+        }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Reject Project</DialogTitle>
@@ -1901,17 +2139,27 @@ export default function ProjectReview() {
                 <Label>Rejection Reason *</Label>
                 <RichTextEditor
                   value={rejectionReason}
-                  onChange={setRejectionReason}
+                  onChange={(value) => {
+                    setRejectionReason(value);
+                    setFieldError("rejectionReason", validateRejectionReason(value));
+                  }}
                   placeholder="Explain why this project is being rejected..."
-                  className="mt-1"
+                  className={`mt-1 ${validationErrors.rejectionReason ? "border-red-500" : ""}`}
                   minHeight="150px"
                 />
+                {validationErrors.rejectionReason && (
+                  <p className="text-sm text-red-500 mt-1">{validationErrors.rejectionReason}</p>
+                )}
               </div>
             </div>
             <DialogFooter>
               <Button
                 variant="outline"
-                onClick={() => setIsRejectDialogOpen(false)}
+                onClick={() => {
+                  setIsRejectDialogOpen(false);
+                  setRejectionReason("");
+                  setFieldError("rejectionReason", "");
+                }}
               >
                 Cancel
               </Button>
@@ -1930,7 +2178,25 @@ export default function ProjectReview() {
         {/* Add Milestone Dialog */}
         <Dialog
           open={isAddMilestoneDialogOpen}
-          onOpenChange={setIsAddMilestoneDialogOpen}
+          onOpenChange={(open) => {
+            setIsAddMilestoneDialogOpen(open);
+            if (!open) {
+              setMilestoneTitle("");
+              setMilestoneStartDate("");
+              setMilestoneEndDate("");
+              setMilestoneAmountPercent("");
+              setMilestoneAmount("");
+              setMilestoneDescription("");
+              setValidationErrors({
+                milestoneTitle: "",
+                milestoneStartDate: "",
+                milestoneEndDate: "",
+                milestoneDescription: "",
+                milestoneAmountPercent: "",
+                milestoneAmount: "",
+              });
+            }
+          }}
         >
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -1946,8 +2212,15 @@ export default function ProjectReview() {
                   id="milestone-title"
                   placeholder="e.g., Design Phase, Development Phase, Testing"
                   value={milestoneTitle}
-                  onChange={(e) => setMilestoneTitle(e.target.value)}
+                  onChange={(e) => {
+                    setMilestoneTitle(e.target.value);
+                    setFieldError("milestoneTitle", validateMilestoneTitle(e.target.value));
+                  }}
+                  className={validationErrors.milestoneTitle ? "border-red-500" : ""}
                 />
+                {validationErrors.milestoneTitle && (
+                  <p className="text-sm text-red-500 mt-1">{validationErrors.milestoneTitle}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1957,8 +2230,18 @@ export default function ProjectReview() {
                     id="milestone-start-date"
                     type="date"
                     value={milestoneStartDate}
-                    onChange={(e) => setMilestoneStartDate(e.target.value)}
+                    onChange={(e) => {
+                      setMilestoneStartDate(e.target.value);
+                      setFieldError("milestoneStartDate", validateDate(e.target.value, "Start date"));
+                      if (milestoneEndDate) {
+                        setFieldError("milestoneEndDate", validateDateRange(e.target.value, milestoneEndDate));
+                      }
+                    }}
+                    className={validationErrors.milestoneStartDate ? "border-red-500" : ""}
                   />
+                  {validationErrors.milestoneStartDate && (
+                    <p className="text-sm text-red-500 mt-1">{validationErrors.milestoneStartDate}</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="milestone-end-date">End Date *</Label>
@@ -1966,9 +2249,19 @@ export default function ProjectReview() {
                     id="milestone-end-date"
                     type="date"
                     value={milestoneEndDate}
-                    onChange={(e) => setMilestoneEndDate(e.target.value)}
+                    onChange={(e) => {
+                      setMilestoneEndDate(e.target.value);
+                      setFieldError("milestoneEndDate", validateDate(e.target.value, "End date"));
+                      if (milestoneStartDate) {
+                        setFieldError("milestoneEndDate", validateDateRange(milestoneStartDate, e.target.value));
+                      }
+                    }}
                     min={milestoneStartDate}
+                    className={validationErrors.milestoneEndDate ? "border-red-500" : ""}
                   />
+                  {validationErrors.milestoneEndDate && (
+                    <p className="text-sm text-red-500 mt-1">{validationErrors.milestoneEndDate}</p>
+                  )}
                 </div>
               </div>
 
@@ -1994,11 +2287,20 @@ export default function ProjectReview() {
                         setMilestoneAmountPercent(value);
                         if (value && project) {
                           setMilestoneAmount("");
+                          setFieldError("milestoneAmount", "");
+                        }
+                        setFieldError("milestoneAmountPercent", validateMilestoneAmountPercent(value));
+                        if (!value && !milestoneAmount) {
+                          setFieldError("milestoneAmountPercent", validateMilestoneAmountFields(value, milestoneAmount));
                         }
                       }
                     }}
+                    className={validationErrors.milestoneAmountPercent ? "border-red-500" : ""}
                   />
-                  {milestoneAmountPercent && project && (
+                  {validationErrors.milestoneAmountPercent && (
+                    <p className="text-sm text-red-500 mt-1">{validationErrors.milestoneAmountPercent}</p>
+                  )}
+                  {milestoneAmountPercent && project && !validationErrors.milestoneAmountPercent && (
                     <p className="text-sm text-gray-500 mt-1">
                       Amount: ₹
                       {(
@@ -2031,11 +2333,20 @@ export default function ProjectReview() {
                         setMilestoneAmount(value);
                         if (value) {
                           setMilestoneAmountPercent("");
+                          setFieldError("milestoneAmountPercent", "");
+                        }
+                        setFieldError("milestoneAmount", validateMilestoneAmount(value, project?.client_budget));
+                        if (!value && !milestoneAmountPercent) {
+                          setFieldError("milestoneAmount", validateMilestoneAmountFields(milestoneAmountPercent, value));
                         }
                       }
                     }}
+                    className={validationErrors.milestoneAmount ? "border-red-500" : ""}
                   />
-                  {milestoneAmount && project && (
+                  {validationErrors.milestoneAmount && (
+                    <p className="text-sm text-red-500 mt-1">{validationErrors.milestoneAmount}</p>
+                  )}
+                  {milestoneAmount && project && !validationErrors.milestoneAmount && (
                     <p className="text-sm text-gray-500 mt-1">
                       {(
                         (parseFloat(milestoneAmount) / project.client_budget) *
@@ -2056,17 +2367,39 @@ export default function ProjectReview() {
                 <Label htmlFor="milestone-description">Description *</Label>
                 <RichTextEditor
                   value={milestoneDescription}
-                  onChange={setMilestoneDescription}
+                  onChange={(value) => {
+                    setMilestoneDescription(value);
+                    setFieldError("milestoneDescription", validateMilestoneDescription(value));
+                  }}
                   placeholder="Describe what needs to be completed in this milestone..."
-                  className="mt-1"
+                  className={`mt-1 ${validationErrors.milestoneDescription ? "border-red-500" : ""}`}
                   minHeight="150px"
                 />
+                {validationErrors.milestoneDescription && (
+                  <p className="text-sm text-red-500 mt-1">{validationErrors.milestoneDescription}</p>
+                )}
               </div>
             </div>
             <DialogFooter>
               <Button
                 variant="outline"
-                onClick={() => setIsAddMilestoneDialogOpen(false)}
+                onClick={() => {
+                  setIsAddMilestoneDialogOpen(false);
+                  setMilestoneTitle("");
+                  setMilestoneStartDate("");
+                  setMilestoneEndDate("");
+                  setMilestoneAmountPercent("");
+                  setMilestoneAmount("");
+                  setMilestoneDescription("");
+                  setValidationErrors({
+                    milestoneTitle: "",
+                    milestoneStartDate: "",
+                    milestoneEndDate: "",
+                    milestoneDescription: "",
+                    milestoneAmountPercent: "",
+                    milestoneAmount: "",
+                  });
+                }}
               >
                 Cancel
               </Button>
@@ -2081,7 +2414,26 @@ export default function ProjectReview() {
         {/* Edit Milestone Dialog */}
         <Dialog
           open={isEditMilestoneDialogOpen}
-          onOpenChange={setIsEditMilestoneDialogOpen}
+          onOpenChange={(open) => {
+            setIsEditMilestoneDialogOpen(open);
+            if (!open) {
+              setEditMilestoneTitle("");
+              setEditMilestoneStartDate("");
+              setEditMilestoneEndDate("");
+              setEditMilestoneAmountPercent("");
+              setEditMilestoneAmount("");
+              setEditMilestoneDescription("");
+              setEditingMilestone(null);
+              setValidationErrors({
+                editMilestoneTitle: "",
+                editMilestoneStartDate: "",
+                editMilestoneEndDate: "",
+                editMilestoneDescription: "",
+                editMilestoneAmountPercent: "",
+                editMilestoneAmount: "",
+              });
+            }
+          }}
         >
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -2095,8 +2447,15 @@ export default function ProjectReview() {
                   id="edit-milestone-title"
                   placeholder="e.g., Design Phase, Development Phase, Testing"
                   value={editMilestoneTitle}
-                  onChange={(e) => setEditMilestoneTitle(e.target.value)}
+                  onChange={(e) => {
+                    setEditMilestoneTitle(e.target.value);
+                    setFieldError("editMilestoneTitle", validateMilestoneTitle(e.target.value));
+                  }}
+                  className={validationErrors.editMilestoneTitle ? "border-red-500" : ""}
                 />
+                {validationErrors.editMilestoneTitle && (
+                  <p className="text-sm text-red-500 mt-1">{validationErrors.editMilestoneTitle}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -2106,8 +2465,17 @@ export default function ProjectReview() {
                     id="edit-milestone-start-date"
                     type="date"
                     value={editMilestoneStartDate}
-                    onChange={(e) => setEditMilestoneStartDate(e.target.value)}
+                    onChange={(e) => {
+                      setEditMilestoneStartDate(e.target.value);
+                      if (editMilestoneEndDate) {
+                        setFieldError("editMilestoneEndDate", validateDateRange(e.target.value, editMilestoneEndDate));
+                      }
+                    }}
+                    className={validationErrors.editMilestoneStartDate ? "border-red-500" : ""}
                   />
+                  {validationErrors.editMilestoneStartDate && (
+                    <p className="text-sm text-red-500 mt-1">{validationErrors.editMilestoneStartDate}</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="edit-milestone-end-date">End Date *</Label>
@@ -2115,9 +2483,19 @@ export default function ProjectReview() {
                     id="edit-milestone-end-date"
                     type="date"
                     value={editMilestoneEndDate}
-                    onChange={(e) => setEditMilestoneEndDate(e.target.value)}
+                    onChange={(e) => {
+                      setEditMilestoneEndDate(e.target.value);
+                      setFieldError("editMilestoneEndDate", validateDate(e.target.value, "End date"));
+                      if (editMilestoneStartDate) {
+                        setFieldError("editMilestoneEndDate", validateDateRange(editMilestoneStartDate, e.target.value));
+                      }
+                    }}
                     min={editMilestoneStartDate}
+                    className={validationErrors.editMilestoneEndDate ? "border-red-500" : ""}
                   />
+                  {validationErrors.editMilestoneEndDate && (
+                    <p className="text-sm text-red-500 mt-1">{validationErrors.editMilestoneEndDate}</p>
+                  )}
                 </div>
               </div>
 
@@ -2143,11 +2521,20 @@ export default function ProjectReview() {
                         setEditMilestoneAmountPercent(value);
                         if (value && project) {
                           setEditMilestoneAmount("");
+                          setFieldError("editMilestoneAmount", "");
+                        }
+                        setFieldError("editMilestoneAmountPercent", validateMilestoneAmountPercent(value));
+                        if (!value && !editMilestoneAmount) {
+                          setFieldError("editMilestoneAmountPercent", validateMilestoneAmountFields(value, editMilestoneAmount));
                         }
                       }
                     }}
+                    className={validationErrors.editMilestoneAmountPercent ? "border-red-500" : ""}
                   />
-                  {editMilestoneAmountPercent && project && (
+                  {validationErrors.editMilestoneAmountPercent && (
+                    <p className="text-sm text-red-500 mt-1">{validationErrors.editMilestoneAmountPercent}</p>
+                  )}
+                  {editMilestoneAmountPercent && project && !validationErrors.editMilestoneAmountPercent && (
                     <p className="text-sm text-gray-500 mt-1">
                       Amount: ₹
                       {(
@@ -2180,11 +2567,20 @@ export default function ProjectReview() {
                         setEditMilestoneAmount(value);
                         if (value) {
                           setEditMilestoneAmountPercent("");
+                          setFieldError("editMilestoneAmountPercent", "");
+                        }
+                        setFieldError("editMilestoneAmount", validateMilestoneAmount(value, project?.client_budget));
+                        if (!value && !editMilestoneAmountPercent) {
+                          setFieldError("editMilestoneAmount", validateMilestoneAmountFields(editMilestoneAmountPercent, value));
                         }
                       }
                     }}
+                    className={validationErrors.editMilestoneAmount ? "border-red-500" : ""}
                   />
-                  {editMilestoneAmount && project && (
+                  {validationErrors.editMilestoneAmount && (
+                    <p className="text-sm text-red-500 mt-1">{validationErrors.editMilestoneAmount}</p>
+                  )}
+                  {editMilestoneAmount && project && !validationErrors.editMilestoneAmount && (
                     <p className="text-sm text-gray-500 mt-1">
                       {(
                         (parseFloat(editMilestoneAmount) /
@@ -2208,17 +2604,40 @@ export default function ProjectReview() {
                 </Label>
                 <RichTextEditor
                   value={editMilestoneDescription}
-                  onChange={setEditMilestoneDescription}
+                  onChange={(value) => {
+                    setEditMilestoneDescription(value);
+                    setFieldError("editMilestoneDescription", validateMilestoneDescription(value));
+                  }}
                   placeholder="Describe what needs to be completed in this milestone..."
-                  className="mt-1"
+                  className={`mt-1 ${validationErrors.editMilestoneDescription ? "border-red-500" : ""}`}
                   minHeight="150px"
                 />
+                {validationErrors.editMilestoneDescription && (
+                  <p className="text-sm text-red-500 mt-1">{validationErrors.editMilestoneDescription}</p>
+                )}
               </div>
             </div>
             <DialogFooter>
               <Button
                 variant="outline"
-                onClick={() => setIsEditMilestoneDialogOpen(false)}
+                onClick={() => {
+                  setIsEditMilestoneDialogOpen(false);
+                  setEditMilestoneTitle("");
+                  setEditMilestoneStartDate("");
+                  setEditMilestoneEndDate("");
+                  setEditMilestoneAmountPercent("");
+                  setEditMilestoneAmount("");
+                  setEditMilestoneDescription("");
+                  setEditingMilestone(null);
+                  setValidationErrors({
+                    editMilestoneTitle: "",
+                    editMilestoneStartDate: "",
+                    editMilestoneEndDate: "",
+                    editMilestoneDescription: "",
+                    editMilestoneAmountPercent: "",
+                    editMilestoneAmount: "",
+                  });
+                }}
               >
                 Cancel
               </Button>
@@ -2277,7 +2696,14 @@ export default function ProjectReview() {
         {/* Assign Agent Dialog */}
         <Dialog
           open={isAssignAgentDialogOpen}
-          onOpenChange={setIsAssignAgentDialogOpen}
+          onOpenChange={(open) => {
+            setIsAssignAgentDialogOpen(open);
+            if (!open) {
+              setSelectedAgentId("");
+              setIsEditingAgent(false);
+              setFieldError("selectedAgentId", "");
+            }
+          }}
         >
           <DialogContent>
             <DialogHeader>
@@ -2295,9 +2721,15 @@ export default function ProjectReview() {
                 <Label htmlFor="agent-select">Select Agent *</Label>
                 <Select
                   value={selectedAgentId}
-                  onValueChange={setSelectedAgentId}
+                  onValueChange={(value) => {
+                    setSelectedAgentId(value);
+                    setFieldError("selectedAgentId", validateAgentSelection(value));
+                  }}
                 >
-                  <SelectTrigger id="agent-select" className="mt-2">
+                  <SelectTrigger 
+                    id="agent-select" 
+                    className={`mt-2 ${validationErrors.selectedAgentId ? "border-red-500" : ""}`}
+                  >
                     <SelectValue placeholder="Choose an agent..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -2308,6 +2740,9 @@ export default function ProjectReview() {
                     ))}
                   </SelectContent>
                 </Select>
+                {validationErrors.selectedAgentId && (
+                  <p className="text-sm text-red-500 mt-1">{validationErrors.selectedAgentId}</p>
+                )}
               </div>
             </div>
             <DialogFooter>
@@ -2317,6 +2752,7 @@ export default function ProjectReview() {
                   setIsAssignAgentDialogOpen(false);
                   setSelectedAgentId("");
                   setIsEditingAgent(false);
+                  setFieldError("selectedAgentId", "");
                 }}
               >
                 Cancel
