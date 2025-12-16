@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -7,13 +7,28 @@ import { Shield, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from '../../utils/toast';
 
+const REMEMBER_ME_KEY = 'connect_accel_remember_me';
+const REMEMBERED_EMAIL_KEY = 'connect_accel_remembered_email';
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Load remembered email on mount
+  useEffect(() => {
+    const rememberedEmail = sessionStorage.getItem(REMEMBERED_EMAIL_KEY);
+    const rememberMeChecked = sessionStorage.getItem(REMEMBER_ME_KEY) === 'true';
+    
+    if (rememberMeChecked && rememberedEmail) {
+      setEmail(rememberedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,6 +36,16 @@ export default function LoginPage() {
 
     try {
       const result = await login(email, password);
+      
+      // Handle remember me functionality
+      if (rememberMe) {
+        sessionStorage.setItem(REMEMBER_ME_KEY, 'true');
+        sessionStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+      } else {
+        sessionStorage.removeItem(REMEMBER_ME_KEY);
+        sessionStorage.removeItem(REMEMBERED_EMAIL_KEY);
+      }
+      
       // Check if first login - redirect to password change
       if (result && 'isFirstLogin' in result && result.isFirstLogin) {
         navigate('/first-login/change-password', { replace: true });
@@ -104,9 +129,11 @@ export default function LoginPage() {
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 cursor-pointer">
                   Remember me
                 </label>
               </div>
