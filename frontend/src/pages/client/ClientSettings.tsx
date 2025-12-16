@@ -58,7 +58,7 @@ export default function ClientSettings() {
   });
 
   const [appearanceSettings, setAppearanceSettings] = useState({
-    theme: 'system',
+    theme: 'light',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -113,7 +113,7 @@ export default function ClientSettings() {
         // Populate appearance settings
         if (settings.appearance) {
           setAppearanceSettings({
-            theme: settings.appearance.theme || 'system',
+            theme: settings.appearance.theme || 'light',
           });
         }
       } catch (error: any) {

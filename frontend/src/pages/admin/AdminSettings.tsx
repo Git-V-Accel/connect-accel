@@ -53,7 +53,7 @@ export default function AdminSettings() {
   });
 
   const [appearanceSettings, setAppearanceSettings] = useState({
-    theme: 'system',
+    theme: 'light',
   });
 
   const [passwordData, setPasswordData] = useState({

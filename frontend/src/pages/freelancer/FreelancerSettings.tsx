@@ -47,7 +47,7 @@ export default function FreelancerSettings() {
   });
 
   const [appearanceSettings, setAppearanceSettings] = useState({
-    theme: 'system',
+    theme: 'light',
   });
 
   const [passwordData, setPasswordData] = useState({

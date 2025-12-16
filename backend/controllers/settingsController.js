@@ -381,7 +381,7 @@ const resetSettings = async (req, res) => {
         }
       },
       appearance: {
-        theme: 'system',
+        theme: 'light',
         fontSize: 'medium',
         compactMode: false
       },

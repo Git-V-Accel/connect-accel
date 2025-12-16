@@ -94,7 +94,7 @@ const settingsSchema = new mongoose.Schema({
     theme: {
       type: String,
       enum: ['light', 'dark', 'system'],
-      default: 'system'
+      default: 'light'
     },
     fontSize: {
       type: String,

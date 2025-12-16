@@ -250,7 +250,7 @@ function AppWithTheme() {
 export default function App() {
   return (
     <BrowserRouter>
-      <NextThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <NextThemeProvider attribute="class" defaultTheme="light" enableSystem>
         <AppWithTheme />
       </NextThemeProvider>
     </BrowserRouter>
