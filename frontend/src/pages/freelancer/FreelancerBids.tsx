@@ -149,7 +149,7 @@ export default function FreelancerBids() {
     const matchesSearch =
       project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.skills.some((skill) =>
+      project.skills_required.some((skill) =>
         skill.toLowerCase().includes(searchQuery.toLowerCase())
       );
 
@@ -430,11 +430,7 @@ export default function FreelancerBids() {
                           <div className="flex items-center gap-4 text-sm text-gray-600">
                             <span className="flex items-center gap-1">
                               <Clock className="size-4" />
-                              Posted {project.postedDate}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MapPin className="size-4" />
-                              {project.client.location}
+                              Posted {new Date(project.created_at).toLocaleDateString()}
                             </span>
                             <Badge variant="secondary">{project.category}</Badge>
                           </div>
@@ -446,7 +442,7 @@ export default function FreelancerBids() {
 
                       {/* Skills */}
                       <div className="flex flex-wrap gap-2">
-                        {project.skills.map((skill) => (
+                        {project.skills_required.map((skill) => (
                           <Badge key={skill} variant="outline">
                             {skill}
                           </Badge>
