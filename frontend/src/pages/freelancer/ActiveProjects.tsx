@@ -29,7 +29,8 @@ export default function ActiveProjects() {
   if (!user) return null;
 
   const myProjects = getProjectsByUser(user.id, user.role);
-  const activeProjects = myProjects.filter(p => p.status === 'in_progress');
+  // Include both 'assigned' and 'in_progress' statuses for active projects
+  const activeProjects = myProjects.filter(p => p.status === 'in_progress' || p.status === 'assigned');
   const completedProjects = myProjects.filter(p => p.status === 'completed');
   const payments = getPaymentsByUser(user.id);
 
@@ -76,9 +77,8 @@ export default function ActiveProjects() {
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <h3 className="text-xl mb-2">{project.title}</h3>
-            <p className="text-sm text-gray-600">Client: {project.client_name}</p>
           </div>
-          <Badge variant={project.status === 'in_progress' ? 'default' : 'secondary'}>
+          <Badge variant={project.status === 'in_progress' || project.status === 'assigned' ? 'default' : 'secondary'}>
             {project.status.replace('_', ' ')}
           </Badge>
         </div>

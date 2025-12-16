@@ -1125,11 +1125,11 @@ export default function ProjectReview() {
               {/* Assigned Freelancer Tab */}
               <TabsContent value="freelancer" className="space-y-4">
                 {loadingFreelancer ? (
-                  <Card className="p-6">
-                    <div className="text-center py-8">
+                        <Card className="p-6">
+                          <div className="text-center py-8">
                       <p className="text-gray-600">Loading freelancer details...</p>
-                    </div>
-                  </Card>
+                          </div>
+                        </Card>
                 ) : project.freelancer_id ? (
                   assignedFreelancer ? (
                     (() => {
@@ -1150,62 +1150,62 @@ export default function ProjectReview() {
                                   {freelancer.title || 'Freelancer'}
                                 </p>
                                 {freelancer.rating !== undefined && freelancer.rating > 0 && (
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-yellow-500">⭐</span>
-                                    <span className="font-medium">
-                                      {freelancer.rating.toFixed(1)}
-                                    </span>
-                                    <span className="text-gray-500">
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-yellow-500">⭐</span>
+                                  <span className="font-medium">
+                                    {freelancer.rating.toFixed(1)}
+                                  </span>
+                                  <span className="text-gray-500">
                                       ({freelancer.total_reviews || 0} reviews)
-                                    </span>
-                                  </div>
+                                  </span>
+                                </div>
                                 )}
                               </div>
                             </div>
                             {freelancer.availability && freelancer.availability !== 'unknown' && (
-                              <Badge
-                                className={
-                                  freelancer.availability === "available"
-                                    ? "bg-green-100 text-green-700"
-                                    : freelancer.availability === "busy"
-                                    ? "bg-yellow-100 text-yellow-700"
-                                    : "bg-gray-100 text-gray-700"
-                                }
-                              >
-                                {freelancer.availability}
-                              </Badge>
+                            <Badge
+                              className={
+                                freelancer.availability === "available"
+                                  ? "bg-green-100 text-green-700"
+                                  : freelancer.availability === "busy"
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-gray-100 text-gray-700"
+                              }
+                            >
+                              {freelancer.availability}
+                            </Badge>
                             )}
                           </div>
 
                           <div className="space-y-4 pt-4 border-t">
                             {freelancer.email && (
-                              <div>
-                                <Label className="text-gray-600">Email</Label>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Mail className="size-4 text-gray-400" />
-                                  <p>{freelancer.email}</p>
-                                </div>
+                            <div>
+                              <Label className="text-gray-600">Email</Label>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Mail className="size-4 text-gray-400" />
+                                <p>{freelancer.email}</p>
                               </div>
+                            </div>
                             )}
 
                             {freelancer.bio && (
-                              <div>
-                                <Label className="text-gray-600">Bio</Label>
+                            <div>
+                              <Label className="text-gray-600">Bio</Label>
                                 <div className="mt-1">
                                   <RichTextViewer content={freelancer.bio || ''} />
-                                </div>
+                            </div>
                               </div>
                             )}
 
                             {freelancer.hourly_rate && freelancer.hourly_rate > 0 && (
-                              <div>
-                                <Label className="text-gray-600">
-                                  Hourly Rate
-                                </Label>
-                                <p className="mt-1 font-medium">
-                                  ₹{freelancer.hourly_rate}/hour
-                                </p>
-                              </div>
+                            <div>
+                              <Label className="text-gray-600">
+                                Hourly Rate
+                              </Label>
+                              <p className="mt-1 font-medium">
+                                ₹{freelancer.hourly_rate}/hour
+                              </p>
+                            </div>
                             )}
 
                             {freelancer.skills &&
@@ -1225,16 +1225,16 @@ export default function ProjectReview() {
                               )}
 
                             {freelancer.member_since && (
-                              <div>
-                                <Label className="text-gray-600">
-                                  Member Since
-                                </Label>
-                                <p className="mt-1">
-                                  {new Date(
-                                    freelancer.member_since
-                                  ).toLocaleDateString()}
-                                </p>
-                              </div>
+                            <div>
+                              <Label className="text-gray-600">
+                                Member Since
+                              </Label>
+                              <p className="mt-1">
+                                {new Date(
+                                  freelancer.member_since
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
                             )}
                           </div>
                         </Card>
@@ -1547,7 +1547,7 @@ export default function ProjectReview() {
                                         Description
                                       </Label>
                                       <p className="text-sm text-gray-700 mt-2 line-clamp-3">
-                                        {bid.description}
+                                        <RichTextViewer content={bid.description} />
                                       </p>
                                     </div>
                                   )}
@@ -1662,14 +1662,14 @@ export default function ProjectReview() {
                         const shouldHideAddBid = bidCreatedByAdminOrSuperadmin || bidCreatedByAgent;
                         
                         return !shouldHideAddBid ? (
-                          <Button
-                            onClick={() =>
+                        <Button
+                          onClick={() =>
                               navigate(isAgent ? `/agent/projects/${project.id}/create-bid` : `/admin/projects/${project.id}/create-bid`)
-                            }
-                          >
-                            <Award className="size-4 mr-2" />
-                            Create Bid
-                          </Button>
+                          }
+                        >
+                          <Award className="size-4 mr-2" />
+                          Create Bid
+                        </Button>
                         ) : null;
                       })()}
                     </div>
@@ -1746,14 +1746,14 @@ export default function ProjectReview() {
                   const shouldHideAddBid = bidCreatedByAdminOrSuperadmin || bidCreatedByAgent;
                   
                   return !shouldHideAddBid ? (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
                       onClick={() => navigate(isAgent ? `/agent/projects/${project.id}/create-bid` : `/admin/projects/${project.id}/create-bid`)}
-                    >
-                      <Users className="size-4 mr-2" />
-                      Add Bids
-                    </Button>
+                >
+                  <Users className="size-4 mr-2" />
+                  Add Bids
+                </Button>
                   ) : null;
                 })()}
                 <Button

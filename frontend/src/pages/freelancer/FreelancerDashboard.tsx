@@ -19,7 +19,8 @@ export default function FreelancerDashboard() {
   const myBids = getBidsByFreelancer(user.id);
   const payments = getPaymentsByUser(user.id);
 
-  const activeProjects = myProjects.filter(p => p.status === 'in_progress');
+  // Include both 'assigned' and 'in_progress' statuses for active projects
+  const activeProjects = myProjects.filter(p => p.status === 'in_progress' || p.status === 'assigned');
   const activeBids = myBids.filter(b => b.status === 'pending' || b.status === 'shortlisted');
   const earnings = payments.filter(p => p.to_user_id === user.id && p.status === 'completed').reduce((sum, p) => sum + p.amount, 0);
   const availableProjects = projects.filter(p => p.status === 'in_bidding').length;

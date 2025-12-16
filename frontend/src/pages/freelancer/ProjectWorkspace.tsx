@@ -25,8 +25,7 @@ import {
   AlertTriangle,
   FileText,
   Send,
-  ChevronRight,
-  Flag
+  ChevronRight
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
@@ -38,7 +37,6 @@ export default function ProjectWorkspace() {
     getProject, 
     getMilestonesByProject, 
     updateMilestone,
-    createDispute,
     getUserConversations,
     sendMessage
   } = useData();
@@ -46,9 +44,6 @@ export default function ProjectWorkspace() {
   const [selectedMilestone, setSelectedMilestone] = useState<string | null>(null);
   const [submissionNotes, setSubmissionNotes] = useState('');
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
-  const [showDisputeDialog, setShowDisputeDialog] = useState(false);
-  const [disputeSubject, setDisputeSubject] = useState('');
-  const [disputeDescription, setDisputeDescription] = useState('');
   const [message, setMessage] = useState('');
 
   if (!user || !projectId) return null;
@@ -89,29 +84,6 @@ export default function ProjectWorkspace() {
     setSelectedMilestone(null);
   };
 
-  const handleRaiseDispute = () => {
-    if (!disputeSubject || !disputeDescription) {
-      toast.error('Please fill in all fields');
-      return;
-    }
-
-    createDispute({
-      project_id: projectId,
-      raised_by: user.id,
-      raised_by_name: user.name,
-      raised_by_role: user.role,
-      subject: disputeSubject,
-      description: disputeDescription,
-      status: 'open',
-      priority: 'medium'
-    });
-
-    toast.success('Dispute raised successfully. Admin will review shortly.');
-    setShowDisputeDialog(false);
-    setDisputeSubject('');
-    setDisputeDescription('');
-  };
-
   const progress = milestones.length > 0
     ? (milestones.filter(m => m.status === 'approved' || m.status === 'paid').length / milestones.length) * 100
     : 0;
@@ -147,10 +119,6 @@ export default function ProjectWorkspace() {
           <Button variant="ghost" onClick={() => navigate('/freelancer/active-projects')}>
             <ArrowLeft className="size-4 mr-2" />
           </Button>
-          <Button variant="outline" onClick={() => setShowDisputeDialog(true)}>
-            <Flag className="size-4 mr-2" />
-            Raise Dispute
-          </Button>
         </div>
 
         {/* Project Header */}
@@ -158,7 +126,7 @@ export default function ProjectWorkspace() {
           <div className="flex items-start justify-between mb-6">
             <div>
               <h1 className="text-3xl mb-2">{project.title}</h1>
-              <p className="text-gray-600">Client: {project.client_name}</p>
+              <p className="text-gray-600">Client: {project.client_name || 'N/A'}</p>
             </div>
             <Badge className="bg-purple-500">In Progress</Badge>
           </div>
@@ -364,10 +332,10 @@ export default function ProjectWorkspace() {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-medium">
-                        {project.client_name.charAt(0)}
+                        {project.client_name?.charAt(0) || 'C'}
                       </div>
                       <div>
-                        <div className="font-medium">{project.client_name}</div>
+                        <div className="font-medium">{project.client_name || 'Client'}</div>
                         <div className="text-sm text-gray-600">Client</div>
                       </div>
                     </div>
@@ -458,11 +426,14 @@ export default function ProjectWorkspace() {
             <Card className="p-6">
               <h3 className="text-xl mb-4">Required Skills</h3>
               <div className="flex flex-wrap gap-2">
-                {project.skills_required.map((skill, index) => (
+                {(project.skills_required || []).map((skill, index) => (
                   <Badge key={index} variant="secondary" className="text-sm px-3 py-1">
                     {skill}
                   </Badge>
                 ))}
+                {(!project.skills_required || project.skills_required.length === 0) && (
+                  <p className="text-sm text-gray-500">No skills specified</p>
+                )}
               </div>
             </Card>
           </TabsContent>
@@ -501,46 +472,6 @@ export default function ProjectWorkspace() {
           </DialogContent>
         </Dialog>
 
-        {/* Dispute Dialog */}
-        <Dialog open={showDisputeDialog} onOpenChange={setShowDisputeDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Raise Dispute</DialogTitle>
-              <DialogDescription>
-                Describe the issue you're facing with this project
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Subject</Label>
-                <Input
-                  placeholder="Brief description of the issue"
-                  value={disputeSubject}
-                  onChange={(e) => setDisputeSubject(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>Description</Label>
-                <RichTextEditor
-                  value={disputeDescription}
-                  onChange={setDisputeDescription}
-                  placeholder="Provide detailed information about the dispute..."
-                  className="mt-1"
-                  minHeight="180px"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDisputeDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleRaiseDispute} variant="destructive">
-                <Flag className="size-4 mr-2" />
-                Raise Dispute
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </DashboardLayout>
   );

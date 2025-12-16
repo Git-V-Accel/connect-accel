@@ -25,6 +25,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
+import { RichTextViewer } from '../../components/common/RichTextViewer';
 
 export default function AdminBidManagement() {
   const { projects } = useData();
@@ -340,7 +341,7 @@ export default function AdminBidManagement() {
                         </div>
                         {bid.description && (
                           <p className="text-sm text-gray-700 line-clamp-2 mb-3">
-                            {bid.description}
+                            <RichTextViewer content={bid.description} />
                           </p>
                         )}
                         {bid.timeline && (

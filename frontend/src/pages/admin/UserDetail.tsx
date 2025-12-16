@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -404,7 +404,7 @@ export default function UserDetail() {
                             {project.status.replace('_', ' ')}
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{project.description}</p>
+                        <p className="text-sm text-gray-600 mb-3 line-clamp-2"><RichTextViewer content={project.description} /></p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
                             <p className="text-gray-600">Budget</p>
@@ -427,9 +427,11 @@ export default function UserDetail() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => navigate(`/admin/projects/${project.id}`)}
+                        asChild
                       >
-                        View
+                        <Link to={`/admin/projects/${project.id}`}>
+                          View
+                        </Link>
                       </Button>
                     </div>
                   </div>

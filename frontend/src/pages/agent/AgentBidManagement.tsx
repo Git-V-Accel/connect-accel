@@ -22,6 +22,7 @@ import {
   Plus
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
+import { RichTextViewer } from '../../components/common';
 
 export default function AgentBidManagement() {
   const { id } = useParams();
@@ -367,7 +368,7 @@ export default function AgentBidManagement() {
                         </div>
                         {bid.description && (
                           <p className="text-sm text-gray-700 line-clamp-2 mb-3">
-                            {bid.description}
+                            <RichTextViewer content={bid.description} />
                           </p>
                         )}
                         {bid.attachments && bid.attachments.length > 0 && (

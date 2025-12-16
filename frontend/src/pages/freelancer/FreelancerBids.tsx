@@ -9,6 +9,12 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '../../components/ui/accordion';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { RichTextEditor } from '../../components/common/RichTextEditor';
 import apiClient from '../../services/apiService';
@@ -244,104 +250,109 @@ export default function FreelancerBids() {
                 </Button>
               </Card>
             ) : (
-              myBiddings.map((bidding) => {
-                const adminBidId = bidding.adminBidId?._id || bidding.adminBidId;
-                const projectTitle = bidding.adminBidId?.projectTitle || bidding.projectId?.title || 'Project';
-                const adminBidAmount = bidding.adminBidId?.bidAmount || 0;
-                const adminTimeline = bidding.adminBidId?.timeline || 'N/A';
-                const submittedDate = bidding.submittedAt ? new Date(bidding.submittedAt).toLocaleDateString() : 'N/A';
-                
-                return (
-                  <Card key={bidding._id || bidding.id} className="p-6">
-                    <div className="space-y-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-xl mb-2">{projectTitle}</h3>
-                          <div className="flex items-center gap-3 text-sm text-gray-600">
-                            <span>Submitted {submittedDate}</span>
-                            <Badge className={getStatusColor(bidding.status)}>
-                              <span className="flex items-center gap-1">
-                                {getStatusIcon(bidding.status)}
-                                {bidding.status.charAt(0).toUpperCase() + bidding.status.slice(1)}
-                              </span>
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Admin Bid Information */}
-                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                        <h4 className="font-medium text-blue-900 mb-3">Admin Bid Details</h4>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="text-blue-700 font-medium">Admin Bid Amount:</span>
-                            <span className="ml-2 text-blue-900">₹{adminBidAmount.toLocaleString()}</span>
-                          </div>
-                          <div>
-                            <span className="text-blue-700 font-medium">Admin Timeline:</span>
-                            <span className="ml-2 text-blue-900">{adminTimeline}</span>
-                          </div>
-                        </div>
-                        {bidding.adminBidId?.description && (
-                          <div className="mt-3">
-                            <span className="text-blue-700 font-medium text-sm">Admin Bid Description:</span>
-                            <div className="mt-1 text-blue-900">
-                              <RichTextViewer content={bidding.adminBidId.description} />
+              <Accordion type="single" collapsible className="w-full space-y-4">
+                {myBiddings.map((bidding) => {
+                  const adminBidId = bidding.adminBidId?._id || bidding.adminBidId;
+                  const projectTitle = bidding.adminBidId?.projectTitle || bidding.projectId?.title || 'Project';
+                  const adminBidAmount = bidding.adminBidId?.bidAmount || 0;
+                  const adminTimeline = bidding.adminBidId?.timeline || 'N/A';
+                  const submittedDate = bidding.submittedAt ? new Date(bidding.submittedAt).toLocaleDateString() : 'N/A';
+                  
+                  return (
+                    <AccordionItem key={bidding._id || bidding.id} value={bidding._id || bidding.id} className="border rounded-lg px-6">
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex items-start justify-between w-full pr-4">
+                          <div className="flex-1 text-left">
+                            <h3 className="text-xl mb-2">{projectTitle}</h3>
+                            <div className="flex items-center gap-3 text-sm text-gray-600">
+                              <span>Submitted {submittedDate}</span>
+                              <Badge className={getStatusColor(bidding.status)}>
+                                <span className="flex items-center gap-1">
+                                  {getStatusIcon(bidding.status)}
+                                  {bidding.status.charAt(0).toUpperCase() + bidding.status.slice(1)}
+                                </span>
+                              </Badge>
                             </div>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-4 pt-2">
+                          {/* Admin Bid Information */}
+                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <h4 className="font-medium text-blue-900 mb-3">Admin Bid Details</h4>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-blue-700 font-medium">Admin Bid Amount:</span>
+                                <span className="ml-2 text-blue-900">₹{adminBidAmount.toLocaleString()}</span>
+                              </div>
+                              <div>
+                                <span className="text-blue-700 font-medium">Admin Timeline:</span>
+                                <span className="ml-2 text-blue-900">{adminTimeline}</span>
+                              </div>
+                            </div>
+                            {bidding.adminBidId?.description && (
+                              <div className="mt-3">
+                                <span className="text-blue-700 font-medium text-sm">Admin Bid Description:</span>
+                                <div className="mt-1 text-blue-900">
+                                  <RichTextViewer content={bidding.adminBidId.description} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
 
-                      {/* Your Proposal Details */}
-                      <div className="grid grid-cols-3 gap-4 py-4 border-y">
-                        <div>
-                          <div className="text-sm text-gray-600">Your Bid Amount</div>
-                          <div className="font-semibold">₹{bidding.bidAmount?.toLocaleString() || '0'}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-600">Your Timeline</div>
-                          <div className="font-semibold">{bidding.timeline || 'N/A'}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-gray-600">Status</div>
-                          <div className="capitalize font-semibold">{bidding.status}</div>
-                        </div>
-                      </div>
+                          {/* Your Proposal Details */}
+                          <div className="grid grid-cols-3 gap-4 py-4 border-y">
+                            <div>
+                              <div className="text-sm text-gray-600">Your Bid Amount</div>
+                              <div className="font-semibold">₹{bidding.bidAmount?.toLocaleString() || '0'}</div>
+                            </div>
+                            <div>
+                              <div className="text-sm text-gray-600">Your Timeline</div>
+                              <div className="font-semibold">{bidding.timeline || 'N/A'}</div>
+                            </div>
+                            <div>
+                              <div className="text-sm text-gray-600">Status</div>
+                              <div className="capitalize font-semibold">{bidding.status}</div>
+                            </div>
+                          </div>
 
-                      <div>
-                        <div className="text-sm text-gray-600 mb-2">Your Proposal</div>
-                        <div className="text-gray-700">
-                          <RichTextViewer content={bidding.description || ''} />
-                        </div>
-                      </div>
+                          <div>
+                            <div className="text-sm text-gray-600 mb-2">Your Proposal</div>
+                            <div className="text-gray-700">
+                              <RichTextViewer content={bidding.description || ''} />
+                            </div>
+                          </div>
 
-                      <div className="flex items-center gap-3">
-                        {adminBidId && (
-                          <Button variant="outline" size="sm" asChild>
-                            <Link to={`/freelancer/bids/${adminBidId}/view`}>
-                              <Eye className="size-4 mr-2" />
-                              View Admin Bid
-                            </Link>
-                          </Button>
-                        )}
-                        {bidding.status === 'pending' && adminBidId && (
-                          <Button variant="outline" size="sm" asChild>
-                            <Link to={`/admin/bids/${adminBidId}/proposal?biddingId=${bidding._id || bidding.id}`}>
-                              <FileText className="size-4 mr-2" />
-                              View Full Proposal
-                            </Link>
-                          </Button>
-                        )}
-                        {bidding.status === 'accepted' && (
-                          <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                            View Project Workspace
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })
+                          <div className="flex items-center gap-3">
+                            {adminBidId && (
+                              <Button variant="outline" size="sm" asChild>
+                                <Link to={`/freelancer/bids/${adminBidId}/view`}>
+                                  <Eye className="size-4 mr-2" />
+                                  View Admin Bid
+                                </Link>
+                              </Button>
+                            )}
+                            {bidding.status === 'pending' && adminBidId && (
+                              <Button variant="outline" size="sm" asChild>
+                                <Link to={`/admin/bids/${adminBidId}/proposal?biddingId=${bidding._id || bidding.id}`}>
+                                  <FileText className="size-4 mr-2" />
+                                  View Full Proposal
+                                </Link>
+                              </Button>
+                            )}
+                            {bidding.status === 'accepted' && (
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                                View Project Workspace
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             )}
           </TabsContent>
 
