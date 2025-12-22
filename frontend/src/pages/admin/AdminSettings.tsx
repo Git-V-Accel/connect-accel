@@ -169,7 +169,7 @@ export default function AdminSettings() {
       return;
     }
     if (passwordData.new_password !== passwordData.confirm_password) {
-      toast.error('New passwords do not match');
+      toast.error('New password and confirmation do not match.');
       return;
     }
     if (passwordData.new_password === passwordData.current_password) {
