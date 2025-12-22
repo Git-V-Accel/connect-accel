@@ -225,60 +225,61 @@ interface DataContextType {
   messages: Message[];
   conversations: Conversation[];
   notifications: Notification[];
-  
+
   // Project methods
   createProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => Promise<Project>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<Project>;
   getProject: (id: string, forceRefresh?: boolean) => Promise<Project | undefined>;
   getProjectsByUser: (userId: string, role: string) => Project[];
   getProjectsByAgent: (agentId: string) => Project[];
-  
+  deleteProject: (id: string) => Promise<void>;
+
   // Milestone methods
   createMilestone: (milestone: Omit<Milestone, 'id'>) => Promise<Milestone>;
   updateMilestone: (id: string, updates: Partial<Milestone>) => Promise<Milestone>;
   deleteMilestone: (id: string) => void;
   getMilestonesByProject: (projectId: string) => Milestone[];
-  
+
   // Bid methods
   createBid: (bid: Omit<Bid, 'id' | 'created_at'>) => Bid;
   updateBid: (id: string, updates: Partial<Bid>) => void;
   getBidsByProject: (projectId: string) => Bid[];
   getBidsByFreelancer: (freelancerId: string) => Bid[];
   getBidsByAgent: (agentId: string) => Bid[];
-  
+
   // Bid Invitation methods
   createBidInvitation: (invitation: Omit<BidInvitation, 'id' | 'created_at'>) => BidInvitation;
   updateBidInvitation: (id: string, updates: Partial<BidInvitation>) => void;
   getBidInvitationsByProject: (projectId: string) => BidInvitation[];
   getBidInvitationsByFreelancer: (freelancerId: string) => BidInvitation[];
-  
+
   // Consultation methods
   createConsultation: (consultation: Omit<Consultation, 'id'>) => Consultation;
   updateConsultation: (id: string, updates: Partial<Consultation>) => void;
   getConsultationsByUser: (userId: string, role: string) => Consultation[];
-  
+
   // Payment methods
   createPayment: (payment: Omit<Payment, 'id' | 'created_at'>) => Payment;
   updatePayment: (id: string, updates: Partial<Payment>) => void;
   getPaymentsByProject: (projectId: string) => Payment[];
   getPaymentsByUser: (userId: string) => Payment[];
-  
+
   // Dispute methods
   createDispute: (dispute: Omit<Dispute, 'id' | 'created_at'>) => Dispute;
   updateDispute: (id: string, updates: Partial<Dispute>) => void;
   getDisputesByProject: (projectId: string) => Dispute[];
-  
+
   // Message methods
   sendMessage: (message: Omit<Message, 'id' | 'created_at' | 'read'>) => Message;
   markMessageAsRead: (id: string) => void;
   getConversation: (conversationId: string) => Message[];
   getUserConversations: (userId: string) => Conversation[];
-  
+
   // Notification methods
   createNotification: (notification: Omit<Notification, 'id' | 'created_at' | 'read'>) => Notification;
   markNotificationAsRead: (id: string) => void;
   getUserNotifications: (userId: string) => Notification[];
-  
+
   // User management methods
   getAllUsers: () => Array<{
     id: string;
@@ -316,7 +317,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const stored = sessionStorage.getItem('connect_accel_data');
     if (stored) {
       try {
-      return JSON.parse(stored);
+        return JSON.parse(stored);
       } catch {
         // If parsing fails, return empty data structure
       }
@@ -342,15 +343,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadProjects = async () => {
       if (!user) return;
-      
+
       // Prevent multiple simultaneous calls
       if (isLoadingProjectsRef.current) return;
-      
+
       // Check if we have cached projects and they're recent (less than 30 seconds old)
       const lastLoadTime = sessionStorage.getItem('projects_last_load_time');
       const stored = sessionStorage.getItem('connect_accel_data');
       let hasProjects = false;
-      
+
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
@@ -359,7 +360,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           // Ignore parse errors
         }
       }
-      
+
       if (hasProjects && lastLoadTime) {
         const timeSinceLastLoad = Date.now() - parseInt(lastLoadTime, 10);
         // If we have projects and they were loaded less than 30 seconds ago, skip reload
@@ -367,16 +368,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
           return;
         }
       }
-      
+
       isLoadingProjectsRef.current = true;
-      
+
       // Add a delay to prevent race conditions with other components
       await new Promise(resolve => setTimeout(resolve, 200));
-      
+
       try {
         const result = await projectService.listProjects();
         const normalizedProjects = result.projects.map(projectService.normalizeProject);
-        
+
         // Extract milestones from all projects
         const allMilestones: Milestone[] = [];
         result.projects.forEach((project: any) => {
@@ -389,13 +390,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
             });
           }
         });
-        
+
         setData((prev: any) => ({
           ...prev,
           projects: normalizedProjects,
           milestones: allMilestones,
         }));
-        
+
         // Store timestamp of successful load
         sessionStorage.setItem('projects_last_load_time', Date.now().toString());
       } catch (error: any) {
@@ -438,16 +439,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
         skills: projectData.skills_required,
         priority: projectData.priority,
         complexity: projectData.complexity,
+        status: (projectData.status as 'draft' | 'pending_review' | undefined) || 'pending_review',
       };
 
       const createdProject = await projectService.createProject(payload);
       const normalizedProject = projectService.normalizeProject(createdProject);
-      
+
       setData((prev: any) => ({
         ...prev,
         projects: [...prev.projects, normalizedProject],
       }));
-      
+
       return normalizedProject;
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error.message || 'Failed to create project';
@@ -475,119 +477,119 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       const updatedProject = await projectService.updateProject(id, payload);
       const normalizedProject = projectService.normalizeProject(updatedProject);
-      
-    setData((prev: any) => {
-      const updatedProjects = prev.projects.map((p: Project) =>
+
+      setData((prev: any) => {
+        const updatedProjects = prev.projects.map((p: Project) =>
           p.id === id ? normalizedProject : p
-      );
-      
-      // Create notifications for project updates
-      const project = prev.projects.find((p: Project) => p.id === id);
-      const newNotifications = [...prev.notifications];
-      
-      if (project) {
-        // Notify client when admin changes anything in the project
-        if (socketService.isConnected() && user && (user.role === 'admin' || user.role === 'superadmin')) {
-          // Determine what changed
-          let notificationTitle = 'Project Updated';
-          let notificationDescription = `Your project "${project.title}" has been updated.`;
-          
-          if (updates.status) {
-            if (updates.status === 'in_bidding') {
-              notificationTitle = 'Project Approved!';
-              notificationDescription = `Your project "${project.title}" has been approved and is now open for bidding.`;
-            } else if (updates.status === 'in_progress') {
-              notificationTitle = 'Project Started!';
-              notificationDescription = `Your project "${project.title}" has been started.`;
-            } else if (updates.status === 'completed') {
-              notificationTitle = 'Project Completed!';
-              notificationDescription = `Your project "${project.title}" has been completed.`;
-            } else if (updates.status === 'cancelled') {
-              notificationTitle = 'Project Cancelled';
-              notificationDescription = `Your project "${project.title}" has been cancelled.`;
+        );
+
+        // Create notifications for project updates
+        const project = prev.projects.find((p: Project) => p.id === id);
+        const newNotifications = [...prev.notifications];
+
+        if (project) {
+          // Notify client when admin changes anything in the project
+          if (socketService.isConnected() && user && (user.role === 'admin' || user.role === 'superadmin')) {
+            // Determine what changed
+            let notificationTitle = 'Project Updated';
+            let notificationDescription = `Your project "${project.title}" has been updated.`;
+
+            if (updates.status) {
+              if (updates.status === 'in_bidding') {
+                notificationTitle = 'Project Approved!';
+                notificationDescription = `Your project "${project.title}" has been approved and is now open for bidding.`;
+              } else if (updates.status === 'in_progress') {
+                notificationTitle = 'Project Started!';
+                notificationDescription = `Your project "${project.title}" has been started.`;
+              } else if (updates.status === 'completed') {
+                notificationTitle = 'Project Completed!';
+                notificationDescription = `Your project "${project.title}" has been completed.`;
+              } else if (updates.status === 'cancelled') {
+                notificationTitle = 'Project Cancelled';
+                notificationDescription = `Your project "${project.title}" has been cancelled.`;
+              }
+            } else if (updates.title || updates.description || updates.budget || updates.duration_weeks) {
+              notificationTitle = 'Project Details Updated';
+              notificationDescription = `Admin has updated details of your project "${project.title}".`;
             }
-          } else if (updates.title || updates.description || updates.budget || updates.duration_weeks) {
-            notificationTitle = 'Project Details Updated';
-            notificationDescription = `Admin has updated details of your project "${project.title}".`;
+
+            const notification = {
+              id: 'notif_' + Math.random().toString(36).substr(2, 9),
+              user_id: project.client_id,
+              type: 'project' as const,
+              title: notificationTitle,
+              description: notificationDescription,
+              link: `/client/projects/${id}`,
+              read: false,
+              created_at: new Date().toISOString(),
+            };
+
+            // Emit socket event to the specific client
+            socketService.getSocket()?.emit('notification:create', notification);
+
+            // Also add to local notifications
+            newNotifications.push(notification);
           }
-          
-          const notification = {
-            id: 'notif_' + Math.random().toString(36).substr(2, 9),
-            user_id: project.client_id,
-            type: 'project' as const,
-            title: notificationTitle,
-            description: notificationDescription,
-            link: `/client/projects/${id}`,
-            read: false,
-            created_at: new Date().toISOString(),
-          };
-          
-          // Emit socket event to the specific client
-          socketService.getSocket()?.emit('notification:create', notification);
-          
-          // Also add to local notifications
-          newNotifications.push(notification);
-        }
-        
-        // Legacy status-based notifications (for backward compatibility when socket is not connected)
-        if (updates.status && !socketService.isConnected()) {
-          if (updates.status === 'in_bidding') {
-            newNotifications.push({
-              id: 'notif_' + Math.random().toString(36).substr(2, 9),
-              user_id: project.client_id,
-              type: 'project',
-              title: 'Project Approved!',
-              description: `Your project "${project.title}" has been approved and is now open for bidding.`,
-              link: `/client/projects/${id}`,
-              read: false,
-              created_at: new Date().toISOString(),
-            });
-          } else if (updates.status === 'assigned') {
-            // Notify both client and freelancer
-            newNotifications.push({
-              id: 'notif_' + Math.random().toString(36).substr(2, 9),
-              user_id: project.client_id,
-              type: 'project',
-              title: 'Freelancer Assigned!',
-              description: `A freelancer has been assigned to your project "${project.title}".`,
-              link: `/client/projects/${id}`,
-              read: false,
-              created_at: new Date().toISOString(),
-            });
-            if ((updates as any).assigned_freelancer_id) {
+
+          // Legacy status-based notifications (for backward compatibility when socket is not connected)
+          if (updates.status && !socketService.isConnected()) {
+            if (updates.status === 'in_bidding') {
               newNotifications.push({
                 id: 'notif_' + Math.random().toString(36).substr(2, 9),
-                user_id: (updates as any).assigned_freelancer_id,
+                user_id: project.client_id,
                 type: 'project',
-                title: 'Project Assigned to You!',
-                description: `You've been assigned to project "${project.title}". Time to get started!`,
-                link: `/freelancer/projects/${id}`,
+                title: 'Project Approved!',
+                description: `Your project "${project.title}" has been approved and is now open for bidding.`,
+                link: `/client/projects/${id}`,
+                read: false,
+                created_at: new Date().toISOString(),
+              });
+            } else if (updates.status === 'assigned') {
+              // Notify both client and freelancer
+              newNotifications.push({
+                id: 'notif_' + Math.random().toString(36).substr(2, 9),
+                user_id: project.client_id,
+                type: 'project',
+                title: 'Freelancer Assigned!',
+                description: `A freelancer has been assigned to your project "${project.title}".`,
+                link: `/client/projects/${id}`,
+                read: false,
+                created_at: new Date().toISOString(),
+              });
+              if ((updates as any).assigned_freelancer_id) {
+                newNotifications.push({
+                  id: 'notif_' + Math.random().toString(36).substr(2, 9),
+                  user_id: (updates as any).assigned_freelancer_id,
+                  type: 'project',
+                  title: 'Project Assigned to You!',
+                  description: `You've been assigned to project "${project.title}". Time to get started!`,
+                  link: `/freelancer/projects/${id}`,
+                  read: false,
+                  created_at: new Date().toISOString(),
+                });
+              }
+            } else if (updates.status === 'cancelled') {
+              newNotifications.push({
+                id: 'notif_' + Math.random().toString(36).substr(2, 9),
+                user_id: project.client_id,
+                type: 'project',
+                title: 'Project Update',
+                description: `Your project "${project.title}" has been cancelled. ${(updates as any).rejection_reason || ''}`,
+                link: `/client/projects/${id}`,
                 read: false,
                 created_at: new Date().toISOString(),
               });
             }
-          } else if (updates.status === 'cancelled') {
-            newNotifications.push({
-              id: 'notif_' + Math.random().toString(36).substr(2, 9),
-              user_id: project.client_id,
-              type: 'project',
-              title: 'Project Update',
-              description: `Your project "${project.title}" has been cancelled. ${(updates as any).rejection_reason || ''}`,
-              link: `/client/projects/${id}`,
-              read: false,
-              created_at: new Date().toISOString(),
-            });
           }
         }
-      }
-      
-      return {
-        ...prev,
-        projects: updatedProjects,
-        notifications: newNotifications,
-      };
-    });
-      
+
+        return {
+          ...prev,
+          projects: updatedProjects,
+          notifications: newNotifications,
+        };
+      });
+
       return normalizedProject;
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error.message || 'Failed to update project';
@@ -606,12 +608,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return localProject;
       }
     }
-    
+
     // Fetch from backend if not in local state or force refresh requested
     try {
       const project = await projectService.getProjectById(id);
       const normalizedProject = projectService.normalizeProject(project);
-      
+
       // Extract milestones from project if they exist
       const projectMilestones: Milestone[] = [];
       if (project.milestones && Array.isArray(project.milestones)) {
@@ -622,25 +624,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
           projectMilestones.push(normalizedMilestone);
         });
       }
-      
+
       setData((prev: any) => {
         const existingIndex = prev.projects.findIndex((p: Project) => p.id === id);
         const updatedProjects = existingIndex >= 0 ? [...prev.projects] : [...prev.projects, normalizedProject];
         if (existingIndex >= 0) {
           updatedProjects[existingIndex] = normalizedProject;
         }
-        
+
         // Merge milestones - avoid duplicates
         const existingMilestoneIds = new Set(prev.milestones.map((m: Milestone) => m.id));
         const newMilestones = projectMilestones.filter((m: Milestone) => !existingMilestoneIds.has(m.id));
-        
-        return { 
-          ...prev, 
+
+        return {
+          ...prev,
           projects: updatedProjects,
           milestones: [...prev.milestones, ...newMilestones]
         };
       });
-      
+
       return normalizedProject;
     } catch (error: any) {
       console.error('Failed to fetch project:', error);
@@ -665,6 +667,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return data.projects.filter((p: Project) => p.admin_id === agentId);
   };
 
+  const deleteProject = async (id: string) => {
+    try {
+      await projectService.deleteProject(id);
+      setData((prev: any) => ({
+        ...prev,
+        projects: prev.projects.filter((p: Project) => p.id !== id),
+      }));
+      toast.success('Project deleted successfully');
+    } catch (error: any) {
+      console.error('Failed to delete project:', error);
+      toast.error('Failed to delete project');
+      throw error;
+    }
+  };
+
   // Milestone methods
   const createMilestone = async (milestoneData: Omit<Milestone, 'id'>) => {
     try {
@@ -680,12 +697,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const normalizedMilestone = projectService.normalizeMilestone(createdMilestone);
       normalizedMilestone.project_id = milestoneData.project_id;
       normalizedMilestone.order = data.milestones.filter((m: Milestone) => m.project_id === milestoneData.project_id).length;
-      
-      setData((prev: any) => ({ 
-        ...prev, 
-        milestones: [...prev.milestones, normalizedMilestone] 
+
+      setData((prev: any) => ({
+        ...prev,
+        milestones: [...prev.milestones, normalizedMilestone]
       }));
-      
+
       return normalizedMilestone;
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error.message || 'Failed to create milestone';
@@ -711,14 +728,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const normalizedMilestone = projectService.normalizeMilestone(updatedMilestone);
       normalizedMilestone.project_id = milestone.project_id;
       normalizedMilestone.order = milestone.order;
-      
-    setData((prev: any) => ({
-      ...prev,
-      milestones: prev.milestones.map((m: Milestone) =>
+
+      setData((prev: any) => ({
+        ...prev,
+        milestones: prev.milestones.map((m: Milestone) =>
           m.id === id ? normalizedMilestone : m
-      ),
-    }));
-      
+        ),
+      }));
+
       return normalizedMilestone;
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error.message || 'Failed to update milestone';
@@ -770,11 +787,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const updateBid = (id: string, updates: Partial<Bid>) => {
     setData((prev: any) => {
       const updatedBids = prev.bids.map((b: Bid) => (b.id === id ? { ...b, ...updates } : b));
-      
+
       // Create notifications for bid updates
       const bid = prev.bids.find((b: Bid) => b.id === id);
       const newNotifications = [...prev.notifications];
-      
+
       if (bid && updates.status) {
         if (updates.status === 'accepted') {
           // Notify freelancer their bid was accepted
@@ -814,7 +831,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           });
         }
       }
-      
+
       return {
         ...prev,
         bids: updatedBids,
@@ -883,11 +900,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const updatedConsultations = prev.consultations.map((c: Consultation) =>
         c.id === id ? { ...c, ...updates } : c
       );
-      
+
       // Create notifications for consultation updates
       const consultation = prev.consultations.find((c: Consultation) => c.id === id);
       const newNotifications = [...prev.notifications];
-      
+
       if (consultation && updates.status) {
         if (updates.status === 'scheduled') {
           // Notify client when consultation is scheduled
@@ -915,7 +932,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           });
         }
       }
-      
+
       return {
         ...prev,
         consultations: updatedConsultations,
@@ -979,11 +996,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const updatedDisputes = prev.disputes.map((d: Dispute) =>
         d.id === id ? { ...d, ...updates } : d
       );
-      
+
       // Create notifications for dispute updates
       const dispute = prev.disputes.find((d: Dispute) => d.id === id);
       const newNotifications = [...prev.notifications];
-      
+
       if (dispute && updates.status) {
         if (updates.status === 'in_review') {
           // Notify the person who raised the dispute
@@ -1012,7 +1029,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               read: false,
               created_at: new Date().toISOString(),
             });
-            
+
             // Notify freelancer if assigned
             if (project.freelancer_id) {
               newNotifications.push({
@@ -1029,7 +1046,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           }
         }
       }
-      
+
       return {
         ...prev,
         disputes: updatedDisputes,
@@ -1056,11 +1073,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       conversations: prev.conversations.map((c: Conversation) =>
         c.id === messageData.conversation_id
           ? {
-              ...c,
-              last_message: messageData.content,
-              last_message_at: newMessage.created_at,
-              unread_count: c.unread_count + 1,
-            }
+            ...c,
+            last_message: messageData.content,
+            last_message_at: newMessage.created_at,
+            unread_count: c.unread_count + 1,
+          }
           : c
       ),
     }));
@@ -1222,51 +1239,52 @@ export function DataProvider({ children }: { children: ReactNode }) {
     notifications: data.notifications,
     freelancers: data.freelancers,
     clients: data.clients,
-    
+
     createProject,
     updateProject,
     getProject,
     getProjectsByUser,
     getProjectsByAgent,
-    
+    deleteProject,
+
     createMilestone,
     updateMilestone,
     deleteMilestone,
     getMilestonesByProject,
-    
+
     createBid,
     updateBid,
     getBidsByProject,
     getBidsByFreelancer,
     getBidsByAgent,
-    
+
     createBidInvitation,
     updateBidInvitation,
     getBidInvitationsByProject,
     getBidInvitationsByFreelancer,
-    
+
     createConsultation,
     updateConsultation,
     getConsultationsByUser,
-    
+
     createPayment,
     updatePayment,
     getPaymentsByProject,
     getPaymentsByUser,
-    
+
     createDispute,
     updateDispute,
     getDisputesByProject,
-    
+
     sendMessage,
     markMessageAsRead,
     getConversation,
     getUserConversations,
-    
+
     createNotification,
     markNotificationAsRead,
     getUserNotifications,
-    
+
     getAllUsers,
     createUser,
     updateUserStatus,

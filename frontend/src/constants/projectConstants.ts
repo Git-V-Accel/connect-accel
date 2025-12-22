@@ -23,10 +23,27 @@ export const projectPriorities = [
 ];
 
 export const commonSkills = [
-  'React', 'Node.js', 'Python', 'JavaScript', 'TypeScript',
-  'MongoDB', 'PostgreSQL', 'AWS', 'Docker', 'Kubernetes',
-  'React Native', 'Vue.js', 'Angular', 'Django', 'Flask',
-  'GraphQL', 'REST API', 'Git', 'CI/CD', 'Testing',
+"MERN Stack (MongoDB, Express.js, React, Node.js)",
+"MEAN Stack (MongoDB, Express.js, Angular, Node.js)",
+"MVC Stack (MongoDB, Express.js, Vue.js, Node.js)",
+"LAMP Stack (Linux, Apache, MySQL, PHP)",
+"AWS",
+"Google Cloud",
+"Azure",
+"Firebase",
+"Docker",
+"Kubernetes","GitHub",
+"Git",
+"React",
+"Node.js",
+"Python",
+"Django",
+"Flask",
+"Android",
+"Flutter",
+"Java",
+"Spring Boot",
+"iOS",
 ];
 
 export const statusColors = {

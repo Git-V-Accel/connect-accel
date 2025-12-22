@@ -85,14 +85,12 @@ export default function ProjectDetail() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!project || !id) return;
-    
+
     if (newStatus === project.status) return;
-    
+
     setIsUpdatingStatus(true);
     try {
-      await updateProject(id, { status: newStatus as any });
-      // Reload project to get updated data
-      const updatedProject = await getProject(id);
+      const updatedProject = await updateProject(id, { status: newStatus as any });
       setProject(updatedProject);
       toast.success(`Project status changed to ${statusLabels[newStatus as keyof typeof statusLabels] || newStatus}`);
     } catch (error: any) {
@@ -189,7 +187,7 @@ export default function ProjectDetail() {
 
       // Reload project to get updated milestone data
       if (id) {
-        const updatedProject = await getProject(id);
+        const updatedProject = await getProject(id, true);
         setProject(updatedProject);
       }
 
@@ -211,7 +209,7 @@ export default function ProjectDetail() {
 
       // Reload project to get updated milestone data
       if (id) {
-        const updatedProject = await getProject(id);
+        const updatedProject = await getProject(id, true);
         setProject(updatedProject);
       }
 
@@ -243,8 +241,8 @@ export default function ProjectDetail() {
               <RichTextViewer content={project.description || ""} />
             </div>
           </div>
-          <Badge className={statusColors[project.status]}>
-            {statusLabels[project.status]}
+          <Badge className={(statusColors as any)[project.status]}>
+            {(statusLabels as any)[project.status]}
           </Badge>
         </div>
 
@@ -354,7 +352,7 @@ export default function ProjectDetail() {
                         Required Skills
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {project.skills_required.map((skill) => (
+                        {project.skills_required.map((skill: string) => (
                           <Badge key={skill} variant="secondary">
                             {skill}
                           </Badge>
@@ -396,13 +394,12 @@ export default function ProjectDetail() {
                           className="flex gap-3 pb-4 border-b last:border-0"
                         >
                           <div
-                            className={`size-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                              m.status === "approved"
-                                ? "bg-green-100 text-green-600"
-                                : m.status === "submitted"
+                            className={`size-8 rounded-full flex items-center justify-center flex-shrink-0 ${m.status === "approved"
+                              ? "bg-green-100 text-green-600"
+                              : m.status === "submitted"
                                 ? "bg-yellow-100 text-yellow-600"
                                 : "bg-gray-100 text-gray-600"
-                            }`}
+                              }`}
                           >
                             {m.status === "approved" ? (
                               <CheckCircle2 className="size-4" />
@@ -414,20 +411,18 @@ export default function ProjectDetail() {
                             <p className="text-sm font-medium">{m.title}</p>
                             <p className="text-sm text-gray-600">
                               {m.status === "approved" &&
-                                `Approved on ${
-                                  m.approval_date
-                                    ? new Date(
-                                        m.approval_date
-                                      ).toLocaleDateString()
-                                    : "N/A"
+                                `Approved on ${m.approval_date
+                                  ? new Date(
+                                    m.approval_date
+                                  ).toLocaleDateString()
+                                  : "N/A"
                                 }`}
                               {m.status === "submitted" &&
-                                `Submitted on ${
-                                  m.submission_date
-                                    ? new Date(
-                                        m.submission_date
-                                      ).toLocaleDateString()
-                                    : "N/A"
+                                `Submitted on ${m.submission_date
+                                  ? new Date(
+                                    m.submission_date
+                                  ).toLocaleDateString()
+                                  : "N/A"
                                 }`}
                             </p>
                           </div>
@@ -537,7 +532,7 @@ export default function ProjectDetail() {
                     </div>
 
                     <div className="space-y-2">
-                      {project.status === "active" && (
+                      {project.status === "draft" && (
                         <Button
                           variant="outline"
                           className="w-full"
@@ -584,16 +579,15 @@ export default function ProjectDetail() {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex gap-4 flex-1">
                       <div
-                        className={`size-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          milestone.status === "paid" ||
+                        className={`size-10 rounded-full flex items-center justify-center flex-shrink-0 ${milestone.status === "paid" ||
                           milestone.status === "approved"
-                            ? "bg-green-100 text-green-600"
-                            : milestone.status === "submitted"
+                          ? "bg-green-100 text-green-600"
+                          : milestone.status === "submitted"
                             ? "bg-yellow-100 text-yellow-600"
                             : milestone.status === "in_progress"
-                            ? "bg-blue-100 text-blue-600"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
+                              ? "bg-blue-100 text-blue-600"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
                       >
                         {index + 1}
                       </div>
@@ -707,11 +701,10 @@ export default function ProjectDetail() {
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`size-10 rounded-full flex items-center justify-center ${
-                            payment.status === "completed"
-                              ? "bg-green-100 text-green-600"
-                              : "bg-gray-100 text-gray-600"
-                          }`}
+                          className={`size-10 rounded-full flex items-center justify-center ${payment.status === "completed"
+                            ? "bg-green-100 text-green-600"
+                            : "bg-gray-100 text-gray-600"
+                            }`}
                         >
                           <IndianRupee className="size-5" />
                         </div>
@@ -737,8 +730,8 @@ export default function ProjectDetail() {
                         <p className="text-sm text-gray-600 mt-1">
                           {payment.completed_at
                             ? new Date(
-                                payment.completed_at
-                              ).toLocaleDateString()
+                              payment.completed_at
+                            ).toLocaleDateString()
                             : new Date(payment.created_at).toLocaleDateString()}
                         </p>
                       </div>

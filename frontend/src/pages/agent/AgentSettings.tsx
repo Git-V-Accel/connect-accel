@@ -6,7 +6,7 @@ import { Label } from '../../components/ui/label';
 import { PasswordInput, RichTextEditor, RichTextViewer } from '../../components/common';
 import { Switch } from '../../components/ui/switch';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
+import {
   User,
   Mail,
   Phone,
@@ -135,11 +135,10 @@ export default function AgentSettings() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
-                  activeTab === tab.id
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === tab.id
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -193,7 +192,7 @@ export default function AgentSettings() {
                     value={profileData.phone}
                     onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                     className="mt-1"
-                    placeholder="+1 (555) 000-0000"
+                    placeholder="9876543210"
                   />
                 </div>
 
@@ -226,7 +225,7 @@ export default function AgentSettings() {
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                <Label htmlFor="bio">Bio</Label>
+                  <Label htmlFor="bio">Bio</Label>
                   {!isBioEditing && (
                     <Button
                       type="button"
@@ -247,7 +246,7 @@ export default function AgentSettings() {
                     <RichTextEditor
                       value={bioEditValue}
                       onChange={setBioEditValue}
-                  placeholder="Tell clients about your expertise..."
+                      placeholder="Tell clients about your expertise..."
                       className="mt-1"
                       minHeight="150px"
                     />
@@ -301,7 +300,7 @@ export default function AgentSettings() {
         {activeTab === 'notifications' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h2 className="text-xl mb-6">Notification Preferences</h2>
-            
+
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg mb-4">Email Notifications</h3>
@@ -318,7 +317,7 @@ export default function AgentSettings() {
                         checked={notificationSettings[item.key as keyof typeof notificationSettings]}
                         onCheckedChange={(checked) =>
                           setNotificationSettings({
-                          ...notificationSettings,
+                            ...notificationSettings,
                             [item.key]: checked,
                           })
                         }
@@ -343,7 +342,7 @@ export default function AgentSettings() {
                         checked={notificationSettings[item.key as keyof typeof notificationSettings]}
                         onCheckedChange={(checked) =>
                           setNotificationSettings({
-                          ...notificationSettings,
+                            ...notificationSettings,
                             [item.key]: checked,
                           })
                         }
@@ -365,7 +364,7 @@ export default function AgentSettings() {
         {activeTab === 'security' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h2 className="text-xl mb-6">Security Settings</h2>
-            
+
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg mb-4">Change Password</h3>
@@ -373,9 +372,9 @@ export default function AgentSettings() {
                   <div>
                     <Label htmlFor="current_password">Current Password</Label>
                     <PasswordInput
-                        id="current_password"
-                        value={passwordData.current_password}
-                        onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                      id="current_password"
+                      value={passwordData.current_password}
+                      onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
                       className="mt-1"
                     />
                   </div>
@@ -436,7 +435,7 @@ export default function AgentSettings() {
         {activeTab === 'payment' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h2 className="text-xl mb-6">Payment Information</h2>
-            
+
             <div className="space-y-6">
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">

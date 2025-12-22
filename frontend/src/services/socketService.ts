@@ -47,14 +47,28 @@ class SocketService {
     this.token = token;
     this.isConnecting = true;
 
-    const url = serverUrl || import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+    // Intelligent URL detection
+    let url = serverUrl || (import.meta as any).env.VITE_SOCKET_URL;
+
+    if (!url) {
+      // Fallback to API base URL but strip the /api suffix
+      const apiBaseUrl = (import.meta as any).env.VITE_API_BASE_URL;
+      if (apiBaseUrl) {
+        url = apiBaseUrl.replace(/\/api$/, '');
+      } else {
+        // Ultimate fallback
+        url = 'http://localhost:3001';
+      }
+    }
+
+    console.log(`Connecting to socket at: ${url}`);
 
     this.socket = io(url, {
       auth: {
         token,
         userId,
       },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'], // Use polling first for better compatibility
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: this.reconnectDelay,
@@ -98,7 +112,7 @@ class SocketService {
       this.reconnectAttempts = 0;
       this.isConnecting = false;
       this.notifyConnectionHandlers(true);
-      
+
       // Join user's room
       if (this.userId) {
         this.socket?.emit('join:user', { userId: this.userId });

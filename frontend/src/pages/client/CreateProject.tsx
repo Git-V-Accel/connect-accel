@@ -16,12 +16,13 @@ import { ArrowLeft, ArrowRight, Check, Calendar, IndianRupee, FileText, Settings
 import { toast } from '../../utils/toast';
 import { categories, commonSkills, projectTypes, projectPriorities } from '../../constants/projectConstants';
 import { RichTextViewer } from '../../components/common';
+import { Chip } from '@mui/material';
 
 export default function CreateProject() {
   const { user } = useAuth();
   const { createProject } = useData();
   const navigate = useNavigate();
-  
+
   const [step, setStep] = useState(1);
   const [visitedSteps, setVisitedSteps] = useState<Set<number>>(new Set([1]));
   const formContentRef = useRef<HTMLDivElement>(null);
@@ -90,18 +91,18 @@ export default function CreateProject() {
 
   const changeStep = (newStep: number, skipValidation = false) => {
     if (isTransitioning) return;
-    
+
     // Validation: can only go forward if current step is valid
     if (newStep > step && !skipValidation && !canProceed()) {
       return;
     }
-    
+
     // Can go back to any visited step, or forward if validation passes
     if (newStep <= step || visitedSteps.has(newStep) || (newStep === step + 1 && canProceed())) {
       setIsTransitioning(true);
       setStep(newStep);
       setVisitedSteps(prev => new Set([...prev, newStep]));
-      
+
       setTimeout(() => {
         setIsTransitioning(false);
       }, 300); // Match CSS transition duration
@@ -127,15 +128,15 @@ export default function CreateProject() {
   // Throttled scroll handler
   const handleWheel = (e: WheelEvent) => {
     if (isTransitioning || scrollTimeoutRef.current) return;
-    
+
     e.preventDefault();
-    
+
     scrollTimeoutRef.current = setTimeout(() => {
       scrollTimeoutRef.current = null;
     }, 500); // Throttle: 500ms between scroll actions
-    
+
     const deltaY = e.deltaY;
-    
+
     if (deltaY > 0) {
       // Scrolling down - go to next step
       if (canProceed() && step < 4) {
@@ -160,21 +161,21 @@ export default function CreateProject() {
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (!touchStartRef.current || isTransitioning) return;
-    
+
     const touchEnd = {
       x: e.changedTouches[0].clientX,
       y: e.changedTouches[0].clientY,
       time: Date.now(),
     };
-    
+
     const deltaX = touchEnd.x - touchStartRef.current.x;
     const deltaY = touchEnd.y - touchStartRef.current.y;
     const deltaTime = touchEnd.time - touchStartRef.current.time;
-    
+
     // Minimum swipe distance and maximum time
     const minSwipeDistance = 50;
     const maxSwipeTime = 300;
-    
+
     // Check if it's a vertical swipe (more vertical than horizontal)
     if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > minSwipeDistance && deltaTime < maxSwipeTime) {
       if (deltaY < 0) {
@@ -189,7 +190,7 @@ export default function CreateProject() {
         }
       }
     }
-    
+
     touchStartRef.current = null;
   };
 
@@ -209,32 +210,36 @@ export default function CreateProject() {
     };
   }, [step, isTransitioning]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (status: string) => {
     if (!user) return;
 
     try {
-    const budget = parseInt(formData.client_budget);
+      const budget = parseInt(formData.client_budget);
       const project = await createProject({
-      title: formData.title,
-      description: formData.description,
-      client_id: user.id,
-      client_name: user.name,
-      status: 'pending_review',
-      category: formData.category,
-      skills_required: formData.skills_required,
-      budget: budget,
-      client_budget: budget,
-      duration_weeks: parseInt(formData.duration_weeks),
-      priority: formData.priority as 'low' | 'medium' | 'high',
-      complexity: 'moderate', // Default value, can be updated later
-      requirements: false, // Default value
+        title: formData.title,
+        description: formData.description,
+        client_id: user.id,
+        client_name: user.name,
+        status: status==="draft" ? "draft" : "pending_review",
+        category: formData.category,
+        skills_required: formData.skills_required,
+        budget: budget,
+        client_budget: budget,
+        duration_weeks: parseInt(formData.duration_weeks),
+        priority: formData.priority as 'low' | 'medium' | 'high',
+        complexity: 'moderate', // Default value, can be updated later
+        requirements: false, // Default value
         timeline: `${formData.duration_weeks} weeks`,
         isNegotiableBudget: formData.negotiable,
-    });
+      });
 
-    toast.success('Project submitted successfully! Our team will review it shortly.');
-    
-    navigate('/client/projects');
+      const successMessage = status === 'draft'
+        ? 'Project saved as draft successfully!'
+        : 'Project submitted successfully! Our team will review it shortly.';
+
+      toast.success(successMessage);
+
+      navigate('/client/projects');
     } catch (error: any) {
       // Error is already handled in DataContext with toast
       console.error('Failed to create project:', error);
@@ -296,11 +301,10 @@ export default function CreateProject() {
                   {projectTypes.map(type => (
                     <Card
                       key={type.value}
-                      className={`p-4 cursor-pointer transition-colors ${
-                        formData.project_type === type.value
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'hover:border-gray-400'
-                      }`}
+                      className={`p-4 cursor-pointer transition-colors ${formData.project_type === type.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'hover:border-gray-400'
+                        }`}
                       onClick={() => updateFormData('project_type', type.value)}
                     >
                       <div className="flex items-start justify-between">
@@ -355,7 +359,7 @@ export default function CreateProject() {
                   />
                 </div>
               </div>
- <Card className="p-4">
+              <Card className="p-4">
                 <div className="flex items-start gap-3">
                   <Checkbox
                     id="negotiable"
@@ -378,11 +382,10 @@ export default function CreateProject() {
                   {projectPriorities.map(priority => (
                     <Card
                       key={priority.value}
-                      className={`p-4 cursor-pointer transition-colors ${
-                        formData.priority === priority.value
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'hover:border-gray-400'
-                      }`}
+                      className={`p-4 cursor-pointer transition-colors ${formData.priority === priority.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'hover:border-gray-400'
+                        }`}
                       onClick={() => updateFormData('priority', priority.value)}
                     >
                       <div className="flex items-start justify-between">
@@ -399,7 +402,7 @@ export default function CreateProject() {
                 </div>
               </div>
 
-             
+
             </div>
           </div>
         );
@@ -414,11 +417,6 @@ export default function CreateProject() {
 
             <div className="space-y-4">
               <div>
-                <Label>Required Skills *</Label>
-                <p className="text-sm text-gray-500 mb-3">
-                  Select from the list below or create new skills
-                </p>
-                
                 {/* Add New Skill Input */}
                 <div className="flex gap-2 mb-4">
                   <Input
@@ -439,25 +437,7 @@ export default function CreateProject() {
                   </Button>
                 </div>
 
-                {/* Selected Skills Display */}
-                {formData.skills_required.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-sm font-medium mb-2">Selected Skills:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.skills_required.map(skill => (
-                        <Badge
-                          key={skill}
-                          variant="default"
-                          className="cursor-pointer hover:bg-blue-700 transition-colors flex items-center gap-1"
-                          onClick={() => toggleSkill(skill)}
-                        >
-                          {skill}
-                          <X className="size-3" />
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
 
                 {/* Predefined Skills */}
                 <div>
@@ -466,15 +446,18 @@ export default function CreateProject() {
                     {commonSkills.map(skill => {
                       const isSelected = formData.skills_required.includes(skill);
                       return (
-                        <Badge
+                        <Chip
                           key={skill}
-                          variant={isSelected ? 'default' : 'outline'}
+                          variant={isSelected ? 'filled' : 'outlined'}
+                          label={
+                            <span className="flex items-center">
+                              {isSelected && <Check className="size-3 mr-1" />}
+                              {skill}
+                            </span>
+                          }
                           className="cursor-pointer hover:bg-blue-100 transition-colors"
                           onClick={() => toggleSkill(skill)}
-                        >
-                          {isSelected && <Check className="size-3 mr-1" />}
-                          {skill}
-                        </Badge>
+                        />
                       );
                     })}
                   </div>
@@ -482,6 +465,27 @@ export default function CreateProject() {
 
                 {formData.skills_required.length === 0 && (
                   <p className="text-sm text-red-500 mt-2">Please select or add at least one skill</p>
+                )}
+                {/* Selected Skills Display */}
+                {formData.skills_required.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm font-medium mb-2">Selected Skills:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.skills_required.map(skill => (
+                        <Chip
+                          key={skill}
+                          label={
+                            <span className="flex items-center gap-1">
+                              {skill}
+                              <X className="size-3" />
+                            </span>
+                          }
+                          className="cursor-pointer hover:bg-blue-700 transition-colors"
+                          onClick={() => toggleSkill(skill)}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -605,55 +609,53 @@ export default function CreateProject() {
           </Button>
         </div>
 
-        {/* Progress Steps */}
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            {steps.map((s, index) => {
-              const isCompleted = step > s.number;
-              const isCurrent = step === s.number;
-              const isVisited = visitedSteps.has(s.number);
-              const canClick = isVisited || isCurrent;
-              
-              return (
-                <div key={s.number} className="flex items-center flex-1">
-                  <div className="flex flex-col items-center flex-1">
-                    <button
-                      type="button"
-                      onClick={() => canClick && handleStepChange(s.number)}
-                      disabled={!canClick}
-                      className={`size-10 rounded-full flex items-center justify-center transition-all ${
-                        isCompleted
-                          ? 'bg-green-600 text-white cursor-pointer hover:bg-green-700'
-                          : isCurrent
-                          ? 'bg-blue-600 text-white cursor-pointer hover:bg-blue-700'
-                          : isVisited
+
+
+        <div className="flex items-center justify-between">
+          {steps.map((s, index) => {
+            const isCompleted = step > s.number;
+            const isCurrent = step === s.number;
+            const isVisited = visitedSteps.has(s.number);
+            const canClick = isVisited || isCurrent;
+
+            return (
+              <div key={s.number} className="flex items-center flex-1">
+                <div className="flex flex-col items-center flex-1">
+                  <button
+                    type="button"
+                    onClick={() => canClick && handleStepChange(s.number)}
+                    disabled={!canClick}
+                    className={`size-10 rounded-full flex items-center justify-center transition-all ${isCompleted
+                      ? 'bg-green-600 text-white cursor-pointer hover:bg-green-700'
+                      : isCurrent
+                        ? 'bg-blue-600 text-white cursor-pointer hover:bg-blue-700'
+                        : isVisited
                           ? 'bg-gray-300 text-gray-600 cursor-pointer hover:bg-gray-400'
                           : 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-50'
                       } ${canClick ? 'hover:scale-105' : ''}`}
-                      title={canClick ? `Go to ${s.title}` : 'Complete previous steps first'}
-                    >
-                      {isCompleted ? <Check className="size-5" /> : s.icon}
-                    </button>
-                    <p className={`text-sm mt-2 ${step >= s.number ? 'font-medium' : 'text-gray-500'}`}>
-                      {s.title}
-                    </p>
-                  </div>
-                  {index < steps.length - 1 && (
-                    <div className={`h-1 flex-1 mx-2 rounded transition-colors ${step > s.number ? 'bg-green-600' : 'bg-gray-200'}`}></div>
-                  )}
+                    title={canClick ? `Go to ${s.title}` : 'Complete previous steps first'}
+                  >
+                    {isCompleted ? <Check className="size-5" /> : s.icon}
+                  </button>
+                  <p className={`text-sm mt-2 ${step >= s.number ? 'font-medium' : 'text-gray-500'}`}>
+                    {s.title}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        </Card>
+                {index < steps.length - 1 && (
+                  <div className={`h-1 flex-1 mx-2 rounded transition-colors ${step > s.number ? 'bg-green-600' : 'bg-gray-200'}`}></div>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
         {/* Form Content */}
-        <div 
+        <div
           ref={containerRef}
           className="overflow-hidden relative"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          style={{ height: '600px' }}
+          style={{ height: '62vh' }}
         >
           <Card ref={formContentRef} className="p-4 scroll-mt-4 h-full overflow-hidden">
             <div className="relative h-full">
@@ -666,61 +668,75 @@ export default function CreateProject() {
                   const isCurrentStep = stepNum === step;
                   const unlockedSteps = [1, 2, 3, 4].filter(s => visitedSteps.has(s) || s === step);
                   const currentIndex = unlockedSteps.indexOf(step);
-                  
-                  return (
-                    <div
-                      key={stepNum}
-                      className="w-full h-full overflow-y-auto absolute top-0 left-0 transition-all duration-300 ease-in-out"
-                      style={{ 
-                        height: '100%',
-                        width: '100%',
-                        transform: isCurrentStep 
-                          ? `translateY(0)` 
-                          : `translateY(${stepNum < step ? '-100%' : '100%'})`,
-                        opacity: isCurrentStep ? 1 : 0,
-                        pointerEvents: isCurrentStep ? 'auto' : 'none',
-                        zIndex: isCurrentStep ? 10 : 1,
-                      }}
-                    >
-                      <div className="space-y-6">
-                        {renderStep(stepNum)}
-                        {/* Navigation Buttons - only show for current step */}
-                        {isCurrentStep && (
-                          <div className="flex items-center justify-between pt-4 border-t">
-                            <Button
-                              variant="outline"
-                              onClick={handleBack}
-                              disabled={step === 1 || isTransitioning}
-                            >
-                              <ArrowLeft className="size-4 mr-2" />
-                              Previous
-                            </Button>
 
-                            {step < 4 ? (
-                              <Button
-                                onClick={handleNext}
-                                disabled={!canProceed() || isTransitioning}
-                              >
-                                Next
-                                <ArrowRight className="size-4 ml-2" />
-                              </Button>
-                            ) : (
-                              <Button onClick={handleSubmit} size="lg" disabled={isTransitioning}>
-                                Submit Project
-                                <Check className="size-4 ml-2" />
-                              </Button>
-                            )}
-                          </div>
-                        )}
+                  return (
+                    <>
+
+                      <div
+                        key={stepNum}
+                        className="w-full h-full overflow-y-auto absolute top-0 left-0 transition-all duration-300 ease-in-out"
+                        style={{
+                          height: '100%',
+                          width: '100%',
+                          transform: isCurrentStep
+                            ? `translateY(0)`
+                            : `translateY(${stepNum < step ? '-100%' : '100%'})`,
+                          opacity: isCurrentStep ? 1 : 0,
+                          pointerEvents: isCurrentStep ? 'auto' : 'none',
+                          zIndex: isCurrentStep ? 10 : 1,
+                        }}
+                      >
+                        <div className="space-y-6">
+                          {renderStep(stepNum)}
+                          {/* Navigation Buttons - only show for current step */}
+
+                        </div>
+
+
                       </div>
-                    </div>
+
+                    </>
+
+
                   );
                 })}
             </div>
           </Card>
         </div>
 
-       
+        <div className="flex items-center justify-between ">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={step === 1 || isTransitioning}
+          >
+            <ArrowLeft className="size-4 mr-2" />
+            Previous
+          </Button>
+
+          {step < 4 ? (
+            <Button
+              onClick={handleNext}
+              disabled={!canProceed() || isTransitioning}
+            >
+              Next
+              <ArrowRight className="size-4 ml-2" />
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button onClick={() => handleSubmit('draft')} variant="outline" size="lg" disabled={isTransitioning}>
+                Save as Draft
+                <FileText className="size-4 ml-2" />
+              </Button>
+              <Button onClick={() => handleSubmit('pending_review')} size="lg" disabled={isTransitioning}>
+                Submit Project
+                <Check className="size-4 ml-2" />
+              </Button>
+            </div>
+          )}
+        </div>
+
+
       </div>
     </DashboardLayout>
   );

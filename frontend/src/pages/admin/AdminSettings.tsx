@@ -70,13 +70,13 @@ export default function AdminSettings() {
     const loadData = async () => {
       try {
         setSettingsLoading(true);
-        
+
         // Fetch both user profile and settings in parallel
         const [userProfile, settings] = await Promise.all([
           userService.getCurrentUser().catch(() => null),
           settingsService.getSettings()
         ]);
-        
+
         // Populate profile data - prioritize user profile data, then settings
         if (userProfile || settings.profile) {
           // Split name into firstName and lastName if needed
@@ -84,7 +84,7 @@ export default function AdminSettings() {
           const nameParts = fullName.trim().split(' ');
           const firstName = settings.profile?.firstName || nameParts[0] || '';
           const lastName = settings.profile?.lastName || nameParts.slice(1).join(' ') || '';
-          
+
           setProfileData({
             firstName: firstName,
             lastName: lastName,
@@ -100,7 +100,7 @@ export default function AdminSettings() {
       } catch (error: any) {
         console.error('Failed to load settings:', error);
         toast.error('Failed to load settings');
-        
+
         // Fallback to user data from AuthContext if API fails
         if (user) {
           const nameParts = (user.name || '').trim().split(' ');
@@ -135,7 +135,7 @@ export default function AdminSettings() {
     try {
       // Combine firstName and lastName for the name field
       const fullName = `${profileData.firstName} ${profileData.lastName}`.trim();
-      
+
       await settingsService.updateSettingsSection('profile', {
         firstName: profileData.firstName,
         lastName: profileData.lastName,
@@ -191,7 +191,7 @@ export default function AdminSettings() {
       );
       toast.success('Password updated successfully');
       setOtpOpen(false);
-    setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+      setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to change password';
       toast.error(message);
@@ -241,11 +241,10 @@ export default function AdminSettings() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as TabId)}
-                className={`flex items-center gap-2 px-4 py-3 border-b-2 whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -257,9 +256,9 @@ export default function AdminSettings() {
         {activeTab === 'profile' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl mb-1">Profile</h2>
-              <p className="text-sm text-gray-600">Update admin details</p>
+              <div>
+                <h2 className="text-xl mb-1">Profile</h2>
+                <p className="text-sm text-gray-600">Update admin details</p>
               </div>
               {!isEditing && (
                 <Button
@@ -331,7 +330,7 @@ export default function AdminSettings() {
                   value={profileData.phone}
                   onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                   className="mt-1"
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="9876543210"
                   disabled={!isEditing || loading || settingsLoading}
                 />
               </div>
@@ -350,7 +349,7 @@ export default function AdminSettings() {
             </div>
 
             <div>
-                <Label htmlFor="bio">Admin Notes / Bio</Label>
+              <Label htmlFor="bio">Admin Notes / Bio</Label>
               {isEditing ? (
                 <div className="space-y-2 mt-1">
                   <RichTextEditor
@@ -413,7 +412,7 @@ export default function AdminSettings() {
                     <Plus className="w-4 h-4" />
                   </Button>
                 </div>
-                
+
                 {profileData.skills.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-3">
                     {profileData.skills.map((skill) => (
@@ -486,7 +485,7 @@ export default function AdminSettings() {
             {isEditing && (
               <div className="flex gap-2">
                 <Button onClick={handleSaveProfile} disabled={loading || settingsLoading}>
-              <Save className="w-4 h-4 mr-2" />
+                  <Save className="w-4 h-4 mr-2" />
                   {loading ? 'Saving...' : 'Save Profile'}
                 </Button>
                 <Button
@@ -531,7 +530,7 @@ export default function AdminSettings() {
                 >
                   <X className="w-4 h-4 mr-2" />
                   Cancel
-            </Button>
+                </Button>
               </div>
             )}
           </div>

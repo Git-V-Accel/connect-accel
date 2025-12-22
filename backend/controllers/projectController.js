@@ -221,8 +221,7 @@ const getProject = async (req, res) => {
 // @access  Private (Client only)
 const createProject = async (req, res) => {
   try {
-    // Parse JSON fields if they come as strings (from FormData)
-    let title, description, budget, timeline, category, skills, priority;
+    let title, description, budget, timeline, category, skills, priority, status;
     let isNegotiableBudget = false;
     
     if (req.body.title) {
@@ -251,7 +250,10 @@ const createProject = async (req, res) => {
     }
     if (req.body.priority) {
       priority = typeof req.body.priority === 'string' ? req.body.priority : req.body.priority;
-        }
+    }
+    if (req.body.status) {
+      status = typeof req.body.status === 'string' ? req.body.status : req.body.status;
+    }
 
     if (req.body.isNegotiableBudget !== undefined) {
       if (typeof req.body.isNegotiableBudget === 'string') {
@@ -375,6 +377,7 @@ const createProject = async (req, res) => {
       category,
       skills: skills || [],
       priority: priority || 'medium',
+      status: status, // Will use model default if undefined
       attachments: processedAttachments,
       client: targetClientId,
       isNegotiableBudget

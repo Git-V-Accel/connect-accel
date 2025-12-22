@@ -57,7 +57,10 @@ const userSchema = new mongoose.Schema({
   bio: String,
   // Client specific fields
   company: String,
-  phone: String,
+  phone: {
+    type: String,
+    required: [true, 'Phone number is required']
+  },
   website: String,
   location: String,
   title: String,

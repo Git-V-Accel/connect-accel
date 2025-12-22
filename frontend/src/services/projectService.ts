@@ -85,9 +85,10 @@ export interface CreateProjectPayload {
   priority?: 'low' | 'medium' | 'high';
   complexity?: 'simple' | 'moderate' | 'complex';
   attachments?: File[];
+  status?: 'draft' | 'pending_review';
 }
 
-export interface UpdateProjectPayload extends Partial<CreateProjectPayload> {
+export interface UpdateProjectPayload extends Omit<Partial<CreateProjectPayload>, 'status'> {
   status?: string;
   assignedAgentId?: string;
 }
@@ -103,7 +104,7 @@ export interface CreateMilestonePayload {
 const normalizeProject = (project: ProjectResponse) => {
   // Handle client - can be string ID, populated object, or null/undefined
   let client: { _id: string; name: string; email: string; phone?: string } = { _id: '', name: '', email: '', phone: '' };
-  
+
   if (project.client) {
     if (typeof project.client === 'object' && project.client !== null) {
       client = {
@@ -117,30 +118,30 @@ const normalizeProject = (project: ProjectResponse) => {
     }
   }
 
-  const freelancer = project.assignedFreelancerId 
-    ? (typeof project.assignedFreelancerId === 'object' && project.assignedFreelancerId !== null 
-        ? {
-            _id: project.assignedFreelancerId._id?.toString() || project.assignedFreelancerId._id || '',
-            name: project.assignedFreelancerId.name || '',
-            email: project.assignedFreelancerId.email || '',
-            userID: project.assignedFreelancerId.userID || ''
-          }
-        : { _id: project.assignedFreelancerId?.toString() || project.assignedFreelancerId || '', name: '', email: '' })
+  const freelancer = project.assignedFreelancerId
+    ? (typeof project.assignedFreelancerId === 'object' && project.assignedFreelancerId !== null
+      ? {
+        _id: project.assignedFreelancerId._id?.toString() || project.assignedFreelancerId._id || '',
+        name: project.assignedFreelancerId.name || '',
+        email: project.assignedFreelancerId.email || '',
+        userID: project.assignedFreelancerId.userID || ''
+      }
+      : { _id: project.assignedFreelancerId?.toString() || project.assignedFreelancerId || '', name: '', email: '' })
     : undefined;
 
-  const agent = project.assignedAgentId 
-    ? (typeof project.assignedAgentId === 'object' && project.assignedAgentId !== null 
-        ? project.assignedAgentId 
-        : { _id: project.assignedAgentId, name: '', email: '' })
+  const agent = project.assignedAgentId
+    ? (typeof project.assignedAgentId === 'object' && project.assignedAgentId !== null
+      ? project.assignedAgentId
+      : { _id: project.assignedAgentId, name: '', email: '' })
     : undefined;
 
   // Get client_id safely
-  const client_id = project.client 
-    ? (typeof project.client === 'string' 
-        ? project.client 
-        : (typeof project.client === 'object' && project.client !== null 
-            ? project.client._id || '' 
-            : ''))
+  const client_id = project.client
+    ? (typeof project.client === 'string'
+      ? project.client
+      : (typeof project.client === 'object' && project.client !== null
+        ? project.client._id || ''
+        : ''))
     : '';
 
   return {
@@ -207,7 +208,7 @@ export const listProjects = async (params?: {
   const res = await apiClient.get<{ success: boolean; data: ProjectResponse[]; nextCursor?: string; hasMore: boolean }>(
     `${API_CONFIG.API_URL}/projects${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
   );
-  
+
   return {
     projects: res.data.data || res.data,
     nextCursor: res.data.nextCursor,
@@ -247,6 +248,7 @@ export const createProject = async (data: CreateProjectPayload): Promise<Project
   }
   if (data.priority) formData.append('priority', data.priority);
   if (data.complexity) formData.append('complexity', data.complexity);
+  if (data.status) formData.append('status', data.status);
   if (data.attachments) {
     data.attachments.forEach(file => formData.append('attachments', file));
   }

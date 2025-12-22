@@ -61,10 +61,10 @@ const register = async (req, res) => {
     const { name, email, password, phone } = req.body;
 
     // Validation
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !phone) {
       return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
-        message: MESSAGES.PROVIDE_NAME_EMAIL_PASSWORD
+        message: 'Please provide name, email, password and phone number'
       });
     }
 
@@ -89,7 +89,7 @@ const register = async (req, res) => {
       name,
       email,
       password,
-      phone: phone || undefined, // Phone is optional but included if provided
+      phone,
       role: USER_ROLES.CLIENT, // Explicitly set role as client for signups
       status: USER_STATUS.INACTIVE, // Set to inactive until OTP is verified
       isEmailVerified: false,

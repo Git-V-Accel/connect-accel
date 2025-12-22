@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { Badge } from '../../components/ui/badge';
 import { toast } from '../../utils/toast';
+import OtpDialog from '../../components/common/OtpDialog';
+import * as authService from '../../services/authService';
 import {
   Select,
   SelectTrigger,
@@ -28,7 +30,6 @@ import { Switch } from '../../components/ui/switch';
 import * as settingsService from '../../services/settingsService';
 import * as userService from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
-import { commonSkills } from '../../constants/projectConstants';
 
 export default function ClientSettings() {
   const { user } = useAuth();
@@ -40,10 +41,10 @@ export default function ClientSettings() {
     firstName: '',
     lastName: '',
     role: '',
+    company: '',
     email: '',
     phone: '',
     bio: '',
-    skills: [] as string[],
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -67,18 +68,22 @@ export default function ClientSettings() {
     confirm_password: '',
   });
 
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpResendLoading, setOtpResendLoading] = useState(false);
+
   // Load settings and user profile data on component mount
   useEffect(() => {
     const loadData = async () => {
       try {
         setSettingsLoading(true);
-        
+
         // Fetch both user profile and settings in parallel
         const [userProfile, settings] = await Promise.all([
           userService.getCurrentUser().catch(() => null), // Fallback to null if fails
           settingsService.getSettings()
         ]);
-        
+
         // Populate profile data - prioritize user profile data, then settings
         if (userProfile || settings.profile) {
           // Split name into firstName and lastName if needed
@@ -86,7 +91,7 @@ export default function ClientSettings() {
           const nameParts = fullName.trim().split(' ');
           const firstName = settings.profile?.firstName || nameParts[0] || '';
           const lastName = settings.profile?.lastName || nameParts.slice(1).join(' ') || '';
-          
+
           setProfileData({
             firstName: firstName,
             lastName: lastName,
@@ -95,7 +100,6 @@ export default function ClientSettings() {
             phone: userProfile?.phone || settings.profile?.phone || '',
             company: settings.profile?.company || userProfile?.company || '',
             bio: settings.profile?.bio || '',
-            skills: settings.profile?.skills || userProfile?.skills || [],
           });
           setBioEditValue(settings.profile?.bio || '');
         }
@@ -119,7 +123,7 @@ export default function ClientSettings() {
       } catch (error: any) {
         console.error('Failed to load settings:', error);
         toast.error('Failed to load settings');
-        
+
         // Fallback to user data from AuthContext if API fails
         if (user) {
           const nameParts = (user.name || '').trim().split(' ');
@@ -131,7 +135,6 @@ export default function ClientSettings() {
             phone: user.phone || '',
             company: '',
             bio: '',
-            skills: [],
           });
         }
       } finally {
@@ -154,7 +157,7 @@ export default function ClientSettings() {
     try {
       // Combine firstName and lastName for the name field
       const fullName = `${profileData.firstName} ${profileData.lastName}`.trim();
-      
+
       await settingsService.updateSettingsSection('profile', {
         firstName: profileData.firstName,
         lastName: profileData.lastName,
@@ -162,7 +165,6 @@ export default function ClientSettings() {
         phone: profileData.phone,
         company: profileData.company,
         bio: bioEditValue || profileData.bio,
-        skills: profileData.skills,
       });
       toast.success('Profile updated successfully!');
       setProfileData({ ...profileData, bio: bioEditValue });
@@ -212,9 +214,9 @@ export default function ClientSettings() {
     }
   };
 
-  const handleChangePassword = () => {
-    if (!passwordData.current_password || !passwordData.new_password) {
-      toast.error('Please fill in all password fields');
+  const handleSendOtp = async () => {
+    if (!passwordData.current_password || !passwordData.new_password || !passwordData.confirm_password) {
+      toast.error('Please fill all password fields');
       return;
     }
     if (passwordData.new_password !== passwordData.confirm_password) {
@@ -225,8 +227,56 @@ export default function ClientSettings() {
       toast.error('Password must be at least 8 characters');
       return;
     }
-    toast.success('Password changed successfully!');
-    setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+
+    setOtpLoading(true);
+    try {
+      // First validate current password, then send OTP
+      await authService.sendPasswordChangeOTP(passwordData.current_password);
+      setOtpOpen(true);
+      toast.success('OTP sent to your email');
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message || 'Failed to send OTP';
+      toast.error(message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyChangePassword = async (otpCode: string) => {
+    setOtpLoading(true);
+    try {
+      // Current password was already validated when OTP was sent
+      await authService.changePassword(
+        passwordData.new_password,
+        otpCode
+      );
+      toast.success('Password updated successfully');
+      setOtpOpen(false);
+      setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message || 'Failed to change password';
+      toast.error(message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!passwordData.current_password) {
+      toast.error('Please enter your current password first');
+      return;
+    }
+    setOtpResendLoading(true);
+    try {
+      // Validate current password again when resending OTP
+      await authService.sendPasswordChangeOTP(passwordData.current_password);
+      toast.success('OTP resent to your email');
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err.message || 'Failed to resend OTP';
+      toast.error(message);
+    } finally {
+      setOtpResendLoading(false);
+    }
   };
 
   const tabs = [
@@ -250,11 +300,10 @@ export default function ClientSettings() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                className={`flex items-center gap-2 px-4 py-3 border-b-2 whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -341,7 +390,7 @@ export default function ClientSettings() {
                   value={profileData.phone}
                   onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                   className="mt-1"
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="9876543210"
                   disabled={!isEditing || loading || settingsLoading}
                 />
               </div>
@@ -382,101 +431,6 @@ export default function ClientSettings() {
               )}
             </div>
 
-            <div>
-              <Label htmlFor="skills">Skills</Label>
-              <div className="flex gap-2 mb-3 mt-1">
-                <Input
-                  id="skills"
-                  placeholder="Enter a skill (e.g., React, Node.js)"
-                  value={skillInput}
-                  onChange={(e) => setSkillInput(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      const trimmedSkill = skillInput.trim();
-                      if (trimmedSkill && !profileData.skills.includes(trimmedSkill)) {
-                        setProfileData({
-                          ...profileData,
-                          skills: [...profileData.skills, trimmedSkill]
-                        });
-                        setSkillInput('');
-                      }
-                    }
-                  }}
-                  disabled={loading || settingsLoading}
-                />
-                <Button
-                  type="button"
-                  onClick={() => {
-                    const trimmedSkill = skillInput.trim();
-                    if (trimmedSkill && !profileData.skills.includes(trimmedSkill)) {
-                      setProfileData({
-                        ...profileData,
-                        skills: [...profileData.skills, trimmedSkill]
-                      });
-                      setSkillInput('');
-                    }
-                  }}
-                  disabled={loading || settingsLoading || !skillInput.trim()}
-                >
-                  <Plus className="size-4" />
-                </Button>
-              </div>
-              
-              {profileData.skills.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {profileData.skills.map((skill) => (
-                    <Badge
-                      key={skill}
-                      variant="secondary"
-                      className="cursor-pointer hover:bg-red-100 flex items-center gap-1"
-                      onClick={() => {
-                        if (!loading && !settingsLoading) {
-                          setProfileData({
-                            ...profileData,
-                            skills: profileData.skills.filter(s => s !== skill)
-                          });
-                        }
-                      }}
-                    >
-                      {skill}
-                      <X className="size-3" />
-                    </Badge>
-                  ))}
-                </div>
-              )}
-
-              <p className="text-sm text-gray-500 mb-2">Select from common skills:</p>
-              <div className="flex flex-wrap gap-2">
-                {commonSkills.map((skill) => {
-                  const isSelected = profileData.skills.includes(skill);
-                  return (
-                    <Badge
-                      key={skill}
-                      variant={isSelected ? 'default' : 'outline'}
-                      className="cursor-pointer hover:bg-blue-100 transition-colors"
-                      onClick={() => {
-                        if (!loading && !settingsLoading) {
-                          if (isSelected) {
-                            setProfileData({
-                              ...profileData,
-                              skills: profileData.skills.filter(s => s !== skill)
-                            });
-                          } else {
-                            setProfileData({
-                              ...profileData,
-                              skills: [...profileData.skills, skill]
-                            });
-                          }
-                        }
-                      }}
-                    >
-                      {skill}
-                    </Badge>
-                  );
-                })}
-              </div>
-            </div>
 
             <Button onClick={handleSaveProfile} disabled={loading || settingsLoading}>
               <Save className="size-4 mr-2" />
@@ -618,14 +572,25 @@ export default function ClientSettings() {
                 />
               </div>
 
-              <Button onClick={handleChangePassword}>
+              <Button onClick={handleSendOtp} disabled={otpLoading}>
                 <Shield className="size-4 mr-2" />
-                Update Password
+                {otpLoading ? 'Sending OTP...' : 'Send OTP to Change Password'}
               </Button>
             </div>
           </div>
         )}
       </div>
+      <OtpDialog
+        open={otpOpen}
+        onOpenChange={setOtpOpen}
+        title="Verify Your Email"
+        description="Enter the 6-digit verification code sent to your email to change your password."
+        otpLength={6}
+        loading={otpLoading}
+        resendLoading={otpResendLoading}
+        onVerify={handleVerifyChangePassword}
+        onResend={handleResendOtp}
+      />
     </DashboardLayout>
   );
 }
