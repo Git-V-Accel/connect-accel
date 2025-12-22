@@ -441,13 +441,22 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Get user (current password was already validated when OTP was sent)
-    const user = await User.findById(req.user.id);
+    // Get user with password to check for reuse
+    const user = await User.findById(req.user.id).select('+password');
 
     if (!user) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
         message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
+    // Check if new password is same as current password
+    const isSame = await user.comparePassword(newPassword);
+    if (isSame) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'New password must be different from current password'
       });
     }
 
@@ -625,7 +634,7 @@ const resetPassword = async (req, res) => {
     const user = await User.findOne({
       resetPasswordToken,
       resetPasswordExpire: { $gt: Date.now() }
-    });
+    }).select('+password');
 
     if (!user) {
       return res.status(STATUS_CODES.BAD_REQUEST).json({
@@ -634,7 +643,15 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Set new password
+    // Check if new password is same as current password
+    const isSame = await user.comparePassword(req.body.password);
+    if (isSame) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'New password must be different from current password'
+      });
+    }
+
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
@@ -866,13 +883,22 @@ const firstLoginChangePassword = async (req, res) => {
       });
     }
 
-    // Get user
-    const user = await User.findById(req.user.id);
+    // Get user with password to check for reuse
+    const user = await User.findById(req.user.id).select('+password');
 
     if (!user) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
         message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
+    // Check if new password is same as current password
+    const isSame = await user.comparePassword(newPassword);
+    if (isSame) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'New password must be different from current password'
       });
     }
 

@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Shield, Eye, EyeOff } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from '../../utils/toast';
 import OtpDialog from '../../components/common/OtpDialog';
+import { PasswordField } from '../../components/common';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
@@ -14,9 +15,8 @@ export default function SignupPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isPasswordValid, setIsPasswordValid] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [showOTPVerification, setShowOTPVerification] = useState(false);
@@ -26,6 +26,11 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isPasswordValid) {
+      toast.error('Password does not meet the requirements');
+      return;
+    }
 
     if (password !== confirmPassword) {
       toast.error('Passwords do not match');
@@ -145,60 +150,29 @@ export default function SignupPage() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <div className="relative mt-1">
-                  <Input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-5" />
-                    ) : (
-                      <Eye className="size-5" />
-                    )}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
-              </div>
+              <PasswordField
+                id="password"
+                name="password"
+                label="Password"
+                placeholder="••••••••"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onValidationChange={setIsPasswordValid}
+                autoComplete="new-password"
+              />
 
-              <div>
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <div className="relative mt-1">
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="size-5" />
-                    ) : (
-                      <Eye className="size-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
+              <PasswordField
+                id="confirmPassword"
+                name="confirmPassword"
+                label="Confirm Password"
+                placeholder="••••••••"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                showValidation={false}
+                autoComplete="new-password"
+              />
 
               <div className="flex items-start">
                 <input

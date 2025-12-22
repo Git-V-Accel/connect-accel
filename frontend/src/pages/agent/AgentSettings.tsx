@@ -3,7 +3,7 @@ import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { PasswordInput, RichTextEditor, RichTextViewer } from '../../components/common';
+import { PasswordInput, PasswordField, RichTextEditor, RichTextViewer } from '../../components/common';
 import { Switch } from '../../components/ui/switch';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -53,6 +53,7 @@ export default function AgentSettings() {
     new_password: '',
     confirm_password: '',
   });
+  const [isPasswordValid, setIsPasswordValid] = useState(false);
 
   const [paymentData, setPaymentData] = useState({
     bank_name: '',
@@ -83,13 +84,18 @@ export default function AgentSettings() {
       return;
     }
 
+    if (!isPasswordValid) {
+      toast.error('New password does not meet the requirements');
+      return;
+    }
+
     if (passwordData.new_password !== passwordData.confirm_password) {
       toast.error('New passwords do not match');
       return;
     }
 
-    if (passwordData.new_password.length < 8) {
-      toast.error('Password must be at least 8 characters');
+    if (passwordData.new_password === passwordData.current_password) {
+      toast.error('New password must be different from current password');
       return;
     }
 
@@ -136,8 +142,8 @@ export default function AgentSettings() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
                   }`}
               >
                 {tab.icon}
@@ -379,26 +385,25 @@ export default function AgentSettings() {
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="new_password">New Password</Label>
-                    <PasswordInput
-                      id="new_password"
-                      value={passwordData.new_password}
-                      onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                      className="mt-1"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
-                  </div>
+                  <PasswordField
+                    id="new_password"
+                    label="New Password"
+                    placeholder="••••••••"
+                    value={passwordData.new_password}
+                    onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                    onValidationChange={setIsPasswordValid}
+                    className="mt-1"
+                  />
 
-                  <div>
-                    <Label htmlFor="confirm_password">Confirm New Password</Label>
-                    <PasswordInput
-                      id="confirm_password"
-                      value={passwordData.confirm_password}
-                      onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
+                  <PasswordField
+                    id="confirm_password"
+                    label="Confirm New Password"
+                    placeholder="••••••••"
+                    value={passwordData.confirm_password}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
+                    showValidation={false}
+                    className="mt-1"
+                  />
 
                   <Button onClick={handleChangePassword}>
                     <Shield className="size-4 mr-2" />

@@ -24,6 +24,9 @@ export { buttonVariants } from './Button';
 export { PasswordInput } from './PasswordInput';
 export type { PasswordInputProps } from './PasswordInput';
 
+export { PasswordField } from './PasswordField';
+export type { PasswordFieldProps } from './PasswordField';
+
 export { RichTextEditor } from './RichTextEditor';
 export type { RichTextEditorProps } from './RichTextEditor';
 

@@ -3,7 +3,7 @@ import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { PasswordInput, RichTextEditor, RichTextViewer } from '../../components/common';
+import { PasswordInput, PasswordField, RichTextEditor, RichTextViewer } from '../../components/common';
 import {
   User,
   Mail,
@@ -69,6 +69,7 @@ export default function ClientSettings() {
   });
 
   const [otpOpen, setOtpOpen] = useState(false);
+  const [isPasswordValid, setIsPasswordValid] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpResendLoading, setOtpResendLoading] = useState(false);
 
@@ -219,12 +220,16 @@ export default function ClientSettings() {
       toast.error('Please fill all password fields');
       return;
     }
+    if (!isPasswordValid) {
+      toast.error('New password does not meet the requirements');
+      return;
+    }
     if (passwordData.new_password !== passwordData.confirm_password) {
       toast.error('New passwords do not match');
       return;
     }
-    if (passwordData.new_password.length < 8) {
-      toast.error('Password must be at least 8 characters');
+    if (passwordData.new_password === passwordData.current_password) {
+      toast.error('New password must be different from current password');
       return;
     }
 
@@ -551,26 +556,25 @@ export default function ClientSettings() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="new_password">New Password</Label>
-                <PasswordInput
-                  id="new_password"
-                  value={passwordData.new_password}
-                  onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                  className="mt-1"
-                />
-                <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
-              </div>
+              <PasswordField
+                id="new_password"
+                label="New Password"
+                placeholder="••••••••"
+                value={passwordData.new_password}
+                onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                onValidationChange={setIsPasswordValid}
+                className="mt-1"
+              />
 
-              <div>
-                <Label htmlFor="confirm_password">Confirm New Password</Label>
-                <PasswordInput
-                  id="confirm_password"
-                  value={passwordData.confirm_password}
-                  onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
+              <PasswordField
+                id="confirm_password"
+                label="Confirm New Password"
+                placeholder="••••••••"
+                value={passwordData.confirm_password}
+                onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
+                showValidation={false}
+                className="mt-1"
+              />
 
               <Button onClick={handleSendOtp} disabled={otpLoading}>
                 <Shield className="size-4 mr-2" />
