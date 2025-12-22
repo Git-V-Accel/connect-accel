@@ -67,7 +67,7 @@ const authLimiter = rateLimit({
 // Middleware
 app.use(
   cors({
-    origin: FRONTEND_CONFIG.URL, // Frontend URLs
+    origin: FRONTEND_CONFIG.URL || "http://localhost:3001", // Frontend URLs
     credentials: true,
   })
 );

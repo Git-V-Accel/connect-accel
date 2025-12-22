@@ -8,8 +8,24 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { DataProvider } from "./contexts/DataContext";
 import { useAuth } from "./contexts/AuthContext";
 
+import { ScrollToTop } from "./components/ScrollToTop";
+
+// New Landing Site Pages
+import Index from "./pages/landing-site/Index";
+import HowItWorks from "./pages/landing-site/HowItWorks";
+import Contact from "./pages/landing-site/Contact";
+import Technology from "./pages/landing-site/Technology";
+import Security from "./pages/landing-site/Security";
+import ForClients from "./pages/landing-site/ForClients";
+import ForEngineers from "./pages/landing-site/ForEngineers";
+import Pricing from "./pages/landing-site/Pricing";
+import CaseStudies from "./pages/landing-site/CaseStudies";
+import About from "./pages/landing-site/About";
+import FAQ from "./pages/landing-site/FAQ";
+// import NotFound from "./pages/landing-site/NotFound"; // Using existing NotFound or catch-all
+
 // Public pages
-import LandingPage from "./pages/public/LandingPage";
+// import LandingPage from "./pages/public/LandingPage"; // Replaced
 import LoginPage from "./pages/public/LoginPage";
 import SignupPage from "./pages/public/SignupPage";
 import ForgotPassword from "./pages/public/ForgotPassword";
@@ -120,7 +136,20 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Public routes */}
-      <Route path="/" element={<LandingPage />} />
+      {/* Public routes - New Landing Site */}
+      <Route element={<><ScrollToTop /><Index /></>} path="/" />
+      <Route path="/how-it-works" element={<HowItWorks />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/platform/technology" element={<Technology />} />
+      <Route path="/platform/security" element={<Security />} />
+      <Route path="/for-clients" element={<ForClients />} />
+      <Route path="/for-engineers" element={<ForEngineers />} />
+      <Route path="/pricing" element={<Pricing />} />
+      <Route path="/case-studies" element={<CaseStudies />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/faq" element={<FAQ />} />
+
+      {/* <Route path="/" element={<LandingPage />} /> */}
       <Route path="/login" element={user ? <Navigate to={getRoleBasedRoute(user.role)} /> : <LoginPage />} />
       <Route path="/signup" element={user ? <Navigate to={getRoleBasedRoute(user.role)} /> : <SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />

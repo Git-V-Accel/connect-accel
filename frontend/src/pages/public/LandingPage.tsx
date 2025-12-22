@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { ArrowRight, CheckCircle, Shield, Users, Zap, TrendingUp } from 'lucide-react';
