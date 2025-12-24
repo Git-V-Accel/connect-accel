@@ -363,6 +363,109 @@ export const requestConsultation = async (data: { projectId?: string; message?: 
   await apiClient.post(`${API_CONFIG.API_URL}/projects/consultation`, data);
 };
 
+/**
+ * Post project (draft → active)
+ */
+export const postProject = async (projectId: string): Promise<{ project: ProjectResponse; timelineEntry: any }> => {
+  const res = await apiClient.post<{ success: boolean; data: ProjectResponse; timelineEntry: any }>(
+    `${API_CONFIG.API_URL}/projects/${projectId}/post`
+  );
+  return { project: res.data.data || res.data, timelineEntry: res.data.timelineEntry };
+};
+
+/**
+ * Create bidding (active → in_bidding)
+ */
+export const createBidding = async (projectId: string): Promise<{ project: ProjectResponse; timelineEntry: any }> => {
+  const res = await apiClient.post<{ success: boolean; data: ProjectResponse; timelineEntry: any }>(
+    `${API_CONFIG.API_URL}/projects/${projectId}/create-bidding`
+  );
+  return { project: res.data.data || res.data, timelineEntry: res.data.timelineEntry };
+};
+
+/**
+ * Award bidding (in_bidding → in_progress)
+ */
+export const awardBidding = async (projectId: string, freelancerId: string): Promise<{ project: ProjectResponse; timelineEntry: any }> => {
+  const res = await apiClient.post<{ success: boolean; data: ProjectResponse; timelineEntry: any }>(
+    `${API_CONFIG.API_URL}/projects/${projectId}/award-bidding`,
+    { freelancerId }
+  );
+  return { project: res.data.data || res.data, timelineEntry: res.data.timelineEntry };
+};
+
+/**
+ * Complete project (in_progress → completed)
+ */
+export const completeProject = async (projectId: string): Promise<{ project: ProjectResponse; timelineEntry: any }> => {
+  const res = await apiClient.post<{ success: boolean; data: ProjectResponse; timelineEntry: any }>(
+    `${API_CONFIG.API_URL}/projects/${projectId}/complete`
+  );
+  return { project: res.data.data || res.data, timelineEntry: res.data.timelineEntry };
+};
+
+/**
+ * Hold project (active/in_bidding → hold)
+ */
+export const holdProject = async (projectId: string, remark: string): Promise<{ project: ProjectResponse; timelineEntry: any }> => {
+  const res = await apiClient.post<{ success: boolean; data: ProjectResponse; timelineEntry: any }>(
+    `${API_CONFIG.API_URL}/projects/${projectId}/hold`,
+    { remark }
+  );
+  return { project: res.data.data || res.data, timelineEntry: res.data.timelineEntry };
+};
+
+/**
+ * Cancel project (active/in_bidding → cancelled)
+ */
+export const cancelProject = async (projectId: string, remark: string): Promise<{ project: ProjectResponse; timelineEntry: any }> => {
+  const res = await apiClient.post<{ success: boolean; data: ProjectResponse; timelineEntry: any }>(
+    `${API_CONFIG.API_URL}/projects/${projectId}/cancel`,
+    { remark }
+  );
+  return { project: res.data.data || res.data, timelineEntry: res.data.timelineEntry };
+};
+
+/**
+ * Resume project (hold → in_progress)
+ */
+export const resumeProject = async (projectId: string): Promise<{ project: ProjectResponse; timelineEntry: any }> => {
+  const res = await apiClient.post<{ success: boolean; data: ProjectResponse; timelineEntry: any }>(
+    `${API_CONFIG.API_URL}/projects/${projectId}/resume`
+  );
+  return { project: res.data.data || res.data, timelineEntry: res.data.timelineEntry };
+};
+
+/**
+ * Get project timeline
+ */
+export interface ProjectTimelineEntry {
+  _id: string;
+  projectId: string;
+  userId: string | {
+    _id: string;
+    name: string;
+    email: string;
+    userID?: string;
+    role?: string;
+  };
+  userRole: string;
+  oldStatus: string | null;
+  newStatus: string;
+  action: string;
+  remark: string | null;
+  timestamp: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const getProjectTimeline = async (projectId: string): Promise<ProjectTimelineEntry[]> => {
+  const res = await apiClient.get<{ success: boolean; data: ProjectTimelineEntry[]; count: number }>(
+    `${API_CONFIG.API_URL}/projects/${projectId}/timeline`
+  );
+  return res.data.data || [];
+};
+
 // Export normalize functions for use in DataContext
 export { normalizeProject, normalizeMilestone };
 

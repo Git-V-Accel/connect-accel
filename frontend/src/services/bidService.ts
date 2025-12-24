@@ -97,13 +97,17 @@ export const getAllBids = async (params?: {
 }): Promise<{ bids: Bid[]; pagination: any }> => {
   const response = await apiClient.get(API_CONFIG.BIDS.LIST, { params });
   if (response.data.success && response.data.data) {
-    const data = response.data.data as { bids: Bid[]; pagination: any };
+    const data = response.data.data as { bids?: Bid[]; pagination?: any };
     return {
-      bids: data.bids.map(normalizeBid),
-      pagination: data.pagination,
+      bids: (data.bids && Array.isArray(data.bids) ? data.bids : []).map(normalizeBid),
+      pagination: data.pagination || {},
     };
   }
-  throw new Error(response.data.message || 'Failed to fetch bids');
+  // Return empty array if no data
+  return {
+    bids: [],
+    pagination: {},
+  };
 };
 
 export const getAvailableAdminBids = async (params?: {
@@ -115,13 +119,17 @@ export const getAvailableAdminBids = async (params?: {
 }): Promise<{ bids: Bid[]; pagination: any }> => {
   const response = await apiClient.get(API_CONFIG.BIDS.AVAILABLE, { params });
   if (response.data.success && response.data.data) {
-    const data = response.data.data as { bids: Bid[]; pagination: any };
+    const data = response.data.data as { bids?: Bid[]; pagination?: any };
     return {
-      bids: data.bids.map(normalizeBid),
-      pagination: data.pagination,
+      bids: (data.bids && Array.isArray(data.bids) ? data.bids : []).map(normalizeBid),
+      pagination: data.pagination || {},
     };
   }
-  throw new Error(response.data.message || 'Failed to fetch available bids');
+  // Return empty array if no data
+  return {
+    bids: [],
+    pagination: {},
+  };
 };
 
 export const getProjectBids = async (

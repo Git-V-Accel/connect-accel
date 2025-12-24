@@ -45,16 +45,22 @@ export default function AdminProjects() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date_desc");
 
-  // System-wide stats (ignoring filters)
+  // Filter out draft projects for admin/superadmin view
+  const nonDraftProjects = projects.filter(p => p.status !== 'draft');
+
+  // System-wide stats (ignoring filters, excluding draft)
   const systemStats = {
-    pending: projects.filter(p => p.status === 'pending_review' || p.status === 'pending' || p.status === 'active').length,
-    bidding: projects.filter(p => p.status === 'in_bidding').length,
-    active: projects.filter(p => p.status === 'in_progress' || p.status === 'assigned' || p.status === 'hold').length,
-    totalRevenue: projects.reduce((sum, p) => sum + (p.budget || p.client_budget || 0), 0)
+    pending: nonDraftProjects.filter(p => p.status === 'pending_review' || p.status === 'pending' || p.status === 'active').length,
+    bidding: nonDraftProjects.filter(p => p.status === 'in_bidding').length,
+    inProgress: nonDraftProjects.filter(p => p.status === 'in_progress').length,
+    hold: nonDraftProjects.filter(p => p.status === 'hold').length,
+    completed: nonDraftProjects.filter(p => p.status === 'completed').length,
+    cancelled: nonDraftProjects.filter(p => p.status === 'cancelled').length,
+    totalRevenue: nonDraftProjects.reduce((sum, p) => sum + (p.budget || p.client_budget || 0), 0)
   };
 
   const filterProjects = (statusValue: string) => {
-    let filtered = projects;
+    let filtered = nonDraftProjects; // Use non-draft projects instead of all projects
 
     // Search filter
     if (searchQuery) {
@@ -104,8 +110,10 @@ export default function AdminProjects() {
   // Filtered lists for the tabs (respect current filters)
   const pendingProjects = allProjects.filter((p: any) => p.status === "pending_review" || p.status === "pending" || p.status === "active");
   const biddingProjects = allProjects.filter((p: any) => p.status === "in_bidding");
-  const activeProjects = allProjects.filter((p: any) => p.status === "in_progress" || p.status === "assigned" || p.status === "hold");
-  const completedProjects = allProjects.filter((p: any) => p.status === "completed" || p.status === "closed" || p.status === "cancelled");
+  const inProgressProjects = allProjects.filter((p: any) => p.status === "in_progress");
+  const holdProjects = allProjects.filter((p: any) => p.status === "hold");
+  const completedProjects = allProjects.filter((p: any) => p.status === "completed");
+  const cancelledProjects = allProjects.filter((p: any) => p.status === "cancelled");
 
   const ProjectCard = ({ project }: { project: any }) => (
     <Card className="p-6 hover:shadow-lg transition-shadow">
@@ -204,7 +212,7 @@ export default function AdminProjects() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -230,11 +238,44 @@ export default function AdminProjects() {
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Active</p>
-                <p className="text-2xl mt-1">{systemStats.active}</p>
+                <p className="text-sm text-gray-600">In Progress</p>
+                <p className="text-2xl mt-1">{systemStats.inProgress}</p>
               </div>
               <div className="bg-green-100 p-3 rounded-lg">
                 <CheckCircle className="size-5 text-green-600" />
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">On Hold</p>
+                <p className="text-2xl mt-1">{systemStats.hold}</p>
+              </div>
+              <div className="bg-orange-100 p-3 rounded-lg">
+                <Clock className="size-5 text-orange-600" />
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Completed</p>
+                <p className="text-2xl mt-1">{systemStats.completed}</p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <CheckCircle className="size-5 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Cancelled</p>
+                <p className="text-2xl mt-1">{systemStats.cancelled}</p>
+              </div>
+              <div className="bg-red-100 p-3 rounded-lg">
+                <XCircle className="size-5 text-red-600" />
               </div>
             </div>
           </Card>
@@ -307,24 +348,33 @@ export default function AdminProjects() {
 
         {/* Projects Tabs */}
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList>
+          <TabsList className="flex-wrap">
             <TabsTrigger value="all">
               All Projects ({allProjects.length})
             </TabsTrigger>
             <TabsTrigger value="pending">
               <AlertCircle className="size-4 mr-2" />
-              Pending ({pendingProjects.length})
+              Pending Review ({pendingProjects.length})
             </TabsTrigger>
             <TabsTrigger value="bidding">
               <FileText className="size-4 mr-2" />
-              Bidding ({biddingProjects.length})
+              In Bidding ({biddingProjects.length})
             </TabsTrigger>
-            <TabsTrigger value="active">
+            <TabsTrigger value="in_progress">
               <CheckCircle className="size-4 mr-2" />
-              Active ({activeProjects.length})
+              In Progress ({inProgressProjects.length})
+            </TabsTrigger>
+            <TabsTrigger value="hold">
+              <Clock className="size-4 mr-2" />
+              On Hold ({holdProjects.length})
             </TabsTrigger>
             <TabsTrigger value="completed">
+              <CheckCircle className="size-4 mr-2" />
               Completed ({completedProjects.length})
+            </TabsTrigger>
+            <TabsTrigger value="cancelled">
+              <XCircle className="size-4 mr-2" />
+              Cancelled ({cancelledProjects.length})
             </TabsTrigger>
           </TabsList>
 
@@ -377,18 +427,35 @@ export default function AdminProjects() {
             )}
           </TabsContent>
 
-          {/* Active Projects */}
-          <TabsContent value="active" className="space-y-4">
-            {activeProjects.length === 0 ? (
+          {/* In Progress Projects */}
+          <TabsContent value="in_progress" className="space-y-4">
+            {inProgressProjects.length === 0 ? (
               <Card className="p-12 text-center">
                 <CheckCircle className="size-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl mb-2">No active projects</h3>
+                <h3 className="text-xl mb-2">No projects in progress</h3>
                 <p className="text-gray-600">
-                  Projects in progress will appear here
+                  Projects currently being worked on will appear here
                 </p>
               </Card>
             ) : (
-              activeProjects.map((project) => (
+              inProgressProjects.map((project) => (
+                <ProjectCard key={project.id} project={project} />
+              ))
+            )}
+          </TabsContent>
+
+          {/* Hold Projects */}
+          <TabsContent value="hold" className="space-y-4">
+            {holdProjects.length === 0 ? (
+              <Card className="p-12 text-center">
+                <Clock className="size-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl mb-2">No projects on hold</h3>
+                <p className="text-gray-600">
+                  Projects that are on hold will appear here
+                </p>
+              </Card>
+            ) : (
+              holdProjects.map((project) => (
                 <ProjectCard key={project.id} project={project} />
               ))
             )}
@@ -398,7 +465,7 @@ export default function AdminProjects() {
           <TabsContent value="completed" className="space-y-4">
             {completedProjects.length === 0 ? (
               <Card className="p-12 text-center">
-                <FileText className="size-12 text-gray-400 mx-auto mb-4" />
+                <CheckCircle className="size-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-xl mb-2">No completed projects</h3>
                 <p className="text-gray-600">
                   Completed projects will appear here
@@ -406,6 +473,23 @@ export default function AdminProjects() {
               </Card>
             ) : (
               completedProjects.map((project) => (
+                <ProjectCard key={project.id} project={project} />
+              ))
+            )}
+          </TabsContent>
+
+          {/* Cancelled Projects */}
+          <TabsContent value="cancelled" className="space-y-4">
+            {cancelledProjects.length === 0 ? (
+              <Card className="p-12 text-center">
+                <XCircle className="size-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl mb-2">No cancelled projects</h3>
+                <p className="text-gray-600">
+                  Cancelled projects will appear here
+                </p>
+              </Card>
+            ) : (
+              cancelledProjects.map((project) => (
                 <ProjectCard key={project.id} project={project} />
               ))
             )}

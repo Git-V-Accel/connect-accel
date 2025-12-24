@@ -415,6 +415,12 @@ class SocketService {
       console.log('Message unpinned:', data);
       this.notifyHandlers(SocketEvents.MESSAGE_UNPINNED, data);
     });
+
+    // Project status events
+    this.socket.on(SocketEvents.PROJECT_STATUS_UPDATED, (data: any) => {
+      console.log('Project status updated:', data);
+      this.notifyHandlers(SocketEvents.PROJECT_STATUS_UPDATED, data);
+    });
   }
 
   /**
@@ -636,6 +642,33 @@ class SocketService {
     this.socket.emit('join:conversation', {
       conversation_id: conversationId,
       user_id: this.userId,
+    });
+  }
+
+  /**
+   * Join project room
+   */
+  joinProject(projectId: string): void {
+    if (!this.socket || !this.socket.connected) {
+      console.warn('Socket not connected');
+      return;
+    }
+
+    this.socket.emit('join-project', {
+      projectId,
+    });
+  }
+
+  /**
+   * Leave project room
+   */
+  leaveProject(projectId: string): void {
+    if (!this.socket || !this.socket.connected) {
+      return;
+    }
+
+    this.socket.emit('leave-project', {
+      projectId,
     });
   }
 

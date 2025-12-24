@@ -117,6 +117,31 @@ class SocketService {
     }
   }
 
+  // Emit project status update to specific users
+  emitProjectStatusUpdated(projectId, newStatus, timelineEntry, recipientUserIds) {
+    if (!this.io) return;
+
+    const payload = {
+      projectId: projectId.toString(),
+      newStatus,
+      timelineEntry,
+      timestamp: new Date()
+    };
+
+    // Emit to specific user sockets
+    recipientUserIds.forEach(userId => {
+      const userSocket = this.connectedUsers.get(userId.toString());
+      if (userSocket) {
+        userSocket.emit('project_status_updated', payload);
+      }
+    });
+
+    // Also emit to project room for users already in it
+    this.io.to(`project-${projectId}`).emit('project_status_updated', payload);
+
+    console.log(`Emitted project_status_updated for project ${projectId} to ${recipientUserIds.length} users`);
+  }
+
   // Project-specific events
   emitProjectUpdate(projectId, updateType, data) {
     this.emitToProject(projectId, 'project-update', {

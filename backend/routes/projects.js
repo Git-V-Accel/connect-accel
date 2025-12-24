@@ -18,7 +18,15 @@ const {
   addAdditionalDescription,
   deleteAdditionalDescription,
   markProjectForBidding,
-  requestConsultation
+  requestConsultation,
+  postProject,
+  createBidding,
+  awardBidding,
+  completeProject,
+  holdProject,
+  cancelProject,
+  resumeProject,
+  getProjectTimeline
 } = require('../controllers/projectController');
 const {
   getProjectNotes,
@@ -141,5 +149,45 @@ router.put('/:id/notes/:noteId', updateProjectNote);
 // @route   DELETE /api/projects/:id/notes/:noteId
 // @access  Private (Admin and Freelancer only)
 router.delete('/:id/notes/:noteId', deleteProjectNote);
+
+// @desc    Post project (draft → active)
+// @route   POST /api/projects/:id/post
+// @access  Private (Client only)
+router.post('/:id/post', postProject);
+
+// @desc    Create bidding (active → in_bidding)
+// @route   POST /api/projects/:id/create-bidding
+// @access  Private (Admin/Agent/Superadmin only)
+router.post('/:id/create-bidding', createBidding);
+
+// @desc    Award bidding (in_bidding → in_progress)
+// @route   POST /api/projects/:id/award-bidding
+// @access  Private (Admin/Agent/Superadmin only)
+router.post('/:id/award-bidding', awardBidding);
+
+// @desc    Complete project (in_progress → completed)
+// @route   POST /api/projects/:id/complete
+// @access  Private (Admin/Agent/Freelancer/Superadmin only)
+router.post('/:id/complete', completeProject);
+
+// @desc    Hold project (active/in_bidding → hold)
+// @route   POST /api/projects/:id/hold
+// @access  Private (Client only)
+router.post('/:id/hold', holdProject);
+
+// @desc    Cancel project (active/in_bidding → cancelled)
+// @route   POST /api/projects/:id/cancel
+// @access  Private (Client only)
+router.post('/:id/cancel', cancelProject);
+
+// @desc    Resume project (hold → in_progress)
+// @route   POST /api/projects/:id/resume
+// @access  Private (Client only)
+router.post('/:id/resume', resumeProject);
+
+// @desc    Get project timeline
+// @route   GET /api/projects/:id/timeline
+// @access  Private
+router.get('/:id/timeline', getProjectTimeline);
 
 module.exports = router;

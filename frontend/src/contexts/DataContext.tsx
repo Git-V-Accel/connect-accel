@@ -378,12 +378,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
             await new Promise(resolve => setTimeout(resolve, 200));
 
             try {
-                const result = await projectService.listProjects();
-                const normalizedProjects = result.projects.map(projectService.normalizeProject);
+                // For admin/superadmin, fetch all projects with a high limit
+                const limit = (user?.role === 'admin' || user?.role === 'superadmin') ? 1000 : undefined;
+                const result = await projectService.listProjects({ limit });
+                
+                // If there are more projects, fetch them using pagination
+                let allProjects = [...result.projects];
+                let nextCursor = result.nextCursor;
+                while (nextCursor && (user?.role === 'admin' || user?.role === 'superadmin')) {
+                    const nextResult = await projectService.listProjects({ cursor: nextCursor, limit });
+                    allProjects = [...allProjects, ...nextResult.projects];
+                    nextCursor = nextResult.nextCursor;
+                    if (!nextResult.hasMore) break;
+                }
+                
+                // Normalize all projects
+                const normalizedAllProjects = allProjects.map(projectService.normalizeProject);
 
                 // Extract milestones from all projects
                 const allMilestones: Milestone[] = [];
-                result.projects.forEach((project: any) => {
+                allProjects.forEach((project: any) => {
                     if (project.milestones && Array.isArray(project.milestones)) {
                         project.milestones.forEach((milestone: any, index: number) => {
                             const normalizedMilestone = projectService.normalizeMilestone(milestone);
@@ -396,7 +410,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
                 setData((prev: any) => ({
                     ...prev,
-                    projects: normalizedProjects,
+                    projects: normalizedAllProjects,
                     milestones: allMilestones,
                 }));
 

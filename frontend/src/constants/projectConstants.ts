@@ -65,7 +65,6 @@ export const statusColors = {
 };
 
 export const statusLabels = {
-    draft: 'Draft',
     active: 'Pending Review',
     in_bidding: 'In Bidding',
     assigned: 'Assigned',
@@ -86,9 +85,9 @@ export const clientAllowedTransitions: Record<string, string[]> = {
     in_bidding: ['hold', 'cancelled'],         // While in bidding, only hold or cancel
     assigned: ['hold', 'cancelled'],         // Once assigned, only hold or cancel
     in_progress: ['hold', 'cancelled'],         // During progress, only hold or cancel
-    hold: ['in_progress', 'cancelled'],  // Resume from hold or cancel
+    hold: ['in_progress', 'active', 'cancelled'],  // Resume from hold to in_progress (if freelancer) or active (if no freelancer)
     completed: [],                            // No transitions allowed once completed
-    cancelled: []                             // No transitions allowed once cancelled
+    cancelled: ['in_progress', 'active']      // Allow resume from cancelled to in_progress (if freelancer) or active (if no freelancer)
 };
 
 // Statuses that require a remark/reason

@@ -44,13 +44,8 @@ import { toast } from "../../utils/toast";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { statusLabels, statusColors, clientAllowedTransitions, statusNeedsRemark } from "../../constants/projectConstants";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../components/ui/select";
+import { postProject, holdProject as holdProjectApi, cancelProject as cancelProjectApi, resumeProject as resumeProjectApi } from "../../services/projectService";
+import HoldCancelModal from "../../components/project/HoldCancelModal";
 
 const milestoneStatusColors = {
   pending: "bg-gray-100 text-gray-700",
@@ -82,49 +77,133 @@ export default function ProjectDetail() {
   );
   const [rejectionReason, setRejectionReason] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [showStatusRemarksDialog, setShowStatusRemarksDialog] = useState(false);
-  const [statusToChange, setStatusToChange] = useState<string | null>(null);
-  const [statusRemarks, setStatusRemarks] = useState("");
+  const [showHoldModal, setShowHoldModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
-  const handleStatusChange = async (newStatus: string, remarks?: string) => {
-    if (!project || !id) return;
-    if (newStatus === project.status) return;
-
-    // Check if reason is required
-    if (statusNeedsRemark.has(newStatus) && !remarks) {
-      setStatusToChange(newStatus);
-      setShowStatusRemarksDialog(true);
-      return;
+  // Get allowed status transitions for client based on current status
+  const getAllowedStatusButtons = () => {
+    if (!project) return [];
+    
+    const currentStatus = project.status;
+    const clientVisibleStatuses = ['draft', 'active', 'hold', 'cancelled'];
+    const hasFreelancer = project.freelancer_id || project.assignedFreelancerId;
+    
+    // Clients can hold/cancel from active or in_bidding status
+    if (currentStatus === 'active' || currentStatus === 'in_bidding') {
+      return ['hold', 'cancelled']; // Allow hold and cancel
+    } else if (currentStatus === 'cancelled' || currentStatus === 'hold') {
+      // If freelancer is assigned, allow resume to in_progress
+      // If no freelancer, allow resume to active
+      if (hasFreelancer) {
+        return ['in_progress'];
+      } else {
+        return ['active'];
+      }
+    } else if (currentStatus === 'in_progress' || currentStatus === 'in_bidding' || currentStatus === 'assigned') {
+      return ['hold', 'cancelled']; // Allow hold and cancel
     }
-
-    setIsUpdatingStatus(true);
-    try {
-      const updatedProject = await updateProject(id, {
-        status: newStatus as any,
-        statusRemarks: remarks
-      } as any);
-      setProject(updatedProject);
-      toast.success(`Project status changed to ${statusLabels[newStatus as keyof typeof statusLabels] || newStatus}`);
-      setShowStatusRemarksDialog(false);
-      setStatusRemarks("");
-      setStatusToChange(null);
-    } catch (error: any) {
-      console.error("Failed to update project status:", error);
-      toast.error(error?.response?.data?.message || "Failed to update project status");
-    } finally {
-      setIsUpdatingStatus(false);
+    
+    // For draft status, use clientAllowedTransitions
+    if (currentStatus === 'draft') {
+      const allowedTransitions = clientAllowedTransitions[currentStatus] || [];
+      return allowedTransitions;
     }
+    
+    // For other statuses that are client-visible, get allowed transitions
+    if (clientVisibleStatuses.includes(currentStatus)) {
+      const allowedTransitions = clientAllowedTransitions[currentStatus] || [];
+      // Filter to exclude draft (never allow going back to draft)
+      return allowedTransitions.filter(status => status !== 'draft');
+    }
+    
+    // For statuses beyond active (in_progress, completed, etc.), no buttons available
+    return [];
   };
 
   const handlePostProject = async () => {
     if (!project || !id) return;
     setIsUpdatingStatus(true);
     try {
-      const updatedProject = await updateProject(id, { status: 'active' as any });
-      setProject(updatedProject);
+      const result = await postProject(id);
+      setProject(result.project);
       toast.success("Project posted successfully! It is now pending review.");
     } catch (error: any) {
+      console.error("Failed to post project:", error);
       toast.error(error?.response?.data?.message || "Failed to post project");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleHoldProject = async (remark: string) => {
+    if (!project || !id) return;
+    setIsUpdatingStatus(true);
+    try {
+      const result = await holdProjectApi(id, remark);
+      setProject(result.project);
+      toast.success("Project put on hold successfully");
+      setShowHoldModal(false);
+    } catch (error: any) {
+      console.error("Failed to hold project:", error);
+      toast.error(error?.response?.data?.message || "Failed to hold project");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleCancelProject = async (remark: string) => {
+    if (!project || !id) return;
+    setIsUpdatingStatus(true);
+    try {
+      const result = await cancelProjectApi(id, remark);
+      setProject(result.project);
+      toast.success("Project cancelled successfully");
+      setShowCancelModal(false);
+    } catch (error: any) {
+      console.error("Failed to cancel project:", error);
+      toast.error(error?.response?.data?.message || "Failed to cancel project");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleResumeProject = async () => {
+    if (!project || !id) return;
+    
+    // Check if project has assigned freelancer before attempting resume
+    if (!project.freelancer_id && !project.assignedFreelancerId) {
+      toast.error("Cannot resume project: No freelancer is assigned. Please assign a freelancer first.");
+      return;
+    }
+    
+    setIsUpdatingStatus(true);
+    try {
+      const result = await resumeProjectApi(id);
+      setProject(result.project);
+      toast.success("Project resumed successfully");
+    } catch (error: any) {
+      console.error("Failed to resume project:", error);
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to resume project";
+      toast.error(errorMessage);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleActiveProject = async () => {
+    if (!project || !id) return;
+    
+    setIsUpdatingStatus(true);
+    try {
+      const updatedProject = await updateProject(id, {
+        status: 'active' as any
+      } as any);
+      setProject(updatedProject);
+      toast.success("Project activated successfully");
+    } catch (error: any) {
+      console.error("Failed to activate project:", error);
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to activate project";
+      toast.error(errorMessage);
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -266,15 +345,15 @@ export default function ProjectDetail() {
               <ArrowLeft className="size-4 mr-2" />
             </Button>
             <div>
-              <h1 className="text-3xl mb-2">{project.title}</h1>
-              <RichTextViewer content={project.description || ""} />
+              <h1 className="text-3xl mb-2">{project?.title || ""}</h1>
+              <RichTextViewer content={project?.description || ""} />
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <Badge className={(statusColors as any)[project.status]}>
-              {(statusLabels as any)[project.status]}
+            <Badge className={(statusColors as any)[project?.status]}>
+              {(statusLabels as any)[project?.status]}
             </Badge>
-            {project.status === 'draft' && (
+            {project?.status === 'draft' && (
               <Button size="sm" onClick={handlePostProject} disabled={isUpdatingStatus}>
                 Post Project
               </Button>
@@ -283,6 +362,7 @@ export default function ProjectDetail() {
         </div>
 
         {/* Key Stats */}
+        {project && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="p-4">
             <div className="flex items-center gap-3">
@@ -292,7 +372,7 @@ export default function ProjectDetail() {
               <div>
                 <p className="text-sm text-gray-600">Total Budget</p>
                 <p className="text-xl font-medium">
-                  ₹{project.client_budget.toLocaleString()}
+                  ₹{(project?.client_budget || 0).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -320,7 +400,7 @@ export default function ProjectDetail() {
               <div>
                 <p className="text-sm text-gray-600">Duration</p>
                 <p className="text-xl font-medium">
-                  {project.duration_weeks} weeks
+                  {project?.duration_weeks || 0} weeks
                 </p>
               </div>
             </div>
@@ -338,9 +418,10 @@ export default function ProjectDetail() {
             </div>
           </Card>
         </div>
+        )}
 
         {/* Progress Bar */}
-        {project.status === "in_progress" && (
+        {project?.status === "in_progress" && (
           <Card className="p-6">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-medium">Overall Progress</h3>
@@ -368,6 +449,7 @@ export default function ProjectDetail() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
+            {project && (
             <div className="grid md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
                 <Card className="p-6">
@@ -375,12 +457,12 @@ export default function ProjectDetail() {
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Category</p>
-                      <p className="font-medium">{project.category}</p>
+                      <p className="font-medium">{project?.category || "-"}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Complexity</p>
                       <Badge variant="outline" className="capitalize">
-                        {project.complexity}
+                        {project?.complexity || "-"}
                       </Badge>
                     </div>
                     <div>
@@ -388,7 +470,7 @@ export default function ProjectDetail() {
                         Required Skills
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {project.skills_required.map((skill: string) => (
+                        {(project?.skills_required || []).map((skill: string) => (
                           <Badge key={skill} variant="secondary">
                             {skill}
                           </Badge>
@@ -470,7 +552,7 @@ export default function ProjectDetail() {
 
               {/* Sidebar */}
               <div className="space-y-6">
-                {project.freelancer_id && (
+                {project?.freelancer_id && (
                   <Card className="p-6">
                     <h3 className="text-lg font-medium mb-4">
                       Assigned Freelancer
@@ -478,7 +560,7 @@ export default function ProjectDetail() {
                     <div className="flex items-center gap-3 mb-4">
                       <Avatar>
                         <AvatarFallback>
-                          {project.freelancer_name
+                          {project?.freelancer_name
                             ?.split(" ")
                             .map((n: string) => n[0])
                             .join("")
@@ -486,7 +568,7 @@ export default function ProjectDetail() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{project.freelancer_name}</p>
+                        <p className="font-medium">{project?.freelancer_name}</p>
                         <p className="text-sm text-gray-600">
                           Full Stack Developer
                         </p>
@@ -503,13 +585,13 @@ export default function ProjectDetail() {
                   </Card>
                 )}
 
-                {project.admin_id && (
+                {project?.admin_id && (
                   <Card className="p-6">
                     <h3 className="text-lg font-medium mb-4">Admin Contact</h3>
                     <div className="flex items-center gap-3 mb-4">
                       <Avatar>
                         <AvatarFallback>
-                          {project.admin_name
+                          {project?.admin_name
                             ?.split(" ")
                             .map((n: string) => n[0])
                             .join("")
@@ -517,7 +599,7 @@ export default function ProjectDetail() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{project.admin_name}</p>
+                        <p className="font-medium">{project?.admin_name}</p>
                         <p className="text-sm text-gray-600">Project Manager</p>
                       </div>
                     </div>
@@ -536,39 +618,79 @@ export default function ProjectDetail() {
                 )}
 
                 <Card className="p-6">
-                  <h3 className="text-lg font-medium mb-4">Actions</h3>
+                  <h3 className="text-lg font-medium mb-4">Quick Actions</h3>
                   <div className="space-y-4">
-                    {/* Status Change */}
+                    {/* Status Change Buttons */}
                     <div className="space-y-2">
-                      <Label htmlFor="project-status">Change Project Status</Label>
-                      <Select
-                        value={project.status}
-                        onValueChange={handleStatusChange}
-                        disabled={isUpdatingStatus}
-                      >
-                        <SelectTrigger id="project-status" className="w-full">
-                          <SelectValue placeholder="Select status">
-                            <Badge className={statusColors[project.status as keyof typeof statusColors] || "bg-gray-100 text-gray-700"}>
-                              {statusLabels[project.status as keyof typeof statusLabels] || project.status}
-                            </Badge>
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {/* Hide draft and active options once project is in_progress or beyond */}
-                          {!['in_progress', 'completed', 'cancelled', 'in_bidding', 'bidding', 'assigned'].includes(project.status) && (
-                            <>
-                              <SelectItem value="draft">Draft</SelectItem>
-                              <SelectItem value="active">Active</SelectItem>
-                            </>
-                          )}
-                          <SelectItem value="hold">Hold</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label>Project Status</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {/* Show Post Project button only if status is draft */}
+                        {project?.status === 'draft' && (
+                          <Button
+                            onClick={handlePostProject}
+                            disabled={isUpdatingStatus}
+                            className="flex-1 min-w-[140px]"
+                          >
+                            Post Project
+                          </Button>
+                        )}
+                        
+                        {/* Show Hold button if current status allows it */}
+                        {getAllowedStatusButtons().includes('hold') && (
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowHoldModal(true)}
+                            disabled={isUpdatingStatus}
+                            className="flex-1 min-w-[140px]"
+                          >
+                            Hold Project
+                          </Button>
+                        )}
+                        
+                        {/* Show Cancel button if current status allows it */}
+                        {getAllowedStatusButtons().includes('cancelled') && (
+                          <Button
+                            variant="destructive"
+                            onClick={() => setShowCancelModal(true)}
+                            disabled={isUpdatingStatus}
+                            className="flex-1 min-w-[140px]"
+                          >
+                            Cancel Project
+                          </Button>
+                        )}
+                        {/* Show Activate button if no freelancer assigned */}
+                        {getAllowedStatusButtons().includes('active') && (!project?.freelancer_id && !project?.assignedFreelancerId) && (
+                          <Button
+                            variant="outline"
+                            onClick={handleActiveProject}
+                            disabled={isUpdatingStatus}
+                            className="flex-1 min-w-[140px]"
+                          >
+                            Activate Project
+                          </Button>
+                        )}
+                        {/* Show Resume button if freelancer is assigned */}
+                        {getAllowedStatusButtons().includes('in_progress') && (project?.freelancer_id || project?.assignedFreelancerId) && (
+                          <Button
+                            variant="outline"
+                            onClick={handleResumeProject}
+                            disabled={isUpdatingStatus}
+                            className="flex-1 min-w-[140px]"
+                          >
+                            Resume Project
+                          </Button>
+                        )}
+                      </div>
+                      {/* Show message if no status actions available */}
+                      {project?.status !== 'draft' && getAllowedStatusButtons().length === 0 && (
+                       <Badge className={(statusColors as any)[project.status]}>
+                       {(statusLabels as any)[project.status]}
+                     </Badge>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      {project.status === "draft" && (
+                      {project?.status === "draft" && (
                         <Button
                           variant="outline"
                           className="w-full"
@@ -597,6 +719,7 @@ export default function ProjectDetail() {
                 </Card>
               </div>
             </div>
+            )}
           </TabsContent>
 
           {/* Milestones Tab */}
@@ -783,7 +906,7 @@ export default function ProjectDetail() {
                   <div className="flex justify-between text-sm text-gray-600 mt-1">
                     <span>Remaining:</span>
                     <span>
-                      ₹{(project.client_budget - totalPaid).toLocaleString()}
+                      ₹{((project?.client_budget || 0) - totalPaid).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -914,45 +1037,25 @@ export default function ProjectDetail() {
           </DialogContent>
         </Dialog>
 
-        {/* Status Remarks Dialog */}
-        <Dialog open={showStatusRemarksDialog} onOpenChange={setShowStatusRemarksDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Reason for {statusToChange === 'hold' ? 'Hold' : 'Cancellation'}</DialogTitle>
-              <DialogDescription>
-                Please explain why you are setting this project to {statusToChange}.
-                This will be recorded in the project timeline.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-2">
-              <Label htmlFor="status-remarks">Reason / Remarks</Label>
-              <RichTextEditor
-                value={statusRemarks}
-                onChange={setStatusRemarks}
-                placeholder={`Enter reason for ${statusToChange}...`}
-                minHeight="150px"
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowStatusRemarksDialog(false);
-                  setStatusToChange(null);
-                  setStatusRemarks("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => statusToChange && handleStatusChange(statusToChange, statusRemarks)}
-                disabled={!statusRemarks || isUpdatingStatus}
-              >
-                {isUpdatingStatus ? "Updating..." : "Update Status"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Hold Project Modal */}
+        <HoldCancelModal
+          open={showHoldModal}
+          onClose={() => setShowHoldModal(false)}
+          onConfirm={handleHoldProject}
+          action="hold"
+          projectTitle={project?.title}
+          loading={isUpdatingStatus}
+        />
+
+        {/* Cancel Project Modal */}
+        <HoldCancelModal
+          open={showCancelModal}
+          onClose={() => setShowCancelModal(false)}
+          onConfirm={handleCancelProject}
+          action="cancel"
+          projectTitle={project?.title}
+          loading={isUpdatingStatus}
+        />
       </div>
     </DashboardLayout>
   );

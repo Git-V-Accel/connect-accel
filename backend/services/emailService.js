@@ -159,6 +159,61 @@ async function sendPasswordChangedEmail({ to, userName }) {
     await sendEmail(to, 'Password Changed Successfully - Connect Accel', html);
 }
 
+// Status labels mapping
+const statusLabels = {
+  draft: 'Draft',
+  active: 'Pending Review',
+  pending_review: 'Pending Review',
+  in_bidding: 'In Bidding',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  hold: 'On Hold',
+  cancelled: 'Cancelled',
+  assigned: 'Assigned'
+};
+
+async function sendProjectStatusChangeEmail({ to, userName, projectTitle, oldStatus, newStatus, changedBy, remark }) {
+  if (!to) {
+    console.warn('sendProjectStatusChangeEmail: No email address provided');
+    return;
+  }
+
+  const oldStatusLabel = statusLabels[oldStatus] || oldStatus || 'Unknown';
+  const newStatusLabel = statusLabels[newStatus] || newStatus || 'Unknown';
+  
+  const statusColor = {
+    'Pending Review': '#f59e0b',
+    'In Bidding': '#3b82f6',
+    'In Progress': '#10b981',
+    'Completed': '#10b981',
+    'On Hold': '#f97316',
+    'Cancelled': '#ef4444',
+    'Draft': '#6b7280'
+  }[newStatusLabel] || '#6b7280';
+
+  const html = layout(`
+    <p style="color:#111">Hi ${userName || 'User'},</p>
+    <p>The status of project <strong>"${projectTitle}"</strong> has been updated.</p>
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:16px 0">
+      <h3 style="margin-top:0;color:#111;font-size:16px;font-weight:600">Status Update</h3>
+      <div style="display:flex;align-items:center;gap:12px;margin:12px 0">
+        <span style="padding:4px 12px;background:#f3f4f6;border-radius:4px;color:#6b7280;font-size:13px">${oldStatusLabel}</span>
+        <span style="color:#9ca3af">→</span>
+        <span style="padding:4px 12px;background:${statusColor}15;border-radius:4px;color:${statusColor};font-size:13px;font-weight:600">${newStatusLabel}</span>
+      </div>
+      ${changedBy ? `<p style="margin:8px 0;color:#6b7280;font-size:13px"><strong>Changed by:</strong> ${changedBy}</p>` : ''}
+      ${remark ? `<div style="margin-top:12px;padding:12px;background:#fff;border-left:3px solid ${statusColor};border-radius:4px">
+        <p style="margin:0;color:#111;font-size:13px"><strong>Reason/Remark:</strong></p>
+        <p style="margin:8px 0 0 0;color:#6b7280;font-size:13px">${remark}</p>
+      </div>` : ''}
+      <p style="margin:16px 0 0 0;color:#6b7280;font-size:12px">Updated at ${new Date().toLocaleString()}</p>
+    </div>
+    <p style="color:#111;margin-top:16px">You can view the updated project details in your dashboard.</p>
+  `);
+  
+  await sendEmail(to, `Project Status Updated: ${projectTitle} - ${newStatusLabel}`, html);
+}
+
 module.exports = {
   sendEmail,
   sendShortlistedEmail,
@@ -166,6 +221,7 @@ module.exports = {
   sendNotSelectedEmail,
   sendConsultationRequestEmail,
   sendPasswordChangedEmail,
+  sendProjectStatusChangeEmail,
 };
 
 

@@ -24,6 +24,7 @@ import {
   Eye,
   ArrowRight,
 } from 'lucide-react';
+import { RichTextViewer } from '../common/RichTextViewer';
 
 interface ProjectTimelineProps {
   activityLogs: ActivityLog[];
@@ -269,8 +270,8 @@ export default function ProjectTimeline({ activityLogs, project, loading = false
                         {log.metadata.rejectedByRole && ` (${log.metadata.rejectedByRole})`}
                       </p>
                       {log.metadata.rejectionReason && (
-                        <p className="text-xs text-red-600 mt-1 italic">
-                          Reason: {log.metadata.rejectionReason}
+                        <p className="text-xs text-red-600 mt-1 italic ">
+                        <RichTextViewer content={log.metadata.rejectionReason} />  
                         </p>
                       )}
                     </div>
