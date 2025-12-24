@@ -574,7 +574,8 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    userEmail = email.trim().toLowerCase();
+    user = await User.findOne({ email: userEmail });
 
     if (!user) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
@@ -590,7 +591,7 @@ const forgotPassword = async (req, res) => {
     user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     user.resetPasswordExpire = Date.now() + PASSWORD_RESET_CONFIG.TOKEN_EXPIRE_TIME;
 
-    await user.save();
+    await user.save({ validateBeforeSave: false });
 
     // Create reset URL - point to frontend route
     // Use FRONTEND_URL from environment if available, otherwise construct from request
@@ -665,18 +666,20 @@ const resetPassword = async (req, res) => {
 
     // Check if new password is same as current password
     const isSame = await user.comparePassword(req.body.password);
-    if (isSame) {
-      return res.status(STATUS_CODES.BAD_REQUEST).json({
-        success: false,
-        message: 'New password must be different from current password'
-      });
+        if (isSame) {
+          return res.status(STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: 'New password must be different from current password'
+          });
     }
 
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
 
-    await user.save();
+    // Save without full validation since we're only updating password and token fields
+    // The password itself is validated above (length check) and will be hashed by pre-save hook
+    await user.save({ validateBeforeSave: false });
 
     // Generate tokens
     const token = generateToken(user._id);

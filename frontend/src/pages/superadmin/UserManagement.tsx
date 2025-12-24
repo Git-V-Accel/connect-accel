@@ -75,6 +75,7 @@ export default function UserManagement() {
   const [error, setError] = useState<string | null>(null);
 
   const isSuperAdmin = currentUser?.role === 'superadmin';
+  console.log(currentUser,isSuperAdmin,"Selvaaaa");
   const isAdmin = currentUser?.role === 'admin';
 
 
@@ -329,7 +330,7 @@ export default function UserManagement() {
         </div>
 
         {/* Stats */}
-        <div className={`grid grid-cols-1 md:grid-cols-4 ${isSuperAdmin ? 'lg:grid-cols-5' : ''} gap-4`}>
+        <div className={`grid grid-cols-1  ${isSuperAdmin ? 'lg:grid-cols-4' : 'md:grid-cols-4'} gap-4`}>
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -377,19 +378,7 @@ export default function UserManagement() {
               </div>
             </Card>
           )}
-          {!isSuperAdmin && (
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Active</p>
-                  <p className="text-2xl font-medium">
-                    {allUsers.filter((u) => u.status === 'active').length}
-                  </p>
-                </div>
-                <CheckCircle className="size-8 text-green-500" />
-              </div>
-            </Card>
-          )}
+        
         </div>
 
         {/* Filters */}

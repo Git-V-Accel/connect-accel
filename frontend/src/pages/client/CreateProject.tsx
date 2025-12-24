@@ -17,6 +17,7 @@ import { toast } from '../../utils/toast';
 import { categories, commonSkills, projectTypes, projectPriorities } from '../../constants/projectConstants';
 import { RichTextViewer } from '../../components/common';
 import { Chip } from '@mui/material';
+import { validateProjectTitle, validateProjectDescription, validateBudget, validateDuration, VALIDATION_MESSAGES } from '../../constants/validationConstants';
 
 export default function CreateProject() {
   const { user } = useAuth();
@@ -31,6 +32,7 @@ export default function CreateProject() {
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [newSkillInput, setNewSkillInput] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -74,6 +76,45 @@ export default function CreateProject() {
     }
   };
 
+  const validateStep = (stepNumber: number): boolean => {
+    const stepErrors: Record<string, string> = {};
+
+    if (stepNumber === 1) {
+      const titleResult = validateProjectTitle(formData.title);
+      if (!titleResult.isValid) stepErrors.title = titleResult.error || VALIDATION_MESSAGES.PROJECT_TITLE.REQUIRED;
+
+      const descResult = validateProjectDescription(formData.description);
+      if (!descResult.isValid) stepErrors.description = descResult.error || VALIDATION_MESSAGES.PROJECT_DESCRIPTION.REQUIRED;
+
+      if (!formData.category) stepErrors.category = VALIDATION_MESSAGES.PROJECT_CATEGORY.REQUIRED;
+      if (!formData.project_type) stepErrors.project_type = VALIDATION_MESSAGES.PROJECT_TYPE.REQUIRED;
+
+      setErrors(stepErrors);
+      return Object.keys(stepErrors).length === 0;
+    } else if (stepNumber === 2) {
+      const budgetResult = validateBudget(formData.client_budget);
+      if (!budgetResult.isValid) stepErrors.client_budget = budgetResult.error || VALIDATION_MESSAGES.PROJECT_BUDGET.REQUIRED;
+
+      const durationResult = validateDuration(formData.duration_weeks);
+      if (!durationResult.isValid) stepErrors.duration_weeks = durationResult.error || VALIDATION_MESSAGES.PROJECT_DURATION.REQUIRED;
+
+      if (!formData.priority) stepErrors.priority = VALIDATION_MESSAGES.PROJECT_PRIORITY.REQUIRED;
+
+      setErrors(stepErrors);
+      return Object.keys(stepErrors).length === 0;
+    } else if (stepNumber === 3) {
+      if (formData.skills_required.length === 0) {
+        stepErrors.skills_required = VALIDATION_MESSAGES.PROJECT_SKILLS.MIN_COUNT;
+        setErrors(stepErrors);
+        return false;
+      }
+      setErrors({});
+      return true;
+    }
+    setErrors({});
+    return true;
+  };
+
   const canProceed = () => {
     switch (step) {
       case 1:
@@ -114,6 +155,11 @@ export default function CreateProject() {
   };
 
   const handleNext = () => {
+    if (!validateStep(step)) {
+      const firstError = Object.values(errors)[0];
+      if (firstError) toast.error(firstError);
+      return;
+    }
     if (canProceed() && step < 4) {
       changeStep(step + 1);
     }
@@ -213,6 +259,16 @@ export default function CreateProject() {
   const handleSubmit = async (status: string) => {
     if (!user) return;
 
+    // Validate all steps before submission
+    for (let i = 1; i <= 3; i++) {
+      if (!validateStep(i)) {
+        const firstError = Object.values(errors)[0];
+        if (firstError) toast.error(firstError);
+        setStep(i); // Navigate to the step with errors
+        return;
+      }
+    }
+
     try {
       const budget = parseInt(formData.client_budget);
       const project = await createProject({
@@ -263,19 +319,28 @@ export default function CreateProject() {
                   id="title"
                   placeholder="e.g., E-commerce Website for Fashion Store"
                   value={formData.title}
-                  onChange={e => updateFormData('title', e.target.value)}
+                  onChange={e => {
+                    updateFormData('title', e.target.value);
+                    if (errors.title) setErrors({ ...errors, title: '' });
+                  }}
+                  className={errors.title ? 'border-red-500' : ''}
                 />
+                {errors.title && <p className="text-sm text-red-600 mt-1">{errors.title}</p>}
               </div>
 
               <div>
                 <Label htmlFor="description">Project Description *</Label>
                 <RichTextEditor
                   value={formData.description}
-                  onChange={(value) => updateFormData('description', value)}
+                  onChange={(value) => {
+                    updateFormData('description', value);
+                    if (errors.description) setErrors({ ...errors, description: '' });
+                  }}
                   placeholder="Describe your project in detail. What are you trying to build? What problem does it solve?"
-                  className="mt-1"
+                  className={`mt-1 ${errors.description ? 'border-red-500' : ''}`}
                   minHeight="200px"
                 />
+                {errors.description && <p className="text-sm text-red-600 mt-1">{errors.description}</p>}
                 <p className="text-sm text-gray-500 mt-1">
                   Be as detailed as possible. This helps us match you with the right freelancers.
                 </p>
@@ -283,8 +348,11 @@ export default function CreateProject() {
 
               <div>
                 <Label htmlFor="category">Project Category *</Label>
-                <Select value={formData.category} onValueChange={val => updateFormData('category', val)}>
-                  <SelectTrigger>
+                <Select value={formData.category} onValueChange={val => {
+                  updateFormData('category', val);
+                  if (errors.category) setErrors({ ...errors, category: '' });
+                }}>
+                  <SelectTrigger className={errors.category ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -293,6 +361,7 @@ export default function CreateProject() {
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.category && <p className="text-sm text-red-600 mt-1">{errors.category}</p>}
               </div>
 
               <div>
@@ -319,6 +388,7 @@ export default function CreateProject() {
                     </Card>
                   ))}
                 </div>
+                {errors.project_type && <p className="text-sm text-red-600 mt-1">{errors.project_type}</p>}
               </div>
             </div>
           </div>
@@ -341,8 +411,13 @@ export default function CreateProject() {
                     type="number"
                     placeholder="50000"
                     value={formData.client_budget}
-                    onChange={e => updateFormData('client_budget', e.target.value)}
+                    onChange={e => {
+                      updateFormData('client_budget', e.target.value);
+                      if (errors.client_budget) setErrors({ ...errors, client_budget: '' });
+                    }}
+                    className={errors.client_budget ? 'border-red-500' : ''}
                   />
+                  {errors.client_budget && <p className="text-sm text-red-600 mt-1">{errors.client_budget}</p>}
                   <p className="text-sm text-gray-500 mt-1">
                     This is your total budget including all milestones and our service fees
                   </p>
@@ -355,8 +430,13 @@ export default function CreateProject() {
                     type="number"
                     placeholder="8"
                     value={formData.duration_weeks}
-                    onChange={e => updateFormData('duration_weeks', e.target.value)}
+                    onChange={e => {
+                      updateFormData('duration_weeks', e.target.value);
+                      if (errors.duration_weeks) setErrors({ ...errors, duration_weeks: '' });
+                    }}
+                    className={errors.duration_weeks ? 'border-red-500' : ''}
                   />
+                  {errors.duration_weeks && <p className="text-sm text-red-600 mt-1">{errors.duration_weeks}</p>}
                 </div>
               </div>
               <Card className="p-4">
@@ -384,9 +464,13 @@ export default function CreateProject() {
                       key={priority.value}
                       className={`p-4 cursor-pointer transition-colors ${formData.priority === priority.value
                         ? 'border-blue-500 bg-blue-50'
+                        : errors.priority ? 'border-red-300 hover:border-red-400'
                         : 'hover:border-gray-400'
                         }`}
-                      onClick={() => updateFormData('priority', priority.value)}
+                      onClick={() => {
+                        updateFormData('priority', priority.value);
+                        if (errors.priority) setErrors({ ...errors, priority: '' });
+                      }}
                     >
                       <div className="flex items-start justify-between">
                         <div>
@@ -400,9 +484,8 @@ export default function CreateProject() {
                     </Card>
                   ))}
                 </div>
+                {errors.priority && <p className="text-sm text-red-600 mt-1">{errors.priority}</p>}
               </div>
-
-
             </div>
           </div>
         );

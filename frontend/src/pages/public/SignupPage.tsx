@@ -8,7 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { toast } from '../../utils/toast';
 import OtpDialog from '../../components/common/OtpDialog';
 import { PasswordField } from '../../components/common';
-import { VALIDATION_MESSAGES, NAME_REGEX } from '../../constants/validationConstants';
+import { VALIDATION_MESSAGES, VALIDATION_REGEX, validateFirstName, validateLastName, validateEmail, validatePhone } from '../../constants/validationConstants';
 
 
 export default function SignupPage() {
@@ -33,47 +33,41 @@ export default function SignupPage() {
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!firstName.trim()) {
-      newErrors.firstName = VALIDATION_MESSAGES.FIRST_NAME.REQUIRED;
-    } else if (firstName.length < 3) {
-      newErrors.firstName = VALIDATION_MESSAGES.FIRST_NAME.MIN_LENGTH;
-    } else if (firstName.length > 30) {
-      newErrors.firstName = VALIDATION_MESSAGES.FIRST_NAME.MAX_LENGTH;
-    } else if (!NAME_REGEX.test(firstName)) {
-      newErrors.firstName = VALIDATION_MESSAGES.FIRST_NAME.INVALID_CHARACTERS;
+    // Validate first name
+    const firstNameResult = validateFirstName(firstName);
+    if (!firstNameResult.isValid) {
+      newErrors.firstName = firstNameResult.error || VALIDATION_MESSAGES.FIRST_NAME.REQUIRED;
     }
 
-    if (!lastName.trim()) {
-      newErrors.lastName = VALIDATION_MESSAGES.LAST_NAME.REQUIRED;
-    } else if (lastName.length < 1) {
-      newErrors.lastName = VALIDATION_MESSAGES.LAST_NAME.MIN_LENGTH;
-    } else if (lastName.length > 30) {
-      newErrors.lastName = VALIDATION_MESSAGES.LAST_NAME.MAX_LENGTH;
-    } else if (!NAME_REGEX.test(lastName)) {
-
-      newErrors.lastName = VALIDATION_MESSAGES.LAST_NAME.INVALID_CHARACTERS;
+    // Validate last name
+    const lastNameResult = validateLastName(lastName);
+    if (!lastNameResult.isValid) {
+      newErrors.lastName = lastNameResult.error || VALIDATION_MESSAGES.LAST_NAME.REQUIRED;
     }
 
-    if (!email.trim()) {
-      newErrors.email = VALIDATION_MESSAGES.EMAIL.REQUIRED;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = VALIDATION_MESSAGES.EMAIL.INVALID;
+    // Validate email
+    const emailResult = validateEmail(email);
+    if (!emailResult.isValid) {
+      newErrors.email = emailResult.error || VALIDATION_MESSAGES.EMAIL.REQUIRED;
     }
 
-    if (!phone.trim()) {
-      newErrors.phone = VALIDATION_MESSAGES.PHONE.REQUIRED;
-    } else if (!/^[0-9]{10}$/.test(phone)) {
-      newErrors.phone = VALIDATION_MESSAGES.PHONE.INVALID;
+    // Validate phone
+    const phoneResult = validatePhone(phone, true);
+    if (!phoneResult.isValid) {
+      newErrors.phone = phoneResult.error || VALIDATION_MESSAGES.PHONE.REQUIRED;
     }
 
+    // Validate password
     if (!isPasswordValid) {
       newErrors.password = VALIDATION_MESSAGES.PASSWORD.REQUIREMENTS;
     }
 
+    // Validate password match
     if (password !== confirmPassword) {
       newErrors.confirmPassword = VALIDATION_MESSAGES.PASSWORD.MISMATCH;
     }
 
+    // Validate terms acceptance
     if (!agreed) {
       newErrors.terms = VALIDATION_MESSAGES.TERMS.REQUIRED;
     }

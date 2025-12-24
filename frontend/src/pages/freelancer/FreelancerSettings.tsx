@@ -370,7 +370,6 @@ export default function FreelancerSettings() {
               <PasswordField
                 id="new_password"
                 label="New Password"
-                placeholder="••••••••"
                 value={passwordData.new_password}
                 onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
                 onValidationChange={setIsPasswordValid}
@@ -380,7 +379,6 @@ export default function FreelancerSettings() {
               <PasswordField
                 id="confirm_password"
                 label="Confirm New Password"
-                placeholder="••••••••"
                 value={passwordData.confirm_password}
                 onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
                 showValidation={false}

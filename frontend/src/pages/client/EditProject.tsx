@@ -15,6 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Calendar, IndianRupee, FileText, Settings, Plus, X, Phone } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { categories, commonSkills, projectTypes, projectPriorities } from '../../constants/projectConstants';
+import { validateProjectTitle, validateProjectDescription, validateBudget, validateDuration, VALIDATION_MESSAGES } from '../../constants/validationConstants';
 
 export default function EditProject() {
   const { user } = useAuth();
@@ -31,6 +32,7 @@ export default function EditProject() {
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [newSkillInput, setNewSkillInput] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -157,6 +159,11 @@ export default function EditProject() {
   };
 
   const handleNext = () => {
+    if (!validateStep(step)) {
+      const firstError = Object.values(errors)[0];
+      if (firstError) toast.error(firstError);
+      return;
+    }
     if (canProceed() && step < 4) {
       changeStep(step + 1);
     }
@@ -244,8 +251,43 @@ export default function EditProject() {
     };
   }, [step, isTransitioning]);
 
+  const validateForm = (): boolean => {
+    const formErrors: Record<string, string> = {};
+
+    // Validate title
+    const titleResult = validateProjectTitle(formData.title);
+    if (!titleResult.isValid) formErrors.title = titleResult.error || VALIDATION_MESSAGES.PROJECT_TITLE.REQUIRED;
+
+    // Validate description
+    const descResult = validateProjectDescription(formData.description);
+    if (!descResult.isValid) formErrors.description = descResult.error || VALIDATION_MESSAGES.PROJECT_DESCRIPTION.REQUIRED;
+
+    // Validate category
+    if (!formData.category) formErrors.category = VALIDATION_MESSAGES.PROJECT_CATEGORY.REQUIRED;
+
+    // Validate budget
+    const budgetResult = validateBudget(formData.client_budget);
+    if (!budgetResult.isValid) formErrors.client_budget = budgetResult.error || VALIDATION_MESSAGES.PROJECT_BUDGET.REQUIRED;
+
+    // Validate duration
+    const durationResult = validateDuration(formData.duration_weeks);
+    if (!durationResult.isValid) formErrors.duration_weeks = durationResult.error || VALIDATION_MESSAGES.PROJECT_DURATION.REQUIRED;
+
+    // Validate skills
+    if (formData.skills_required.length === 0) formErrors.skills_required = VALIDATION_MESSAGES.PROJECT_SKILLS.MIN_COUNT;
+
+    setErrors(formErrors);
+    return Object.keys(formErrors).length === 0;
+  };
+
   const handleSubmit = async (targetStatus?: string) => {
     if (!user || !id) return;
+
+    if (!validateForm()) {
+      const firstError = Object.values(errors)[0];
+      if (firstError) toast.error(firstError);
+      return;
+    }
 
     try {
       const budget = parseInt(formData.client_budget);

@@ -30,6 +30,7 @@ import { Switch } from '../../components/ui/switch';
 import * as settingsService from '../../services/settingsService';
 import * as userService from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
+import { validateFirstName, validateLastName, validatePhone, validatePassword, validateRequired, VALIDATION_MESSAGES } from '../../constants/validationConstants';
 
 export default function ClientSettings() {
   const { user } = useAuth();
@@ -72,6 +73,7 @@ export default function ClientSettings() {
   const [isPasswordValid, setIsPasswordValid] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpResendLoading, setOtpResendLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Load settings and user profile data on component mount
   useEffect(() => {
@@ -149,8 +151,39 @@ export default function ClientSettings() {
   }, [user]);
 
   const handleSaveProfile = async () => {
-    if (!profileData.firstName || !profileData.email) {
-      toast.error('First name and email are required');
+    const newErrors: Record<string, string> = {};
+
+    // Validate first name
+    const firstNameResult = validateFirstName(profileData.firstName);
+    if (!firstNameResult.isValid) {
+      newErrors.firstName = firstNameResult.error || VALIDATION_MESSAGES.FIRST_NAME.REQUIRED;
+    }
+
+    // Validate email (required but read-only, so just check if exists)
+    if (!profileData.email || !profileData.email.trim()) {
+      newErrors.email = VALIDATION_MESSAGES.EMAIL.REQUIRED;
+    }
+
+    // Validate phone if provided
+    if (profileData.phone && profileData.phone.trim()) {
+      const phoneResult = validatePhone(profileData.phone, false);
+      if (!phoneResult.isValid) {
+        newErrors.phone = phoneResult.error || VALIDATION_MESSAGES.PHONE.INVALID;
+      }
+    }
+
+    // Validate last name if provided
+    if (profileData.lastName && profileData.lastName.trim()) {
+      const lastNameResult = validateLastName(profileData.lastName);
+      if (!lastNameResult.isValid) {
+        newErrors.lastName = lastNameResult.error || '';
+      }
+    }
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = Object.values(newErrors)[0];
+      if (firstError) toast.error(firstError);
       return;
     }
 
@@ -170,6 +203,7 @@ export default function ClientSettings() {
       toast.success('Profile updated successfully!');
       setProfileData({ ...profileData, bio: bioEditValue });
       setIsEditing(false);
+      setErrors({});
     } catch (error: any) {
       const message = error?.response?.data?.message || error.message || 'Failed to update profile';
       toast.error(message);
@@ -216,20 +250,39 @@ export default function ClientSettings() {
   };
 
   const handleSendOtp = async () => {
-    if (!passwordData.current_password || !passwordData.new_password || !passwordData.confirm_password) {
-      toast.error('Please fill all password fields');
-      return;
+    const newErrors: Record<string, string> = {};
+
+    // Validate current password
+    const currentPasswordResult = validateRequired(passwordData.current_password);
+    if (!currentPasswordResult.isValid) {
+      newErrors.current_password = VALIDATION_MESSAGES.CURRENT_PASSWORD.REQUIRED;
     }
-    if (!isPasswordValid) {
-      toast.error('New password does not meet the requirements');
-      return;
+
+    // Validate new password
+    const newPasswordResult = validatePassword(passwordData.new_password, false);
+    if (!newPasswordResult.isValid) {
+      newErrors.new_password = newPasswordResult.error || VALIDATION_MESSAGES.PASSWORD.REQUIRED;
+    } else if (!isPasswordValid) {
+      newErrors.new_password = VALIDATION_MESSAGES.PASSWORD.REQUIREMENTS;
     }
-    if (passwordData.new_password !== passwordData.confirm_password) {
-      toast.error('New password and confirmation do not match.');
-      return;
+
+    // Validate confirm password
+    const confirmPasswordResult = validateRequired(passwordData.confirm_password);
+    if (!confirmPasswordResult.isValid) {
+      newErrors.confirm_password = VALIDATION_MESSAGES.CONFIRM_PASSWORD.REQUIRED;
+    } else if (passwordData.new_password !== passwordData.confirm_password) {
+      newErrors.confirm_password = VALIDATION_MESSAGES.PASSWORD.MISMATCH;
     }
-    if (passwordData.new_password === passwordData.current_password) {
-      toast.error('New password must be different from current password');
+
+    // Check if new password is same as current
+    if (passwordData.new_password && passwordData.current_password && passwordData.new_password === passwordData.current_password) {
+      newErrors.new_password = VALIDATION_MESSAGES.PASSWORD.SAME_AS_CURRENT;
+    }
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = Object.values(newErrors)[0];
+      if (firstError) toast.error(firstError);
       return;
     }
 
@@ -346,11 +399,15 @@ export default function ClientSettings() {
                 <Input
                   id="firstName"
                   value={profileData.firstName}
-                  onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })}
-                  className="mt-1"
+                  onChange={(e) => {
+                    setProfileData({ ...profileData, firstName: e.target.value });
+                    if (errors.firstName) setErrors({ ...errors, firstName: '' });
+                  }}
+                  className={`mt-1 ${errors.firstName ? 'border-red-500' : ''}`}
                   placeholder="Jane"
                   disabled={!isEditing || loading || settingsLoading}
                 />
+                {errors.firstName && <p className="text-sm text-red-600 mt-1">{errors.firstName}</p>}
               </div>
 
               <div>
@@ -358,11 +415,15 @@ export default function ClientSettings() {
                 <Input
                   id="lastName"
                   value={profileData.lastName}
-                  onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })}
-                  className="mt-1"
+                  onChange={(e) => {
+                    setProfileData({ ...profileData, lastName: e.target.value });
+                    if (errors.lastName) setErrors({ ...errors, lastName: '' });
+                  }}
+                  className={`mt-1 ${errors.lastName ? 'border-red-500' : ''}`}
                   placeholder="Doe"
                   disabled={!isEditing || loading || settingsLoading}
                 />
+                {errors.lastName && <p className="text-sm text-red-600 mt-1">{errors.lastName}</p>}
               </div>
 
               <div>
@@ -547,34 +608,48 @@ export default function ClientSettings() {
 
             <div className="space-y-4 max-w-md">
               <div>
-                <Label htmlFor="current_password">Current Password</Label>
+                <Label htmlFor="current_password">Current Password *</Label>
                 <PasswordInput
                   id="current_password"
                   value={passwordData.current_password}
-                  onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-                  className="mt-1"
+                  onChange={(e) => {
+                    setPasswordData({ ...passwordData, current_password: e.target.value });
+                    if (errors.current_password) setErrors({ ...errors, current_password: '' });
+                  }}
+                  className={`mt-1 ${errors.current_password ? 'border-red-500' : ''}`}
                 />
+                {errors.current_password && <p className="text-sm text-red-600 mt-1">{errors.current_password}</p>}
               </div>
 
-              <PasswordField
-                id="new_password"
-                label="New Password"
-                placeholder="••••••••"
-                value={passwordData.new_password}
-                onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                onValidationChange={setIsPasswordValid}
-                className="mt-1"
-              />
+              <div>
+                <PasswordField
+                  id="new_password"
+                  label="New Password *"
+                  value={passwordData.new_password}
+                  onChange={(e) => {
+                    setPasswordData({ ...passwordData, new_password: e.target.value });
+                    if (errors.new_password) setErrors({ ...errors, new_password: '' });
+                  }}
+                  onValidationChange={setIsPasswordValid}
+                  className={`mt-1 ${errors.new_password ? 'border-red-500' : ''}`}
+                />
+                {errors.new_password && <p className="text-sm text-red-600 mt-1">{errors.new_password}</p>}
+              </div>
 
-              <PasswordField
-                id="confirm_password"
-                label="Confirm New Password"
-                placeholder="••••••••"
-                value={passwordData.confirm_password}
-                onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-                showValidation={false}
-                className="mt-1"
-              />
+              <div>
+                <PasswordField
+                  id="confirm_password"
+                  label="Confirm New Password *"
+                  value={passwordData.confirm_password}
+                  onChange={(e) => {
+                    setPasswordData({ ...passwordData, confirm_password: e.target.value });
+                    if (errors.confirm_password) setErrors({ ...errors, confirm_password: '' });
+                  }}
+                  showValidation={false}
+                  className={`mt-1 ${errors.confirm_password ? 'border-red-500' : ''}`}
+                />
+                {errors.confirm_password && <p className="text-sm text-red-600 mt-1">{errors.confirm_password}</p>}
+              </div>
 
               <Button onClick={handleSendOtp} disabled={otpLoading}>
                 <Shield className="size-4 mr-2" />

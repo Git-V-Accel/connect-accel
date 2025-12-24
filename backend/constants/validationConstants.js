@@ -1,5 +1,5 @@
 /**
- * Validation Constants
+ * Validation Constants for Backend
  * Contains regex patterns and error messages for all input field validations
  */
 
@@ -7,7 +7,7 @@
 // REGEX PATTERNS
 // ============================================================================
 
-export const VALIDATION_REGEX = {
+const VALIDATION_REGEX = {
   // Name patterns
   FIRST_NAME: /^[A-Za-z\s'-]{2,30}$/,
   LAST_NAME: /^[A-Za-z\s'-]{1,30}$/,
@@ -83,7 +83,7 @@ export const VALIDATION_REGEX = {
 // VALIDATION ERROR MESSAGES
 // ============================================================================
 
-export const VALIDATION_MESSAGES = {
+const VALIDATION_MESSAGES = {
   // ========== Name Fields ==========
   FIRST_NAME: {
     REQUIRED: 'First name is required',
@@ -362,15 +362,10 @@ export const VALIDATION_MESSAGES = {
 // VALIDATION UTILITY FUNCTIONS
 // ============================================================================
 
-export interface ValidationResult {
-  isValid: boolean;
-  error?: string;
-}
-
 /**
  * Validate first name
  */
-export const validateFirstName = (value: string): ValidationResult => {
+const validateFirstName = (value) => {
   if (!value || !value.trim()) {
     return { isValid: false, error: VALIDATION_MESSAGES.FIRST_NAME.REQUIRED };
   }
@@ -390,7 +385,7 @@ export const validateFirstName = (value: string): ValidationResult => {
 /**
  * Validate last name
  */
-export const validateLastName = (value: string): ValidationResult => {
+const validateLastName = (value) => {
   if (!value || !value.trim()) {
     return { isValid: false, error: VALIDATION_MESSAGES.LAST_NAME.REQUIRED };
   }
@@ -410,7 +405,7 @@ export const validateLastName = (value: string): ValidationResult => {
 /**
  * Validate email
  */
-export const validateEmail = (value: string): ValidationResult => {
+const validateEmail = (value) => {
   if (!value || !value.trim()) {
     return { isValid: false, error: VALIDATION_MESSAGES.EMAIL.REQUIRED };
   }
@@ -427,7 +422,7 @@ export const validateEmail = (value: string): ValidationResult => {
 /**
  * Validate phone number (Indian format)
  */
-export const validatePhone = (value: string, strict: boolean = true): ValidationResult => {
+const validatePhone = (value, strict = true) => {
   if (!value || !value.trim()) {
     return { isValid: false, error: VALIDATION_MESSAGES.PHONE.REQUIRED };
   }
@@ -453,7 +448,7 @@ export const validatePhone = (value: string, strict: boolean = true): Validation
 /**
  * Validate password
  */
-export const validatePassword = (value: string, requireStrong: boolean = false): ValidationResult => {
+const validatePassword = (value, requireStrong = false) => {
   if (!value || !value.trim()) {
     return { isValid: false, error: VALIDATION_MESSAGES.PASSWORD.REQUIRED };
   }
@@ -474,7 +469,7 @@ export const validatePassword = (value: string, requireStrong: boolean = false):
 /**
  * Validate project title
  */
-export const validateProjectTitle = (value: string): ValidationResult => {
+const validateProjectTitle = (value) => {
   if (!value || !value.trim()) {
     return { isValid: false, error: VALIDATION_MESSAGES.PROJECT_TITLE.REQUIRED };
   }
@@ -492,22 +487,18 @@ export const validateProjectTitle = (value: string): ValidationResult => {
 };
 
 /**
- * Validate project description (checks minimum length)
+ * Validate project description (checks minimum length, strips HTML)
  */
-export const validateProjectDescription = (value: string): ValidationResult => {
+const validateProjectDescription = (value) => {
   if (!value || !value.trim()) {
     return { isValid: false, error: VALIDATION_MESSAGES.PROJECT_DESCRIPTION.REQUIRED };
   }
-  // Strip HTML tags for length check
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = value;
-  const plainText = tempDiv.textContent || tempDiv.innerText || '';
-  const trimmed = plainText.trim();
-  
-  if (trimmed.length < VALIDATION_REGEX.PROJECT_DESCRIPTION_MIN_LENGTH) {
+  // Strip HTML tags for length check (basic regex approach)
+  const plainText = value.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+  if (plainText.length < VALIDATION_REGEX.PROJECT_DESCRIPTION_MIN_LENGTH) {
     return { isValid: false, error: VALIDATION_MESSAGES.PROJECT_DESCRIPTION.TOO_SHORT };
   }
-  if (trimmed.length > 5000) {
+  if (plainText.length > 5000) {
     return { isValid: false, error: VALIDATION_MESSAGES.PROJECT_DESCRIPTION.MAX_LENGTH };
   }
   return { isValid: true };
@@ -516,8 +507,8 @@ export const validateProjectDescription = (value: string): ValidationResult => {
 /**
  * Validate budget
  */
-export const validateBudget = (value: string | number, min: number = 1, max: number = 10000000): ValidationResult => {
-  if (!value || value === '') {
+const validateBudget = (value, min = 1, max = 10000000) => {
+  if (value === null || value === undefined || value === '') {
     return { isValid: false, error: VALIDATION_MESSAGES.PROJECT_BUDGET.REQUIRED };
   }
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
@@ -539,8 +530,8 @@ export const validateBudget = (value: string | number, min: number = 1, max: num
 /**
  * Validate duration (weeks)
  */
-export const validateDuration = (value: string | number, min: number = 1, max: number = 520): ValidationResult => {
-  if (!value || value === '') {
+const validateDuration = (value, min = 1, max = 520) => {
+  if (value === null || value === undefined || value === '') {
     return { isValid: false, error: VALIDATION_MESSAGES.PROJECT_DURATION.REQUIRED };
   }
   const numValue = typeof value === 'string' ? parseInt(value, 10) : value;
@@ -559,20 +550,16 @@ export const validateDuration = (value: string | number, min: number = 1, max: n
 /**
  * Validate remark/reason (for hold, cancel, etc.)
  */
-export const validateRemark = (value: string, minLength: number = 10, maxLength: number = 500): ValidationResult => {
+const validateRemark = (value, minLength = 10, maxLength = 500) => {
   if (!value || !value.trim()) {
     return { isValid: false, error: VALIDATION_MESSAGES.REMARK.REQUIRED };
   }
-  // Strip HTML tags for length check
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = value;
-  const plainText = tempDiv.textContent || tempDiv.innerText || '';
-  const trimmed = plainText.trim();
-  
-  if (trimmed.length < minLength) {
+  // Strip HTML tags for length check (basic regex approach)
+  const plainText = value.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+  if (plainText.length < minLength) {
     return { isValid: false, error: VALIDATION_MESSAGES.REMARK.TOO_SHORT };
   }
-  if (trimmed.length > maxLength) {
+  if (plainText.length > maxLength) {
     return { isValid: false, error: VALIDATION_MESSAGES.REMARK.MAX_LENGTH };
   }
   return { isValid: true };
@@ -581,7 +568,7 @@ export const validateRemark = (value: string, minLength: number = 10, maxLength:
 /**
  * Validate required field
  */
-export const validateRequired = (value: any): ValidationResult => {
+const validateRequired = (value) => {
   if (value === null || value === undefined || value === '') {
     return { isValid: false, error: VALIDATION_MESSAGES.REQUIRED };
   }
@@ -594,7 +581,7 @@ export const validateRequired = (value: any): ValidationResult => {
 /**
  * Validate minimum length
  */
-export const validateMinLength = (value: string, minLength: number, fieldName: string = 'Field'): ValidationResult => {
+const validateMinLength = (value, minLength, fieldName = 'Field') => {
   if (!value || value.trim().length < minLength) {
     return { isValid: false, error: `${fieldName} must be at least ${minLength} characters` };
   }
@@ -604,14 +591,29 @@ export const validateMinLength = (value: string, minLength: number, fieldName: s
 /**
  * Validate maximum length
  */
-export const validateMaxLength = (value: string, maxLength: number, fieldName: string = 'Field'): ValidationResult => {
+const validateMaxLength = (value, maxLength, fieldName = 'Field') => {
   if (value && value.length > maxLength) {
     return { isValid: false, error: `${fieldName} cannot exceed ${maxLength} characters` };
   }
   return { isValid: true };
 };
 
-// Legacy exports for backward compatibility
-export const NAME_REGEX = VALIDATION_REGEX.FIRST_NAME;
-export const EMAIL_REGEX = VALIDATION_REGEX.EMAIL;
-export const PHONE_REGEX = VALIDATION_REGEX.PHONE_GENERAL;
+module.exports = {
+  VALIDATION_REGEX,
+  VALIDATION_MESSAGES,
+  // Validation functions
+  validateFirstName,
+  validateLastName,
+  validateEmail,
+  validatePhone,
+  validatePassword,
+  validateProjectTitle,
+  validateProjectDescription,
+  validateBudget,
+  validateDuration,
+  validateRemark,
+  validateRequired,
+  validateMinLength,
+  validateMaxLength,
+};
+
