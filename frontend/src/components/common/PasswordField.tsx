@@ -58,14 +58,14 @@ export const PasswordField = React.forwardRef<HTMLInputElement, PasswordFieldPro
                             {rules.map((rule, index) => {
                                 const passed = rule.test(password);
                                 return (
-                                    <div key={index} className="flex items-center gap-2">
+                                    <div key={index} className="flex items-center gap-2 text-xs">
                                         {passed ? (
-                                            <div className="flex size-4 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                                                <Check className="size-2.5 text-green-600 dark:text-green-400" />
+                                            <div className="flex size-2 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                                                <Check className="size-2 text-green-600 dark:text-green-400" />
                                             </div>
                                         ) : (
-                                            <div className="flex size-4 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800">
-                                                <X className="size-2.5 text-gray-500 dark:text-gray-400" />
+                                            <div className="flex size-2 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800">
+                                                <X className="size-2 text-gray-500 dark:text-gray-400" />
                                             </div>
                                         )}
                                         <span className={cn(

@@ -88,7 +88,7 @@ export function OtpDialog({
                     <InputOTPSlot
                       key={idx}
                       index={idx}
-                      className="w-12 h-14 text-xl font-semibold border-2"
+                      className="w-12 h-14 text-xl font-semibold border-2 border-gray-300  "
                     />
                   ))}
                 </InputOTPGroup>

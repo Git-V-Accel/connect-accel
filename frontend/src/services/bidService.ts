@@ -266,26 +266,26 @@ function normalizeBid(bid: any): Bid {
     reviewNotes: bid.reviewNotes,
     project: bid.projectId
       ? {
-          id: bid.projectId._id || bid.projectId,
-          title: bid.projectId.title || bid.projectTitle,
-          description: bid.projectId.description,
-          budget: bid.projectId.budget,
-          timeline: bid.projectId.timeline,
-          status: bid.projectId.status,
-          category: bid.projectId.category,
-        }
+        id: bid.projectId._id || bid.projectId,
+        title: bid.projectId.title || bid.projectTitle,
+        description: bid.projectId.description,
+        budget: bid.projectId.budget,
+        timeline: bid.projectId.timeline,
+        status: bid.projectId.status,
+        category: bid.projectId.category,
+      }
       : undefined,
     bidder: bid.bidderId
       ? {
-          id: bid.bidderId._id || bid.bidderId,
-          name: bid.bidderId.name || bid.bidderName,
-          email: bid.bidderId.email || bid.bidderEmail,
-          avatar: bid.bidderId.avatar,
-          rating: bid.bidderId.rating,
-          completedProjects: bid.bidderId.completedProjects,
-          userID: bid.bidderId.userID,
-          role: bid.bidderId.role,
-        }
+        id: bid.bidderId._id || bid.bidderId,
+        name: bid.bidderId.name || bid.bidderName,
+        email: bid.bidderId.email || bid.bidderEmail,
+        avatar: bid.bidderId.avatar,
+        rating: bid.bidderId.rating,
+        completedProjects: bid.bidderId.completedProjects,
+        userID: bid.bidderId.userID,
+        role: bid.bidderId.role,
+      }
       : undefined,
   };
 }

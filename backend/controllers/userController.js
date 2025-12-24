@@ -158,7 +158,7 @@ const getAllUsers = async (req, res) => {
     }
     // Superadmins can see all users
     
-    const users = await User.find(query).select('-password');
+    const users = await User.find(query).select('-password').sort({ createdAt: -1 });
 
     res.status(STATUS_CODES.OK).json({
       success: true,

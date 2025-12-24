@@ -43,7 +43,7 @@ import {
 import { toast } from "../../utils/toast";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
-import { statusLabels, statusColors } from "../../constants/projectConstants";
+import { statusLabels, statusColors, clientAllowedTransitions, statusNeedsRemark } from "../../constants/projectConstants";
 import {
   Select,
   SelectContent,
@@ -82,20 +82,49 @@ export default function ProjectDetail() {
   );
   const [rejectionReason, setRejectionReason] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [showStatusRemarksDialog, setShowStatusRemarksDialog] = useState(false);
+  const [statusToChange, setStatusToChange] = useState<string | null>(null);
+  const [statusRemarks, setStatusRemarks] = useState("");
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async (newStatus: string, remarks?: string) => {
     if (!project || !id) return;
-
     if (newStatus === project.status) return;
+
+    // Check if reason is required
+    if (statusNeedsRemark.has(newStatus) && !remarks) {
+      setStatusToChange(newStatus);
+      setShowStatusRemarksDialog(true);
+      return;
+    }
 
     setIsUpdatingStatus(true);
     try {
-      const updatedProject = await updateProject(id, { status: newStatus as any });
+      const updatedProject = await updateProject(id, {
+        status: newStatus as any,
+        statusRemarks: remarks
+      } as any);
       setProject(updatedProject);
       toast.success(`Project status changed to ${statusLabels[newStatus as keyof typeof statusLabels] || newStatus}`);
+      setShowStatusRemarksDialog(false);
+      setStatusRemarks("");
+      setStatusToChange(null);
     } catch (error: any) {
       console.error("Failed to update project status:", error);
       toast.error(error?.response?.data?.message || "Failed to update project status");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handlePostProject = async () => {
+    if (!project || !id) return;
+    setIsUpdatingStatus(true);
+    try {
+      const updatedProject = await updateProject(id, { status: 'active' as any });
+      setProject(updatedProject);
+      toast.success("Project posted successfully! It is now pending review.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to post project");
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -241,9 +270,16 @@ export default function ProjectDetail() {
               <RichTextViewer content={project.description || ""} />
             </div>
           </div>
-          <Badge className={(statusColors as any)[project.status]}>
-            {(statusLabels as any)[project.status]}
-          </Badge>
+          <div className="flex flex-col items-end gap-2">
+            <Badge className={(statusColors as any)[project.status]}>
+              {(statusLabels as any)[project.status]}
+            </Badge>
+            {project.status === 'draft' && (
+              <Button size="sm" onClick={handlePostProject} disabled={isUpdatingStatus}>
+                Post Project
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Key Stats */}
@@ -444,7 +480,7 @@ export default function ProjectDetail() {
                         <AvatarFallback>
                           {project.freelancer_name
                             ?.split(" ")
-                            .map((n) => n[0])
+                            .map((n: string) => n[0])
                             .join("")
                             .toUpperCase()}
                         </AvatarFallback>
@@ -475,7 +511,7 @@ export default function ProjectDetail() {
                         <AvatarFallback>
                           {project.admin_name
                             ?.split(" ")
-                            .map((n) => n[0])
+                            .map((n: string) => n[0])
                             .join("")
                             .toUpperCase()}
                         </AvatarFallback>
@@ -519,7 +555,7 @@ export default function ProjectDetail() {
                         </SelectTrigger>
                         <SelectContent>
                           {/* Hide draft and active options once project is in_progress or beyond */}
-                          {!['in_progress', 'completed', 'cancelled', 'in_bidding', 'assigned'].includes(project.status) && (
+                          {!['in_progress', 'completed', 'cancelled', 'in_bidding', 'bidding', 'assigned'].includes(project.status) && (
                             <>
                               <SelectItem value="draft">Draft</SelectItem>
                               <SelectItem value="active">Active</SelectItem>
@@ -767,7 +803,7 @@ export default function ProjectDetail() {
                         <AvatarFallback>
                           {project.freelancer_name
                             ?.split(" ")
-                            .map((n) => n[0])
+                            .map((n: string) => n[0])
                             .join("")
                             .toUpperCase()}
                         </AvatarFallback>
@@ -794,7 +830,7 @@ export default function ProjectDetail() {
                         <AvatarFallback>
                           {project.admin_name
                             ?.split(" ")
-                            .map((n) => n[0])
+                            .map((n: string) => n[0])
                             .join("")
                             .toUpperCase()}
                         </AvatarFallback>
@@ -873,6 +909,46 @@ export default function ProjectDetail() {
                 disabled={!rejectionReason}
               >
                 Submit Feedback
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Status Remarks Dialog */}
+        <Dialog open={showStatusRemarksDialog} onOpenChange={setShowStatusRemarksDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reason for {statusToChange === 'hold' ? 'Hold' : 'Cancellation'}</DialogTitle>
+              <DialogDescription>
+                Please explain why you are setting this project to {statusToChange}.
+                This will be recorded in the project timeline.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-2">
+              <Label htmlFor="status-remarks">Reason / Remarks</Label>
+              <RichTextEditor
+                value={statusRemarks}
+                onChange={setStatusRemarks}
+                placeholder={`Enter reason for ${statusToChange}...`}
+                minHeight="150px"
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowStatusRemarksDialog(false);
+                  setStatusToChange(null);
+                  setStatusRemarks("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => statusToChange && handleStatusChange(statusToChange, statusRemarks)}
+                disabled={!statusRemarks || isUpdatingStatus}
+              >
+                {isUpdatingStatus ? "Updating..." : "Update Status"}
               </Button>
             </DialogFooter>
           </DialogContent>

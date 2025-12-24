@@ -81,7 +81,7 @@ const getProjects = async (req, res) => {
             { assignedFreelancerId: { $exists: false } },
             { $or: [
               { isOpenForBidding: true },
-              { status: 'bidding' },
+              { status: 'in_bidding' },
               { status: 'active' }
             ]}
           ]
@@ -91,10 +91,10 @@ const getProjects = async (req, res) => {
       // Agents can only see projects assigned to them
       query.assignedAgentId = req.user.id;
     }
-    // Admin and superadmin can see all projects (including drafts)
-    // But for other roles, exclude draft projects unless they own them
-    if (req.user.role !== 'client' && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      // For non-client, non-admin roles, exclude draft projects
+    // Exclude draft projects for everyone except the owner client
+    if (req.user.role === 'client') {
+      query.client = req.user.id;
+    } else {
       query.status = { $ne: 'draft' };
     }
     
@@ -518,6 +518,27 @@ const updateProject = async (req, res) => {
       updateData.attachments = [...existingAttachments, ...newAttachments];
     }
 
+    // Enforce status flow constraints for clients
+    if (req.user.role === 'client' && req.body.status && req.body.status !== project.status) {
+      const { CLIENT_ALLOWED_TRANSITIONS } = require('../constants');
+      const allowedNextStatuses = CLIENT_ALLOWED_TRANSITIONS[project.status] || [];
+      
+      if (!allowedNextStatuses.includes(req.body.status)) {
+        return res.status(STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: `Invalid status transition from ${project.status} to ${req.body.status} for clients.`
+        });
+      }
+    }
+
+    // Handle statusRemarks for hold or cancelled
+    if (['hold', 'cancelled'].includes(req.body.status) && !req.body.statusRemarks) {
+       return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: `Please provide a reason for setting the project to ${req.body.status}.`
+      });
+    }
+
     const oldStatus = project.status;
     const updatedProject = await Project.findByIdAndUpdate(
       req.params.id,
@@ -573,15 +594,50 @@ const updateProject = async (req, res) => {
           visibleToClient: true,
           visibleToAdmin: true
         }, req);
+      } else if (updatedProject.status === 'hold' || updatedProject.status === 'cancelled') {
+        await ActivityLogger.logActivity({
+          user: req.user.id,
+          project: project._id,
+          activityType: 'project_status_changed',
+          title: `Project ${updatedProject.status.charAt(0).toUpperCase() + updatedProject.status.slice(1)}`,
+          description: `Project "${updatedProject.title}" was set to ${updatedProject.status} by ${req.user.name}. Reason: ${req.body.statusRemarks}`,
+          metadata: {
+            projectTitle: updatedProject.title,
+            oldStatus: oldStatus,
+            newStatus: updatedProject.status,
+            action: updatedProject.status,
+            reason: req.body.statusRemarks,
+            changedBy: req.user.name,
+            changedByRole: req.user.role
+          },
+          tags: ['project', updatedProject.status, 'status', 'change'],
+          severity: 'high',
+          visibleToClient: true,
+          visibleToAdmin: true
+        }, req);
       } else {
-        // Log general status change
-        await ActivityLogger.logProjectStatusChanged(
-          project._id,
-          req.user.id,
-          oldStatus,
-          updatedProject.status,
-          req
-        );
+        // Log general status change with optional remarks
+        const description = `Project "${updatedProject.title}" status changed from "${oldStatus}" to "${updatedProject.status}" by ${req.user.name}${req.body.statusRemarks ? `. Reason: ${req.body.statusRemarks}` : ''}`;
+        
+        await ActivityLogger.logActivity({
+          user: req.user.id,
+          project: project._id,
+          activityType: 'project_status_changed',
+          title: 'Project Status Changed',
+          description: description,
+          metadata: {
+            projectTitle: updatedProject.title,
+            oldStatus: oldStatus,
+            newStatus: updatedProject.status,
+            reason: req.body.statusRemarks || null,
+            changedBy: req.user.name,
+            changedByRole: req.user.role
+          },
+          tags: ['project', 'status', 'change'],
+          severity: 'medium',
+          visibleToClient: true,
+          visibleToAdmin: true
+        }, req);
       }
     }
 
@@ -1129,8 +1185,8 @@ const markProjectForBidding = async (req, res) => {
 
     // Mark project as open for bidding
     project.isOpenForBidding = true;
-    if (project.status === 'pending') {
-      project.status = 'bidding';
+    if (project.status === 'pending' || project.status === 'active') {
+      project.status = 'in_bidding';
     }
     
     await project.save();

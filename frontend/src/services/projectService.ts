@@ -28,7 +28,8 @@ export interface ProjectResponse {
   timeline: string;
   category: string;
   skills?: string[];
-  status: 'draft' | 'pending_review' | 'in_bidding' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'disputed' | 'open';
+  status: 'draft' | 'pending_review' | 'in_bidding' | 'bidding' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'disputed' | 'open' | 'hold';
+  statusRemarks?: string;
   priority?: 'low' | 'medium' | 'high';
   complexity?: 'simple' | 'moderate' | 'complex';
   client: string | {
@@ -91,6 +92,8 @@ export interface CreateProjectPayload {
 export interface UpdateProjectPayload extends Omit<Partial<CreateProjectPayload>, 'status'> {
   status?: string;
   assignedAgentId?: string;
+  statusRemarks?: string;
+  rejectionReason?: string;
 }
 
 export interface CreateMilestonePayload {
@@ -176,18 +179,19 @@ const normalizeProject = (project: ProjectResponse) => {
   };
 };
 
-const normalizeMilestone = (milestone: MilestoneResponse) => ({
+const normalizeMilestone = (milestone: any) => ({
+  ...milestone,
   id: milestone._id || milestone.id || '',
   project_id: '',
   title: milestone.title,
   description: milestone.description,
   amount: milestone.amount,
-  due_date: milestone.dueDate,
+  due_date: milestone.dueDate || milestone.due_date,
   status: milestone.status,
-  order: 0,
-  submission_date: undefined,
-  submission_notes: milestone.notes,
-  approval_date: undefined,
+  order: milestone.order || 0,
+  submission_date: milestone.submission_date,
+  submission_notes: milestone.notes || milestone.submission_notes,
+  approval_date: milestone.approval_date,
 });
 
 /**
@@ -284,7 +288,8 @@ export const updateProject = async (projectId: string, data: UpdateProjectPayloa
   if (data.complexity) formData.append('complexity', data.complexity);
   if (data.status) formData.append('status', data.status);
   if (data.assignedAgentId) formData.append('assignedAgentId', data.assignedAgentId);
-  if ((data as any).rejectionReason) formData.append('rejectionReason', (data as any).rejectionReason);
+  if (data.statusRemarks) formData.append('statusRemarks', data.statusRemarks);
+  if (data.rejectionReason) formData.append('rejectionReason', data.rejectionReason);
   if (data.attachments) {
     data.attachments.forEach(file => formData.append('attachments', file));
   }

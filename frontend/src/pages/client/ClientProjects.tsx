@@ -190,9 +190,9 @@ export default function ClientProjects() {
     );
   };
 
-  const activeProjects = filterProjects(['in_progress', 'assigned']);
-  const biddingProjects = filterProjects(['pending_review', 'in_bidding']);
-  const completedProjects = filterProjects(['completed']);
+  const activeProjects = filterProjects(['in_progress', 'assigned', 'hold']);
+  const biddingProjects = filterProjects(['active', 'in_bidding']);
+  const completedProjects = filterProjects(['completed', 'cancelled']);
   const allFilteredProjects = filterProjects();
 
   const categories = [...new Set(allProjects.map(p => p.category))];

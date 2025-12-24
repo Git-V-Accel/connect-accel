@@ -106,7 +106,12 @@ const projectSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: PROJECT_STATUS_ARRAY,
-    default: PROJECT_STATUS.ACTIVE
+    default: PROJECT_STATUS.DRAFT
+  },
+  statusRemarks: {
+    type: String,
+    trim: true,
+    default: null
   },
   isOpenForBidding: {
     type: Boolean,

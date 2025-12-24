@@ -39,11 +39,19 @@ import {
 import { RichTextViewer } from "../../components/common";
 
 export default function AdminProjects() {
-  const { projects } = useData();
+  const { projects, getBidsByProject } = useData();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date_desc");
+
+  // System-wide stats (ignoring filters)
+  const systemStats = {
+    pending: projects.filter(p => p.status === 'pending_review' || p.status === 'pending' || p.status === 'active').length,
+    bidding: projects.filter(p => p.status === 'in_bidding').length,
+    active: projects.filter(p => p.status === 'in_progress' || p.status === 'assigned' || p.status === 'hold').length,
+    totalRevenue: projects.reduce((sum, p) => sum + (p.budget || p.client_budget || 0), 0)
+  };
 
   const filterProjects = (statusValue: string) => {
     let filtered = projects;
@@ -91,11 +99,13 @@ export default function AdminProjects() {
     return filtered;
   };
 
-  const pendingProjects = filterProjects("pending_review");
-  const biddingProjects = filterProjects("in_bidding");
-  const activeProjects = filterProjects("in_progress");
-  const completedProjects = filterProjects("completed");
   const allProjects = filterProjects(statusFilter);
+
+  // Filtered lists for the tabs (respect current filters)
+  const pendingProjects = allProjects.filter((p: any) => p.status === "pending_review" || p.status === "pending" || p.status === "active");
+  const biddingProjects = allProjects.filter((p: any) => p.status === "in_bidding");
+  const activeProjects = allProjects.filter((p: any) => p.status === "in_progress" || p.status === "assigned" || p.status === "hold");
+  const completedProjects = allProjects.filter((p: any) => p.status === "completed" || p.status === "closed" || p.status === "cancelled");
 
   const ProjectCard = ({ project }: { project: any }) => (
     <Card className="p-6 hover:shadow-lg transition-shadow">
@@ -114,8 +124,8 @@ export default function AdminProjects() {
               </span>
             </div>
           </div>
-          <Badge className={statusColors[project.status]}>
-            {statusLabels[project.status] || project.status.replace("_", " ")}
+          <Badge className={(statusColors as any)[project.status] || 'bg-gray-100 text-gray-700'}>
+            {(statusLabels as any)[project.status] || project.status.replace("_", " ")}
           </Badge>
         </div>
 
@@ -147,7 +157,7 @@ export default function AdminProjects() {
         </div>
 
         <div className="flex items-center justify-between">
-          {project.status === "pending_review" && (
+          {["pending_review", "pending", "active"].includes(project.status) && (
             <div className="flex items-center gap-2 text-yellow-600">
               <AlertCircle className="size-4" />
               <span className="text-sm font-medium">Awaiting Review</span>
@@ -156,7 +166,9 @@ export default function AdminProjects() {
           {project.status === "in_bidding" && (
             <div className="flex items-center gap-2 text-blue-600">
               <FileText className="size-4" />
-              <span className="text-sm font-medium">0 Bids Received</span>
+              <span className="text-sm font-medium">
+                {getBidsByProject ? getBidsByProject(project.id).length : 0} Bids Received
+              </span>
             </div>
           )}
           {project.status === "in_progress" && (
@@ -197,7 +209,7 @@ export default function AdminProjects() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Pending Review</p>
-                <p className="text-2xl mt-1">{pendingProjects.length}</p>
+                <p className="text-2xl mt-1">{systemStats.pending}</p>
               </div>
               <div className="bg-yellow-100 p-3 rounded-lg">
                 <Clock className="size-5 text-yellow-600" />
@@ -208,7 +220,7 @@ export default function AdminProjects() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">In Bidding</p>
-                <p className="text-2xl mt-1">{biddingProjects.length}</p>
+                <p className="text-2xl mt-1">{systemStats.bidding}</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-lg">
                 <FileText className="size-5 text-blue-600" />
@@ -219,7 +231,7 @@ export default function AdminProjects() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Active</p>
-                <p className="text-2xl mt-1">{activeProjects.length}</p>
+                <p className="text-2xl mt-1">{systemStats.active}</p>
               </div>
               <div className="bg-green-100 p-3 rounded-lg">
                 <CheckCircle className="size-5 text-green-600" />
@@ -231,10 +243,7 @@ export default function AdminProjects() {
               <div>
                 <p className="text-sm text-gray-600">Total Revenue</p>
                 <p className="text-2xl mt-1">
-                  ₹
-                  {projects
-                    .reduce((sum, p) => sum + (p.margin || 0), 0)
-                    .toLocaleString()}
+                  ₹{systemStats.totalRevenue.toLocaleString()}
                 </p>
               </div>
               <div className="bg-purple-100 p-3 rounded-lg">

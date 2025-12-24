@@ -305,7 +305,7 @@ export default function ClientSettings() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                className={`flex items-center gap-2 px-4 py-3 border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 whitespace-nowrap transition-colors cursor-pointer ${activeTab === tab.id
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-600 hover:text-gray-900'
                   }`}

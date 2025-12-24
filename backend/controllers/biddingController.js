@@ -654,7 +654,7 @@ const updateAcceptanceStatus = async (req, res) => {
           await Project.findByIdAndUpdate(projectId, {
             assignedFreelancer: bidding.freelancerId.name,
             assignedFreelancerId: bidding.freelancerId._id,
-            status: 'assigned' // Set to 'assigned' when freelancer is accepted, will move to 'in_progress' when work starts
+            status: 'in_progress' // Set to 'in_progress' when freelancer is accepted
           });
 
           // Log assignment activity

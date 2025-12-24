@@ -8,14 +8,20 @@ import { useAuth } from '../../contexts/AuthContext';
 import { toast } from '../../utils/toast';
 import OtpDialog from '../../components/common/OtpDialog';
 import { PasswordField } from '../../components/common';
+import { VALIDATION_MESSAGES, NAME_REGEX } from '../../constants/validationConstants';
+
 
 export default function SignupPage() {
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+
   const [isPasswordValid, setIsPasswordValid] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -24,28 +30,73 @@ export default function SignupPage() {
   const { signup, verifyOTP, resendOTP } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!firstName.trim()) {
+      newErrors.firstName = VALIDATION_MESSAGES.FIRST_NAME.REQUIRED;
+    } else if (firstName.length < 3) {
+      newErrors.firstName = VALIDATION_MESSAGES.FIRST_NAME.MIN_LENGTH;
+    } else if (firstName.length > 30) {
+      newErrors.firstName = VALIDATION_MESSAGES.FIRST_NAME.MAX_LENGTH;
+    } else if (!NAME_REGEX.test(firstName)) {
+      newErrors.firstName = VALIDATION_MESSAGES.FIRST_NAME.INVALID_CHARACTERS;
+    }
+
+    if (!lastName.trim()) {
+      newErrors.lastName = VALIDATION_MESSAGES.LAST_NAME.REQUIRED;
+    } else if (lastName.length < 1) {
+      newErrors.lastName = VALIDATION_MESSAGES.LAST_NAME.MIN_LENGTH;
+    } else if (lastName.length > 30) {
+      newErrors.lastName = VALIDATION_MESSAGES.LAST_NAME.MAX_LENGTH;
+    } else if (!NAME_REGEX.test(lastName)) {
+
+      newErrors.lastName = VALIDATION_MESSAGES.LAST_NAME.INVALID_CHARACTERS;
+    }
+
+    if (!email.trim()) {
+      newErrors.email = VALIDATION_MESSAGES.EMAIL.REQUIRED;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = VALIDATION_MESSAGES.EMAIL.INVALID;
+    }
+
+    if (!phone.trim()) {
+      newErrors.phone = VALIDATION_MESSAGES.PHONE.REQUIRED;
+    } else if (!/^[0-9]{10}$/.test(phone)) {
+      newErrors.phone = VALIDATION_MESSAGES.PHONE.INVALID;
+    }
 
     if (!isPasswordValid) {
-      toast.error('Password does not meet the requirements');
-      return;
+      newErrors.password = VALIDATION_MESSAGES.PASSWORD.REQUIREMENTS;
     }
 
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
+      newErrors.confirmPassword = VALIDATION_MESSAGES.PASSWORD.MISMATCH;
     }
 
     if (!agreed) {
-      toast.error('Please accept the terms and conditions');
+      newErrors.terms = VALIDATION_MESSAGES.TERMS.REQUIRED;
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validate()) {
+      const firstError = Object.values(errors)[0];
+      if (firstError) toast.error(firstError);
       return;
     }
 
     setLoading(true);
-
     try {
-      const result = await signup(name, email, password, phone);
+      const fullName = `${firstName.trim()} ${lastName.trim()}`;
+      const result = await signup(fullName, email, password, phone);
+
+
 
       if (result.requiresVerification) {
         setVerificationEmail(result.email);
@@ -107,21 +158,58 @@ export default function SignupPage() {
         <div className="bg-white py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">
           {!showOTPVerification && (
             <form className="space-y-6" onSubmit={handleSubmit}>
-              <div>
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  type="text"
-                  autoComplete="name"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="mt-1"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    name="firstName"
+                    type="text"
+                    autoComplete="given-name"
+                    required
+                    value={firstName}
+                    onChange={(e) => {
+                      setFirstName(e.target.value);
+                      if (errors.firstName) setErrors(prev => {
+                        const { firstName, ...rest } = prev;
+                        return rest;
+                      });
+                    }}
+                    className="mt-1"
+                    placeholder="John"
+                    aria-invalid={!!errors.firstName}
+                  />
+                  {errors.firstName && (
+                    <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    autoComplete="family-name"
+                    required
+                    value={lastName}
+                    onChange={(e) => {
+                      setLastName(e.target.value);
+                      if (errors.lastName) setErrors(prev => {
+                        const { lastName, ...rest } = prev;
+                        return rest;
+                      });
+                    }}
+                    className="mt-1"
+                    placeholder="Doe"
+                    aria-invalid={!!errors.lastName}
+                  />
+                  {errors.lastName && (
+                    <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>
+                  )}
+                </div>
               </div>
 
-              <div>
+              <div className="space-y-1">
                 <Label htmlFor="email">Email address</Label>
                 <Input
                   id="email"
@@ -130,12 +218,22 @@ export default function SignupPage() {
                   autoComplete="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (errors.email) setErrors(prev => {
+                      const { email, ...rest } = prev;
+                      return rest;
+                    });
+                  }}
                   className="mt-1"
+                  aria-invalid={!!errors.email}
                 />
+                {errors.email && (
+                  <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+                )}
               </div>
 
-              <div>
+              <div className="space-y-1">
                 <Label htmlFor="phone">Phone Number</Label>
                 <Input
                   id="phone"
@@ -144,11 +242,22 @@ export default function SignupPage() {
                   autoComplete="tel"
                   required
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    if (errors.phone) setErrors(prev => {
+                      const { phone, ...rest } = prev;
+                      return rest;
+                    });
+                  }}
                   className="mt-1"
                   placeholder="9876543210"
+                  aria-invalid={!!errors.phone}
                 />
+                {errors.phone && (
+                  <p className="text-xs text-red-500 mt-1">{errors.phone}</p>
+                )}
               </div>
+
 
               <PasswordField
                 id="password"

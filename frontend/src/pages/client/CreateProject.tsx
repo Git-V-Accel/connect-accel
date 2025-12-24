@@ -220,7 +220,7 @@ export default function CreateProject() {
         description: formData.description,
         client_id: user.id,
         client_name: user.name,
-        status: status==="draft" ? "draft" : "pending_review",
+        status: status === "draft" ? "draft" : "active",
         category: formData.category,
         skills_required: formData.skills_required,
         budget: budget,
