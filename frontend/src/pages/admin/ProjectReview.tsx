@@ -59,6 +59,7 @@ import {
   Award,
   Star,
   Eye,
+  Loader2,
 } from "lucide-react";
 import { toast } from "../../utils/toast";
 import ProjectTimeline from "../../components/project/ProjectTimeline";
@@ -88,6 +89,7 @@ export default function ProjectReview() {
 
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingBids, setLoadingBids] = useState(false);
   const [projectBids, setProjectBids] = useState<Bid[]>([]);
   const [biddingsByBidId, setBiddingsByBidId] = useState<Map<string, any[]>>(new Map());
   const [acceptedBidding, setAcceptedBidding] = useState<any>(null);
@@ -165,6 +167,7 @@ export default function ProjectReview() {
   useEffect(() => {
     const loadBids = async () => {
       if (!id) return;
+      setLoadingBids(true);
       try {
         const response = await bidService.getProjectBids(id);
         const bids = Array.isArray(response) ? response : [];
@@ -190,6 +193,8 @@ export default function ProjectReview() {
       } catch (error: any) {
         console.error('Failed to load bids:', error);
         setProjectBids([]);
+      } finally {
+        setLoadingBids(false);
       }
     };
     loadBids();
@@ -590,6 +595,20 @@ export default function ProjectReview() {
       [field]: error || undefined,
     }));
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="size-12 text-blue-600 mx-auto mb-4 animate-spin" />
+            <h2 className="text-2xl mb-2">Loading Project...</h2>
+            <p className="text-gray-600">Please wait while we fetch the project details</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (!project) {
     return (
@@ -1649,7 +1668,14 @@ export default function ProjectReview() {
 
               {/* Bidding Info Tab */}
               <TabsContent value="bidding" className="space-y-4">
-                {projectBids.length > 0 ? (
+                {loadingBids ? (
+                  <Card className="p-6">
+                    <div className="text-center py-12">
+                      <Loader2 className="size-12 text-blue-600 mx-auto mb-4 animate-spin" />
+                      <p className="text-gray-600">Loading bids...</p>
+                    </div>
+                  </Card>
+                ) : projectBids.length > 0 ? (
                   <>
                     <Card className="p-6">
                       <div className="flex items-center justify-between mb-4">

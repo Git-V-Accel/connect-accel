@@ -359,7 +359,15 @@ export const markProjectForBidding = async (projectId: string): Promise<ProjectR
 /**
  * Request consultation
  */
-export const requestConsultation = async (data: { projectId?: string; message?: string }): Promise<void> => {
+export const requestConsultation = async (data: { 
+  projectId?: string; 
+  message?: string;
+  projectTitle?: string;
+  projectDescription?: string;
+  projectBudget?: string;
+  projectTimeline?: string;
+  projectCategory?: string;
+}): Promise<void> => {
   await apiClient.post(`${API_CONFIG.API_URL}/projects/consultation`, data);
 };
 

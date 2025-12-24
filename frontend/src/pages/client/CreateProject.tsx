@@ -18,6 +18,7 @@ import { categories, commonSkills, projectTypes, projectPriorities } from '../..
 import { RichTextViewer } from '../../components/common';
 import { Chip } from '@mui/material';
 import { validateProjectTitle, validateProjectDescription, validateBudget, validateDuration, VALIDATION_MESSAGES } from '../../constants/validationConstants';
+import { requestConsultation } from '../../services/projectService';
 
 export default function CreateProject() {
   const { user } = useAuth();
@@ -33,6 +34,7 @@ export default function CreateProject() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [newSkillInput, setNewSkillInput] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [consultationLoading, setConsultationLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -255,6 +257,48 @@ export default function CreateProject() {
       }
     };
   }, [step, isTransitioning]);
+
+  const handleRequestConsultation = async () => {
+    if (!user) {
+      toast.error('Please log in to request a consultation');
+      return;
+    }
+
+    setConsultationLoading(true);
+    try {
+      // Prepare project details from form data
+      const consultationData: {
+        projectTitle?: string;
+        projectDescription?: string;
+        projectBudget?: string;
+        projectTimeline?: string;
+        projectCategory?: string;
+        message?: string;
+      } = {};
+
+      if (formData.title) consultationData.projectTitle = formData.title;
+      if (formData.description) {
+        // Strip HTML tags for description
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = formData.description;
+        consultationData.projectDescription = tempDiv.textContent || tempDiv.innerText || '';
+      }
+      if (formData.client_budget) consultationData.projectBudget = `₹${formData.client_budget}`;
+      if (formData.duration_weeks) consultationData.projectTimeline = `${formData.duration_weeks} weeks`;
+      if (formData.category) consultationData.projectCategory = formData.category;
+      
+      consultationData.message = `Consultation request for project: ${formData.title || 'New Project'}`;
+
+      await requestConsultation(consultationData);
+      toast.success('Consultation request sent successfully! Our team will contact you shortly.');
+    } catch (error: any) {
+      console.error('Failed to request consultation:', error);
+      const errorMessage = error?.response?.data?.message || error.message || 'Failed to send consultation request';
+      toast.error(errorMessage);
+    } finally {
+      setConsultationLoading(false);
+    }
+  };
 
   const handleSubmit = async (status: string) => {
     if (!user) return;
@@ -686,9 +730,13 @@ export default function CreateProject() {
             <h1 className="text-3xl">Create New Project</h1>
             <p className="text-gray-600">Submit a project and get matched with expert freelancers</p>
           </div>
-          <Button variant="default" onClick={() => alert('Consultation request Send successfully')}>
+          <Button 
+            variant="default" 
+            onClick={handleRequestConsultation}
+            disabled={consultationLoading}
+          >
             <Phone className="size-4 mr-2" />
-            Consultation
+            {consultationLoading ? 'Sending...' : 'Consultation'}
           </Button>
         </div>
 
