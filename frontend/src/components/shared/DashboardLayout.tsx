@@ -502,13 +502,13 @@ export default function DashboardLayout({
             left: sidebarOpen ? `${SIDEBAR_OPEN_PX}px` : `${SIDEBAR_CLOSED_PX}px`,
             top: "40vh",
             transform: "translate(-50%, -50%)",
-            zIndex: 60,
+            zIndex: 10,
             width: 36,
             height: 36,
             transition: "left 300ms cubic-bezier(0.2,0.8,0.2,1), transform 300ms cubic-bezier(0.2,0.8,0.2,1)",
             willChange: "left, transform",
           }}
-          className="flex items-center justify-center rounded-full bg-white shadow-md border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+          className="flex items-center justify-center rounded-full bg-white shadow-md border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50 cursor-pointer"
         >
           <span className={`inline-block transition-transform duration-300 ${sidebarOpen ? "rotate-0" : "rotate-180"}`}>
             {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
