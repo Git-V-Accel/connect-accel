@@ -72,6 +72,24 @@ class SocketService {
         }
       });
 
+      // Handle joining user room (for user-specific events)
+      socket.on('join:user', (data) => {
+        const { userId } = data;
+        if (userId && userId === socket.userId) {
+          socket.join(`user-${userId}`);
+          console.log(`User ${socket.userId} joined user room: user-${userId}`);
+        }
+      });
+
+      // Handle leaving user room
+      socket.on('leave:user', (data) => {
+        const { userId } = data;
+        if (userId && userId === socket.userId) {
+          socket.leave(`user-${userId}`);
+          console.log(`User ${socket.userId} left user room: user-${userId}`);
+        }
+      });
+
       // Handle disconnection
       socket.on('disconnect', () => {
         console.log(`User ${socket.userId} disconnected from socket`);

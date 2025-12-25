@@ -17,20 +17,29 @@ import { useAuth } from "../../contexts/AuthContext";
 import * as userService from "../../services/userService";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "../../utils/toast";
+import {
+  validateFirstName,
+  validateLastName,
+  validateEmail,
+  validatePhone,
+  VALIDATION_MESSAGES,
+  VALIDATION_REGEX,
+  type ValidationResult,
+} from "../../constants/validationConstants";
 
 export default function CreateUser() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [newUser, setNewUser] = useState({
     firstName: "",
     lastName: "",
     email: "",
-    confirmEmail: "",
     phone: "",
     company: "",
-    role: "freelancer" as "freelancer" | "admin" | "agent" | "superadmin",
+    role: "" as "" | "freelancer" | "admin" | "agent" | "superadmin" | "client",
     // Freelancer specific fields
     hourlyRate: "",
     experience: "",
@@ -47,25 +56,81 @@ export default function CreateUser() {
         { value: "superadmin", label: "Super Admin" },
         { value: "admin", label: "Admin" },
         { value: "agent", label: "Agent" },
+        { value: "client", label: "Client" },
         { value: "freelancer", label: "Freelancer" },
       ];
     } else if (isAdmin) {
       return [
         { value: "agent", label: "Agent" },
         { value: "freelancer", label: "Freelancer" },
+        { value: "client", label: "Client" },
       ];
     }
     return [];
   };
 
+  // Validate company name (optional field)
+  const validateCompany = (value: string): ValidationResult => {
+    if (!value || !value.trim()) {
+      return { isValid: true }; // Company is optional
+    }
+    const trimmed = value.trim();
+    if (trimmed.length < 2) {
+      return { isValid: false, error: VALIDATION_MESSAGES.COMPANY_NAME.MIN_LENGTH };
+    }
+    if (trimmed.length > 100) {
+      return { isValid: false, error: VALIDATION_MESSAGES.COMPANY_NAME.MAX_LENGTH };
+    }
+    if (!VALIDATION_REGEX.COMPANY_NAME.test(trimmed)) {
+      return { isValid: false, error: VALIDATION_MESSAGES.COMPANY_NAME.INVALID };
+    }
+    return { isValid: true };
+  };
+
   const handleCreateUser = async () => {
-    if (!newUser.firstName || !newUser.lastName || !newUser.email || !newUser.confirmEmail) {
-      toast.error("Please fill in all required fields");
-      return;
+    const newErrors: Record<string, string> = {};
+
+    // Validate first name
+    const firstNameResult = validateFirstName(newUser.firstName);
+    if (!firstNameResult.isValid) {
+      newErrors.firstName = firstNameResult.error || VALIDATION_MESSAGES.FIRST_NAME.REQUIRED;
     }
 
-    if (newUser.email !== newUser.confirmEmail) {
-      toast.error("Email and Confirm Email do not match");
+    // Validate last name
+    const lastNameResult = validateLastName(newUser.lastName);
+    if (!lastNameResult.isValid) {
+      newErrors.lastName = lastNameResult.error || VALIDATION_MESSAGES.LAST_NAME.REQUIRED;
+    }
+
+    // Validate email
+    const emailResult = validateEmail(newUser.email);
+    if (!emailResult.isValid) {
+      newErrors.email = emailResult.error || VALIDATION_MESSAGES.EMAIL.REQUIRED;
+    }
+
+    // Validate phone (required)
+    const phoneResult = validatePhone(newUser.phone, false);
+    if (!phoneResult.isValid) {
+      newErrors.phone = phoneResult.error || VALIDATION_MESSAGES.PHONE.REQUIRED;
+    }
+
+    // Validate role (required)
+    if (!newUser.role) {
+      newErrors.role = "Please select a role";
+    }
+
+    // Validate company (optional)
+    if (newUser.company && newUser.company.trim()) {
+      const companyResult = validateCompany(newUser.company);
+      if (!companyResult.isValid) {
+        newErrors.company = companyResult.error || '';
+      }
+    }
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = Object.values(newErrors)[0];
+      if (firstError) toast.error(firstError);
       return;
     }
 
@@ -87,21 +152,20 @@ export default function CreateUser() {
     setError(null);
     try {
       await userService.createUser({
-      name: fullName,
-      email: newUser.email,
+        name: fullName,
+        email: newUser.email,
         role: newUser.role as any,
-      phone: newUser.phone || undefined,
-      company: newUser.company || undefined,
-        confirmEmail: newUser.confirmEmail,
-    });
+        phone: newUser.phone || undefined,
+        company: newUser.company || undefined,
+      });
 
-    const roleLabel =
-      getAvailableRoles().find((r) => r.value === newUser.role)?.label ||
-      newUser.role;
-    toast.success(`${roleLabel} created successfully`);
+      const roleLabel =
+        getAvailableRoles().find((r) => r.value === newUser.role)?.label ||
+        newUser.role;
+      toast.success(`${roleLabel} created successfully`);
 
-    // Navigate back to user management
-    navigate("/admin/users");
+      // Navigate back to user management
+      navigate("/admin/users");
     } catch (err: any) {
       const message =
         err?.response?.data?.message || err.message || "Failed to create user";
@@ -109,7 +173,20 @@ export default function CreateUser() {
       toast.error(message);
     } finally {
       setLoading(false);
+      setErrors({});
     }
+  };
+
+  const setFieldError = (field: string, error: string) => {
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      if (error) {
+        newErrors[field] = error;
+      } else {
+        delete newErrors[field];
+      }
+      return newErrors;
+    });
   };
 
   return (
@@ -146,10 +223,17 @@ export default function CreateUser() {
                   id="firstName"
                   placeholder="Enter first name"
                   value={newUser.firstName}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, firstName: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setNewUser({ ...newUser, firstName: e.target.value });
+                    if (errors.firstName) {
+                      setFieldError("firstName", "");
+                    }
+                  }}
+                  className={errors.firstName ? "border-red-500" : ""}
                 />
+                {errors.firstName && (
+                  <p className="text-sm text-red-600 mt-1">{errors.firstName}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="lastName">Last Name *</Label>
@@ -157,10 +241,17 @@ export default function CreateUser() {
                   id="lastName"
                   placeholder="Enter last name"
                   value={newUser.lastName}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, lastName: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setNewUser({ ...newUser, lastName: e.target.value });
+                    if (errors.lastName) {
+                      setFieldError("lastName", "");
+                    }
+                  }}
+                  className={errors.lastName ? "border-red-500" : ""}
                 />
+                {errors.lastName && (
+                  <p className="text-sm text-red-600 mt-1">{errors.lastName}</p>
+                )}
               </div>
             </div>
 
@@ -172,34 +263,36 @@ export default function CreateUser() {
                   type="email"
                   placeholder="Enter email address"
                   value={newUser.email}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, email: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setNewUser({ ...newUser, email: e.target.value });
+                    if (errors.email) {
+                      setFieldError("email", "");
+                    }
+                  }}
+                  className={errors.email ? "border-red-500" : ""}
                 />
+                {errors.email && (
+                  <p className="text-sm text-red-600 mt-1">{errors.email}</p>
+                )}
               </div>
               <div>
-                <Label htmlFor="confirmEmail">Confirm Email *</Label>
-                <Input
-                  id="confirmEmail"
-                  type="email"
-                  placeholder="Re-enter email address"
-                  value={newUser.confirmEmail}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, confirmEmail: e.target.value })
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="phone">Phone Number *</Label>
                 <Input
                   id="phone"
                   type="tel"
                   placeholder="Enter phone number"
                   value={newUser.phone}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, phone: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setNewUser({ ...newUser, phone: e.target.value });
+                    if (errors.phone) {
+                      setFieldError("phone", "");
+                    }
+                  }}
+                  className={errors.phone ? "border-red-500" : ""}
                 />
+                {errors.phone && (
+                  <p className="text-sm text-red-600 mt-1">{errors.phone}</p>
+                )}
               </div>
             </div>
 
@@ -207,13 +300,18 @@ export default function CreateUser() {
               <div>
                 <Label htmlFor="role">Role *</Label>
                 <Select
-                  value={newUser.role}
+                  value={newUser.role || undefined}
                   onValueChange={(
-                    val: "freelancer" | "admin" | "agent" | "superadmin"
-                  ) => setNewUser({ ...newUser, role: val })}
+                    val: "freelancer" | "admin" | "agent" | "superadmin" | "client"
+                  ) => {
+                    setNewUser({ ...newUser, role: val });
+                    if (errors.role) {
+                      setFieldError("role", "");
+                    }
+                  }}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
+                  <SelectTrigger className={errors.role ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Select Role" />
                   </SelectTrigger>
                   <SelectContent>
                     {getAvailableRoles().map((role) => (
@@ -223,6 +321,9 @@ export default function CreateUser() {
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.role && (
+                  <p className="text-sm text-red-600 mt-1">{errors.role}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="company">Company (Optional)</Label>
@@ -230,10 +331,17 @@ export default function CreateUser() {
                   id="company"
                   placeholder="Enter company name"
                   value={newUser.company}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, company: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setNewUser({ ...newUser, company: e.target.value });
+                    if (errors.company) {
+                      setFieldError("company", "");
+                    }
+                  }}
+                  className={errors.company ? "border-red-500" : ""}
                 />
+                {errors.company && (
+                  <p className="text-sm text-red-600 mt-1">{errors.company}</p>
+                )}
               </div>
             </div>
 

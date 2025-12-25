@@ -127,6 +127,11 @@ class SocketService {
     this.socket.on(SocketEvents.CONNECT_ERROR, (error) => {
       console.error('Socket connection error:', error);
       this.isConnecting = false;
+      // Don't spam console with connection errors if server is down
+      // Only log if it's not a connection refused error
+      if (!error.message?.includes('ERR_CONNECTION_REFUSED') && !error.message?.includes('xhr poll error')) {
+        console.warn('Socket.IO connection failed. Make sure the backend server is running.');
+      }
     });
 
     this.socket.on(SocketEvents.RECONNECT, (attemptNumber) => {
