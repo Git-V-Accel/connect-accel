@@ -3,9 +3,9 @@ import { Check, X } from "lucide-react";
 
 const isItems = [
   "A managed software engineering execution layer",
-  "Focused on application development, platforms, and enterprise systems",
-  "Built for founders, CTOs, and engineering leaders",
-  "Designed for governed, milestone-driven software delivery",
+  "Built for application development, platforms, and enterprise systems",
+  "Designed for founders, CTOs, and engineering leaders",
+  "Governed, milestone-driven delivery with accountability",
 ];
 
 const isNotItems = [

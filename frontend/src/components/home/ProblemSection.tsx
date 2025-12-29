@@ -6,38 +6,46 @@ const problems = [
     icon: Users,
     title: "Engineering Hiring Reality",
     points: [
-      "Full-time engineering hires take 4-6 months on average",
-      "Wrong hires damage architecture, not just timelines—technical debt compounds for years",
-      "Bench cost grows faster than output—idle engineers cost ₹15-25 lakhs per year",
+      "Full-time engineering hires take 4-6 months",
+      "Wrong hires damage architecture, not just timelines—technical ",
+      "Bench cost grows faster than output",
+      "Idle engineers cost ₹15–25 lakhs per year",
     ],
+
   },
   {
     icon: Code,
     title: "Freelance Engineering Reality",
     points: [
-      "Developers disappear mid-sprint—37% of freelance projects face abandonment",
-      "Inconsistent code quality and documentation—no enforceable standards",
-      "Broken architectural continuity—different developers, different approaches",
-      "No enforceable delivery ownership—you're left holding the bag",
+      " A significant percentage of freelance projects face delivery disruption",
+      "Code quality and documentation standards vary widely",
+      "Architectural continuity breaks across freelancers",
+      "Delivery ownership is fragmented across individuals",
     ],
   },
   {
     icon: Building2,
     title: "Agency Reality",
     points: [
-      "Heavy engineering overhead—layers of management inflate costs 2-3x",
-      "Bloated teams for simple modules—5 people for a 1-person job",
-      "Long contracts, slow iteration—locked into 6-12 month commitments",
-    ],
+      "Heavy overhead inflates costs",
+      " Oversized teams for small scopes",
+      "Long contracts with limited flexibility",
+      " IP ownership often remains ambiguous during development",
+    ],    
+    
+    
+    
+    
+    
   },
   {
     icon: ShieldAlert,
     title: "IP & Engineering Risk",
     points: [
-      "Source code on personal laptops—zero governance",
-      "Uncontrolled Git repositories—private repos, unknown access",
-      "No audit trail—can't track who changed what when",
-      "No enforceable IP ownership—freelancers can reuse your code",
+      "Code often lives on personal machines",
+      "Repository access is difficult to govern",
+      "Audit trails are incomplete",
+      "IP enforcement is inconsistent",
     ],
   },
 ];

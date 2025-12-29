@@ -1,15 +1,17 @@
+import React from "react";
 import { motion } from "framer-motion";
-import { 
-  FileText, 
-  Search, 
-  DollarSign, 
-  FileCheck, 
-  Lock, 
-  Code, 
-  CheckCircle, 
-  Presentation, 
-  CreditCard, 
-  Archive 
+import {
+  FileText,
+  Search,
+  DollarSign,
+  FileCheck,
+  Lock,
+  Code,
+  CheckCircle,
+  Presentation,
+  CreditCard,
+  Archive,
+  ArrowDown
 } from "lucide-react";
 
 const steps = [
@@ -17,122 +19,141 @@ const steps = [
     step: "01",
     icon: FileText,
     title: "Client submits software requirement",
-    description: "Technical intake form (10 minutes) or schedule a scoping call",
   },
   {
     step: "02",
     icon: Search,
-    title: "V-Accel validates scope and engineering feasibility",
-    description: "30-minute technical discovery call within 24 hours",
+    title: "Technical intake or discovery call within 24 hours",
   },
   {
     step: "03",
-    icon: DollarSign,
-    title: "Software engineers are sourced privately",
-    description: "Internal resource allocation based on skills and availability (no public bidding)",
+    icon: CheckCircle,
+    title: "Scope validation and feasibility assessment",
   },
   {
     step: "04",
-    icon: FileCheck,
-    title: "NDA, IP ownership, and vendor agreements executed",
-    description: "Master Service Agreement (MSA) + Statement of Work (SOW)",
+    icon: Lock,
+    title: "Engineers are sourced privately by V-Accel",
   },
   {
     step: "05",
-    icon: Lock,
-    title: "Milestone-based escrow structure created",
-    description: "Payment security for predictable delivery",
+    icon: DollarSign,
+    title: "Internal cost and timeline structuring",
   },
   {
     step: "06",
-    icon: Code,
-    title: "Engineering execution inside V-Accel infrastructure",
-    description: "Private Git repositories, dedicated environments, access governance",
+    icon: FileCheck,
+    title: "NDA, MSA, and SOW execution",
   },
   {
     step: "07",
-    icon: CheckCircle,
-    title: "Internal code review and QA",
-    description: "Peer review, automated testing, security scanning",
+    icon: CreditCard,
+    title: "Escrow-backed milestone structure",
   },
   {
     step: "08",
-    icon: Presentation,
-    title: "Client demos conducted by V-Accel",
-    description: "Weekly sprint reviews and milestone presentations",
+    icon: Code,
+    title: "Engineering execution within V-Accel infrastructure",
   },
   {
     step: "09",
-    icon: CreditCard,
-    title: "Milestone payment release",
-    description: "Client approval triggers payment from escrow",
+    icon: Search,
+    title: "Internal QA and code review",
   },
   {
     step: "10",
+    icon: Presentation,
+    title: "Client demos led by V-Accel",
+  },
+  {
+    step: "11",
+    icon: FileCheck,
+    title: "Milestone approval and payment release",
+  },
+  {
+    step: "12",
     icon: Archive,
-    title: "Code archived and access revoked",
-    description: "Source code transferred to client repository, engineer access terminated",
+    title: "Code transfer and access revocation",
   },
 ];
 
 export function HowItWorksSection() {
   return (
-    <section className="py-24 relative overflow-hidden bg-secondary/30">
-      {/* Simplified pattern for performance */}
-      <div className="absolute inset-0 bg-organic-blobs" style={{ contain: 'strict', transform: 'translateZ(0)' }} />
-      
+    <section className="py-24 relative overflow-hidden bg-[#fafafa]">
+      {/* Subtle brand patterns */}
+      <div className="absolute inset-0 bg-threads-svg opacity-[0.03]" />
+      <div className="absolute inset-0 bg-mesh-gradient opacity-20" />
+
       <div className="container mx-auto px-6 relative">
+        {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <span className="text-primary text-sm font-medium uppercase tracking-wider">Process</span>
-          <h2 className="text-3xl md:text-4xl font-bold text-[#252525] mt-4 mb-4">
+          <span className="text-primary text-xs font-bold uppercase tracking-[0.2em] mb-4 block">
+            PROCESS
+          </span>
+          <h2 className="text-4xl md:text-5xl font-extrabold text-[#252525]">
             How It <span className="text-gradient">Works</span>
           </h2>
         </motion.div>
 
-        {/* Steps Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 max-w-7xl mx-auto">
+        {/* Steps Vertical Flow */}
+        <div className="max-w-2xl mx-auto flex flex-col items-center">
           {steps.map((step, index) => (
-            <motion.div
-              key={step.step}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.05 }}
-              className="glass-card rounded-xl p-6 relative group hover:border-primary/50 transition-all"
-            >
-              <span className="text-4xl font-bold text-primary/20 absolute top-4 right-4">
-                {step.step}
-              </span>
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                <step.icon className="w-5 h-5 text-primary" />
-              </div>
-              <h3 className="text-sm font-semibold text-[#252525] mb-2 pr-8">
-                {step.title}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {step.description}
-              </p>
-            </motion.div>
+            <React.Fragment key={step.step}>
+              {/* Step Card */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.05 }}
+                className="w-full bg-white rounded-2xl p-6 border border-[#f0f0f0] shadow-sm hover:shadow-md transition-shadow flex items-center gap-6 group"
+              >
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/[0.03] flex items-center justify-center border border-primary/5 group-hover:bg-primary/10 transition-colors">
+                  <step.icon className="w-5 h-5 text-primary group-hover:scale-110 transition-transform duration-300" />
+                </div>
+
+                <div className="flex-grow">
+                  <span className="text-[10px] font-bold text-primary/40 block mb-1 uppercase tracking-wider">
+                    Step {step.step}
+                  </span>
+                  <h3 className="text-sm md:text-base font-bold text-[#252525] group-hover:text-primary transition-colors duration-300">
+                    {step.title}
+                  </h3>
+                </div>
+              </motion.div>
+
+              {/* Connector Arrow */}
+              {index < steps.length - 1 && (
+                <div className="py-2 flex justify-center">
+                  <ArrowDown className="w-5 h-5 text-primary/30" />
+                </div>
+              )}
+            </React.Fragment>
           ))}
         </div>
 
-        {/* Explicit Statement */}
+        {/* Bottom Governance Statement */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="mt-12 max-w-3xl mx-auto"
+          className="mt-20 flex justify-center"
         >
-          <div className="glass-card rounded-2xl p-6 border-l-4 border-primary">
-            <p className="text-[#252525] font-medium text-center">
-              Clients <span className="text-primary">never</span> interact directly with software freelancers. 
-              Developers <span className="text-primary">never</span> own the code.
-            </p>
+          <div className="relative group max-w-3xl w-full">
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-accent/20 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
+            <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl py-8 px-12 border border-primary/10 shadow-xl text-center overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110" />
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent/5 rounded-full -ml-12 -mb-12 transition-transform group-hover:scale-110" />
+
+              <p className="text-[#252525] text-lg md:text-xl font-bold leading-relaxed relative z-10">
+                Clients <span className="text-primary tracking-wide">do not manage</span> individual developers.<br />
+                Engineers <span className="text-primary tracking-wide">do not retain</span> ownership of source code.
+              </p>
+            </div>
           </div>
         </motion.div>
       </div>

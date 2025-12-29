@@ -6,31 +6,31 @@ const layers = [
     
     icon: DollarSign,
     title: "Commercial Control",
-    description: "Pricing, margins, contracts for software projects—all managed by V-Accel",
+    description: "Pricing, contracts, and margins managed by V-Accel",
   },
   {
    
     icon: Target,
     title: "Execution Control",
-    description: "Sprint planning, milestones, scope locks—disciplined project management",
+    description: "Sprint planning, milestones, scope governance",
   },
   {
    
     icon: Server,
-    title: "Engineering Infrastructure Control",
-    description: "Central Git repositories, controlled environments, access governance—your code stays secure",
+    title: "Infrastructure Control",
+    description: "Central repositories, controlled environments, access governance",
   },
   {
     
     icon: Shield,
     title: "Quality Control",
-    description: "Code reviews, QA validation, security checks—enterprise-grade quality assurance",
+    description: "Code reviews, QA validation, security checks",
   },
   {
  
     icon: Banknote,
     title: "Financial Control",
-    description: "Escrow-backed milestones, invoice-based releases—zero payment ambiguity",
+    description: "Escrow-backed milestones, invoice-driven releases",
   },
 ];
 
@@ -55,7 +55,7 @@ export function SolutionSection() {
         </motion.div>
 
         {/* Five Control Layers */}
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-3xl mx-auto">
           <div className="space-y-4">
             {layers.map((layer, index) => (
               <motion.div

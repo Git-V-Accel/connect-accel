@@ -43,8 +43,7 @@ export function HeroSection() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-lg md:text-xl lg:text-2xl text-muted-foreground mb-12 max-w-4xl mx-auto leading-[1.8]"
           >
-            ConnectAccel is a managed software development execution platform where V-Accel owns 
-            engineering delivery, source code, infrastructure, IP, and accountability—not individual developers.
+           ConnectAccel is a managed software execution platform where <b>V-Accel owns engineering delivery, source code governance, infrastructure, and accountability</b> — not individual developers.
           </motion.p>
 
           {/* CTAs */}

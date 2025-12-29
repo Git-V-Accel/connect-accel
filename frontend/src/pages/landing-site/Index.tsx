@@ -8,7 +8,6 @@ import { HowItWorksSection } from "@/components/home/HowItWorksSection";
 import { ComparisonSection } from "@/components/home/ComparisonSection";
 import { UseCasesSection } from "@/components/home/UseCasesSection";
 import { AudienceSection } from "@/components/home/AudienceSection";
-import { DifferentiatorsSection } from "@/components/home/DifferentiatorsSection";
 import { CTASection } from "@/components/home/CTASection";
 
 const Index = () => {
@@ -21,7 +20,6 @@ const Index = () => {
         <ProblemSection />
         <SolutionSection />
         <HowItWorksSection />
-        <DifferentiatorsSection />
         <ComparisonSection />
         <UseCasesSection />
         <AudienceSection />
