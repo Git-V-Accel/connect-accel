@@ -286,7 +286,7 @@ export default function CreateProject() {
       if (formData.client_budget) consultationData.projectBudget = `₹${formData.client_budget}`;
       if (formData.duration_weeks) consultationData.projectTimeline = `${formData.duration_weeks} weeks`;
       if (formData.category) consultationData.projectCategory = formData.category;
-      
+
       consultationData.message = `Consultation request for project: ${formData.title || 'New Project'}`;
 
       await requestConsultation(consultationData);
@@ -331,6 +331,7 @@ export default function CreateProject() {
         requirements: false, // Default value
         timeline: `${formData.duration_weeks} weeks`,
         isNegotiableBudget: formData.negotiable,
+        project_type: formData.project_type,
       });
 
       const successMessage = status === 'draft'
@@ -509,7 +510,7 @@ export default function CreateProject() {
                       className={`p-4 cursor-pointer transition-colors ${formData.priority === priority.value
                         ? 'border-blue-500 bg-blue-50'
                         : errors.priority ? 'border-red-300 hover:border-red-400'
-                        : 'hover:border-gray-400'
+                          : 'hover:border-gray-400'
                         }`}
                       onClick={() => {
                         updateFormData('priority', priority.value);
@@ -730,8 +731,8 @@ export default function CreateProject() {
             <h1 className="text-3xl">Create New Project</h1>
             <p className="text-gray-600">Submit a project and get matched with expert freelancers</p>
           </div>
-          <Button 
-            variant="default" 
+          <Button
+            variant="default"
             onClick={handleRequestConsultation}
             disabled={consultationLoading}
           >

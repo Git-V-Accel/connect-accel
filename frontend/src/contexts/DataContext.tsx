@@ -41,6 +41,7 @@ export interface Project {
     statusRemarks?: string;
     rejectionReason?: string;
     timeline?: string;
+    project_type?: string;
 }
 
 export interface Milestone {
@@ -381,7 +382,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 // For admin/superadmin, fetch all projects with a high limit
                 const limit = (user?.role === 'admin' || user?.role === 'superadmin') ? 1000 : undefined;
                 const result = await projectService.listProjects({ limit });
-                
+
                 // If there are more projects, fetch them using pagination
                 let allProjects = [...result.projects];
                 let nextCursor = result.nextCursor;
@@ -391,7 +392,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     nextCursor = nextResult.nextCursor;
                     if (!nextResult.hasMore) break;
                 }
-                
+
                 // Normalize all projects
                 const normalizedAllProjects = allProjects.map(projectService.normalizeProject);
 
@@ -468,6 +469,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 priority: projectData.priority,
                 complexity: projectData.complexity,
                 status: (projectData.status as 'draft' | 'pending_review' | undefined) || 'pending_review',
+                project_type: projectData.project_type,
             };
 
             const createdProject = await projectService.createProject(payload);
@@ -496,6 +498,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             if (updates.isNegotiableBudget !== undefined) payload.isNegotiableBudget = updates.isNegotiableBudget;
             if (updates.timeline) payload.timeline = updates.timeline;
             if (updates.category) payload.category = updates.category;
+            if (updates.project_type) payload.project_type = updates.project_type;
             if (updates.skills_required) payload.skills = updates.skills_required;
             if (updates.priority) payload.priority = updates.priority;
             if (updates.complexity) payload.complexity = updates.complexity;

@@ -205,6 +205,10 @@ const PROJECT_STATUS = {
   REJECTED: 'rejected',
   DISPUTED: 'disputed'
 };
+const PROJECT_TYPE = {
+  ONGOING_PROJECT: 'ongoing',
+  FROM_SCRATCH_PROJECT: 'from_scratch'
+};
 const PROJECT_STATUS_ARRAY = Object.values(PROJECT_STATUS);
 
 // Client allowed status transitions
@@ -341,5 +345,6 @@ module.exports = {
   SEVERITY_LEVEL,
   SEVERITY_LEVEL_ARRAY,
   SOURCE_TYPE,
-  SOURCE_TYPE_ARRAY
+  SOURCE_TYPE_ARRAY,
+  PROJECT_TYPE,
 };

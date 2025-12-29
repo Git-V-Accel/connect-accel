@@ -1165,7 +1165,7 @@ export default function ProjectReview() {
                           </div>
                         ) : (
                           <p className="mt-1">
-                            ₹{project.client_budget.toLocaleString()}
+                            ₹{project.client_budget?.toLocaleString() || "0"}
                           </p>
                         )}
                       </div>
@@ -1215,7 +1215,7 @@ export default function ProjectReview() {
                         <Target className="size-3 mr-1" />
                         Total: ₹
                         {projectMilestones
-                          .reduce((sum, m) => sum + m.amount, 0)
+                          .reduce((sum, m) => sum + (Number(m.amount) || 0), 0)
                           .toLocaleString()}
                       </Badge>
                     </div>
@@ -1272,15 +1272,15 @@ export default function ProjectReview() {
                                 <div className="flex items-center gap-1">
                                   <IndianRupee className="size-3" />
                                   <span className="font-medium text-gray-700">
-                                    ₹{milestone.amount.toLocaleString()}
+                                    ₹{milestone.amount?.toLocaleString() || "0"}
                                   </span>
                                 </div>
                                 {project && (
                                   <span className="text-xs">
                                     (
                                     {(
-                                      (milestone.amount /
-                                        project.client_budget) *
+                                      ((Number(milestone.amount) || 0) /
+                                        (project.client_budget || 1)) *
                                       100
                                     ).toFixed(1)}
                                     % of budget)
@@ -2330,7 +2330,7 @@ export default function ProjectReview() {
                     <p className="text-sm text-gray-500 mt-1">
                       Amount: ₹
                       {(
-                        (project.client_budget *
+                        ((project.client_budget || 0) *
                           parseFloat(milestoneAmountPercent)) /
                         100
                       ).toLocaleString()}
@@ -2383,7 +2383,7 @@ export default function ProjectReview() {
                   )}
                   {project && (
                     <p className="text-xs text-gray-400 mt-1">
-                      Max: ₹{project.client_budget.toLocaleString()}
+                      Max: ₹{(project.client_budget || 0).toLocaleString()}
                     </p>
                   )}
                 </div>
@@ -2564,7 +2564,7 @@ export default function ProjectReview() {
                     <p className="text-sm text-gray-500 mt-1">
                       Amount: ₹
                       {(
-                        (project.client_budget *
+                        ((project.client_budget || 0) *
                           parseFloat(editMilestoneAmountPercent)) /
                         100
                       ).toLocaleString()}
@@ -2618,7 +2618,7 @@ export default function ProjectReview() {
                   )}
                   {project && (
                     <p className="text-xs text-gray-400 mt-1">
-                      Max: ₹{project.client_budget.toLocaleString()}
+                      Max: ₹{(project.client_budget || 0).toLocaleString()}
                     </p>
                   )}
                 </div>
@@ -2695,7 +2695,7 @@ export default function ProjectReview() {
                     {editingMilestone.title}
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
-                    Amount: ₹{editingMilestone.amount.toLocaleString()}
+                    Amount: ₹{editingMilestone.amount?.toLocaleString() || "0"}
                   </p>
                   <p className="text-sm text-gray-600">
                     Due:{" "}

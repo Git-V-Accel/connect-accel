@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { MESSAGES, MILESTONE_STATUS_ARRAY, PAYMENT_STATUS_ARRAY, PROJECT_PRIORITY_ARRAY, PROJECT_STATUS_ARRAY, MILESTONE_STATUS, PAYMENT_STATUS, PROJECT_PRIORITY, PROJECT_STATUS } = require('../constants');
+const { MESSAGES, MILESTONE_STATUS_ARRAY, PAYMENT_STATUS_ARRAY, PROJECT_PRIORITY_ARRAY, PROJECT_STATUS_ARRAY, MILESTONE_STATUS, PAYMENT_STATUS, PROJECT_PRIORITY, PROJECT_STATUS, PROJECT_TYPE } = require('../constants');
 const { VALIDATION } = MESSAGES;
 
 const milestoneSchema = new mongoose.Schema({
@@ -107,6 +107,11 @@ const projectSchema = new mongoose.Schema({
     type: String,
     enum: PROJECT_STATUS_ARRAY,
     default: PROJECT_STATUS.DRAFT
+  },
+  project_type: {
+    type: String,
+    enum: Object.values(PROJECT_TYPE),
+    default: PROJECT_TYPE.FROM_SCRATCH_PROJECT
   },
   statusRemarks: {
     type: String,

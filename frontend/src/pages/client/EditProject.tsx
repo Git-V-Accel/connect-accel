@@ -37,7 +37,7 @@ export default function EditProject() {
     title: '',
     description: '',
     category: '',
-    project_type: '',
+    project_type: 'ongoing',
     priority: 'medium',
     client_budget: '',
     duration_weeks: '',
@@ -70,7 +70,7 @@ export default function EditProject() {
           title: project.title || '',
           description: project.description || '',
           category: project.category || '',
-          project_type: '', // This might not be in the project model
+          project_type: project.project_type || '',
           priority: project.priority || 'medium',
           client_budget: project.budget?.toString() || project.client_budget?.toString() || '',
           duration_weeks: project.duration_weeks?.toString() || (project.timeline ? project.timeline.replace(' weeks', '').replace(' weeks', '') : ''),
@@ -156,6 +156,45 @@ export default function EditProject() {
 
   const handleStepChange = (newStep: number) => {
     changeStep(newStep, true);
+  };
+
+  const validateStep = (stepNumber: number): boolean => {
+    const stepErrors: Record<string, string> = {};
+
+    if (stepNumber === 1) {
+      const titleResult = validateProjectTitle(formData.title);
+      if (!titleResult.isValid) stepErrors.title = titleResult.error || VALIDATION_MESSAGES.PROJECT_TITLE.REQUIRED;
+
+      const descResult = validateProjectDescription(formData.description);
+      if (!descResult.isValid) stepErrors.description = descResult.error || VALIDATION_MESSAGES.PROJECT_DESCRIPTION.REQUIRED;
+
+      if (!formData.category) stepErrors.category = VALIDATION_MESSAGES.PROJECT_CATEGORY.REQUIRED;
+      if (!formData.project_type) stepErrors.project_type = VALIDATION_MESSAGES.PROJECT_TYPE.REQUIRED;
+
+      setErrors(stepErrors);
+      return Object.keys(stepErrors).length === 0;
+    } else if (stepNumber === 2) {
+      const budgetResult = validateBudget(formData.client_budget);
+      if (!budgetResult.isValid) stepErrors.client_budget = budgetResult.error || VALIDATION_MESSAGES.PROJECT_BUDGET.REQUIRED;
+
+      const durationResult = validateDuration(formData.duration_weeks);
+      if (!durationResult.isValid) stepErrors.duration_weeks = durationResult.error || VALIDATION_MESSAGES.PROJECT_DURATION.REQUIRED;
+
+      if (!formData.priority) stepErrors.priority = VALIDATION_MESSAGES.PROJECT_PRIORITY.REQUIRED;
+
+      setErrors(stepErrors);
+      return Object.keys(stepErrors).length === 0;
+    } else if (stepNumber === 3) {
+      if (formData.skills_required.length === 0) {
+        stepErrors.skills_required = VALIDATION_MESSAGES.PROJECT_SKILLS.MIN_COUNT;
+        setErrors(stepErrors);
+        return false;
+      }
+      setErrors({});
+      return true;
+    }
+    setErrors({});
+    return true;
   };
 
   const handleNext = () => {
@@ -265,6 +304,9 @@ export default function EditProject() {
     // Validate category
     if (!formData.category) formErrors.category = VALIDATION_MESSAGES.PROJECT_CATEGORY.REQUIRED;
 
+    // Validate project type
+    if (!formData.project_type) formErrors.project_type = VALIDATION_MESSAGES.PROJECT_TYPE.REQUIRED;
+
     // Validate budget
     const budgetResult = validateBudget(formData.client_budget);
     if (!budgetResult.isValid) formErrors.client_budget = budgetResult.error || VALIDATION_MESSAGES.PROJECT_BUDGET.REQUIRED;
@@ -302,6 +344,7 @@ export default function EditProject() {
         priority: formData.priority as 'low' | 'medium' | 'high',
         timeline: `${formData.duration_weeks} weeks`,
         isNegotiableBudget: formData.negotiable,
+        project_type: formData.project_type,
       };
 
       if (targetStatus) {

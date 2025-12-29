@@ -79,13 +79,31 @@ const submitBid = async (req, res) => {
   }
 };
 
-// @desc    Get all bids (Admin only)
-// @route   GET /api/bids
-// @access  Private (Admin)
 const getAllBids = async (req, res) => {
   try {
-    const bids = await Bid.find().sort({ createdAt: -1 });
-    sendResponse(res, true, bids, 'Bids retrieved successfully');
+    const { status, page = 1, limit = 100 } = req.query;
+    const query = {};
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const total = await Bid.countDocuments(query);
+    const bids = await Bid.find(query)
+      .populate('projectId')
+      .populate('bidderId')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    sendResponse(res, true, {
+      bids,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / limit)
+      }
+    }, 'Bids retrieved successfully');
   } catch (error) {
     handleError(res, error, 'Failed to retrieve bids');
   }
@@ -96,9 +114,26 @@ const getAllBids = async (req, res) => {
 // @access  Private (Freelancer)
 const getAvailableAdminBids = async (req, res) => {
   try {
-    // Assuming this returns bids (projects?) that are open
-    const bids = await Bid.find({ status: 'pending' }); 
-    sendResponse(res, true, bids, 'Available bids retrieved successfully');
+    const { page = 1, limit = 100 } = req.query;
+    const query = { status: 'pending' };
+
+    const total = await Bid.countDocuments(query);
+    const bids = await Bid.find(query)
+      .populate('projectId')
+      .populate('bidderId')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    sendResponse(res, true, {
+      bids,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / limit)
+      }
+    }, 'Available bids retrieved successfully');
   } catch (error) {
     handleError(res, error, 'Failed to retrieve available bids');
   }

@@ -53,6 +53,7 @@ export interface ProjectResponse {
   };
   milestones?: MilestoneResponse[];
   attachments?: string[];
+  project_type?: string;
   createdAt?: string;
   updatedAt?: string;
   created_at?: string;
@@ -87,6 +88,7 @@ export interface CreateProjectPayload {
   complexity?: 'simple' | 'moderate' | 'complex';
   attachments?: File[];
   status?: 'draft' | 'pending_review';
+  project_type?: string;
 }
 
 export interface UpdateProjectPayload extends Omit<Partial<CreateProjectPayload>, 'status'> {
@@ -176,6 +178,9 @@ const normalizeProject = (project: ProjectResponse) => {
     created_at: project.createdAt || project.created_at || new Date().toISOString(),
     updated_at: project.updatedAt || project.updated_at || new Date().toISOString(),
     requirements: false,
+    project_type: project.project_type === 'Ongoing Project' ? 'ongoing' :
+      project.project_type === 'From Scratch' ? 'from_scratch' :
+        project.project_type,
   };
 };
 
@@ -256,6 +261,7 @@ export const createProject = async (data: CreateProjectPayload): Promise<Project
   if (data.attachments) {
     data.attachments.forEach(file => formData.append('attachments', file));
   }
+  if (data.project_type) formData.append('project_type', data.project_type);
 
   const res = await apiClient.post<{ success: boolean; data: ProjectResponse }>(
     `${API_CONFIG.API_URL}/projects`,
@@ -293,6 +299,7 @@ export const updateProject = async (projectId: string, data: UpdateProjectPayloa
   if (data.attachments) {
     data.attachments.forEach(file => formData.append('attachments', file));
   }
+  if ((data as any).project_type) formData.append('project_type', (data as any).project_type);
 
   const res = await apiClient.put<{ success: boolean; data: ProjectResponse }>(
     `${API_CONFIG.API_URL}/projects/${projectId}`,
@@ -359,8 +366,8 @@ export const markProjectForBidding = async (projectId: string): Promise<ProjectR
 /**
  * Request consultation
  */
-export const requestConsultation = async (data: { 
-  projectId?: string; 
+export const requestConsultation = async (data: {
+  projectId?: string;
   message?: string;
   projectTitle?: string;
   projectDescription?: string;

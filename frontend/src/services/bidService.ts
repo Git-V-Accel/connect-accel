@@ -58,6 +58,15 @@ export interface Bid {
     userID?: string;
     role?: string;
   };
+  // Compatibility with DataContext/older components
+  project_id?: string;
+  freelancer_id?: string;
+  freelancer_name?: string;
+  freelancer_rating?: number;
+  amount?: number;
+  proposal?: string;
+  delivery_time?: string;
+  admin_notes?: string;
 }
 
 export interface CreateBidPayload {
@@ -97,10 +106,15 @@ export const getAllBids = async (params?: {
 }): Promise<{ bids: Bid[]; pagination: any }> => {
   const response = await apiClient.get(API_CONFIG.BIDS.LIST, { params });
   if (response.data.success && response.data.data) {
-    const data = response.data.data as { bids?: Bid[]; pagination?: any };
+    const data = response.data.data;
+
+    // Support both direct array and { bids: [], pagination: {} } formats
+    const bidsArray = Array.isArray(data) ? data : (data.bids || []);
+    const pagination = Array.isArray(data) ? {} : (data.pagination || {});
+
     return {
-      bids: (data.bids && Array.isArray(data.bids) ? data.bids : []).map(normalizeBid),
-      pagination: data.pagination || {},
+      bids: bidsArray.map(normalizeBid),
+      pagination: pagination,
     };
   }
   // Return empty array if no data
@@ -119,10 +133,15 @@ export const getAvailableAdminBids = async (params?: {
 }): Promise<{ bids: Bid[]; pagination: any }> => {
   const response = await apiClient.get(API_CONFIG.BIDS.AVAILABLE, { params });
   if (response.data.success && response.data.data) {
-    const data = response.data.data as { bids?: Bid[]; pagination?: any };
+    const data = response.data.data;
+
+    // Support both direct array and { bids: [], pagination: {} } formats
+    const bidsArray = Array.isArray(data) ? data : (data.bids || []);
+    const pagination = Array.isArray(data) ? {} : (data.pagination || {});
+
     return {
-      bids: (data.bids && Array.isArray(data.bids) ? data.bids : []).map(normalizeBid),
-      pagination: data.pagination || {},
+      bids: bidsArray.map(normalizeBid),
+      pagination: pagination,
     };
   }
   // Return empty array if no data
@@ -295,5 +314,14 @@ function normalizeBid(bid: any): Bid {
         role: bid.bidderId.role,
       }
       : undefined,
+    // Compatibility fields
+    project_id: bid.projectId?._id || bid.projectId || '',
+    freelancer_id: bid.bidderId?._id || bid.bidderId || '',
+    freelancer_name: bid.bidderName || bid.bidder?.name || '',
+    amount: bid.bidAmount || 0,
+    proposal: bid.description || '',
+    delivery_time: bid.timeline || '',
+    admin_notes: bid.notes || bid.reviewNotes || '',
+    freelancer_rating: bid.bidderId?.rating || bid.bidder?.rating || 0,
   };
 }

@@ -10,7 +10,7 @@ import type { Bid } from '../../services/bidService';
 import DeleteWithReasonDialog from '../../components/common/DeleteWithReasonDialog';
 import apiClient from '../../services/apiService';
 import { API_CONFIG } from '../../config/api';
-import { 
+import {
   FileText,
   Filter,
   Eye,
@@ -55,7 +55,7 @@ export default function AdminBidManagement() {
       }
       const response = await bidService.getAllBids(params);
       setBids(response.bids);
-      
+
       // Fetch biddings count for each bid
       const countsMap = new Map<string, number>();
       await Promise.all(
@@ -362,7 +362,7 @@ export default function AdminBidManagement() {
                       </div>
                       <div className="text-right ml-4">
                         <div className="text-sm text-gray-500">Bid Amount</div>
-                        <div className="text-2xl">${bid.bidAmount.toLocaleString()}</div>
+                        <div className="text-2xl">₹{bid.bidAmount.toLocaleString()}</div>
                         {bid.timeline && (
                           <div className="text-sm text-gray-500 mt-1">
                             <Clock className="size-3 inline mr-1" />
@@ -375,8 +375,8 @@ export default function AdminBidManagement() {
                     <div className="flex items-center gap-2 pt-4 border-t border-gray-200">
                       {/* View Proposals Button */}
                       {biddingsCount.has(bid.id) && biddingsCount.get(bid.id)! > 0 && (
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           asChild
                         >
@@ -392,16 +392,16 @@ export default function AdminBidManagement() {
                             <CheckCircle2 className="size-4 mr-2" />
                             Accept
                           </Button>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleShortlist(bid.id)}
                           >
                             <Users className="size-4 mr-2" />
                             Shortlist
                           </Button>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleRejectBid(bid.id)}
                           >
@@ -415,8 +415,8 @@ export default function AdminBidManagement() {
                             <CheckCircle2 className="size-4 mr-2" />
                             Accept
                           </Button>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleRejectBid(bid.id)}
                           >

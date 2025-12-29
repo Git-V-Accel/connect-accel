@@ -381,7 +381,8 @@ const createProject = async (req, res) => {
       status: status, // Will use model default if undefined
       attachments: processedAttachments,
       client: targetClientId,
-      isNegotiableBudget
+      isNegotiableBudget,
+      project_type: req.body.project_type || 'from_scratch'
     });
 
     // Log activity

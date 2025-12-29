@@ -58,14 +58,15 @@ export const statusColors = {
     rejected: 'bg-red-100 text-red-700',
     disputed: 'bg-orange-100 text-orange-700',
     pending_review: 'bg-yellow-100 text-yellow-700',
-    pending: 'bg-yellow-100 text-yellow-700',
     hold: 'bg-orange-100 text-orange-700',
     open: 'bg-blue-100 text-blue-700',
     closed: 'bg-gray-100 text-gray-700',
 };
 
-export const statusLabels = {
-    active: 'Pending Review',
+export const statusLabels: Record<string, string> = {
+    draft: 'Draft',
+    pending_review: 'Pending Review',
+    active: 'Active',
     in_bidding: 'In Bidding',
     assigned: 'Assigned',
     in_progress: 'In Progress',
