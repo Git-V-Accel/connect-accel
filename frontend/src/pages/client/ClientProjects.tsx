@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
@@ -9,13 +9,24 @@ import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData, Project } from '../../contexts/DataContext';
-import { Plus, Search, Calendar, IndianRupee, User, ArrowRight, Filter } from 'lucide-react';
+import { Plus, Search, Calendar, IndianRupee, User, ArrowRight, Filter, Trash } from 'lucide-react';
 import { statusColors, statusLabels } from '../../constants/projectConstants';
 import { RichTextViewer } from '../../components/common';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../components/ui/alert-dialog";
 
 export default function ClientProjects() {
   const { user } = useAuth();
-  const { getProjectsByUser, getMilestonesByProject } = useData();
+  const { getProjectsByUser, getMilestonesByProject, deleteProject } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
@@ -25,12 +36,12 @@ export default function ClientProjects() {
   const allProjects = getProjectsByUser(user.id, user.role);
 
   const filterProjects = (status?: string[]) => {
-    let filtered = status 
+    let filtered = status
       ? allProjects.filter(p => status.includes(p.status))
       : allProjects;
 
     if (searchQuery) {
-      filtered = filtered.filter(p => 
+      filtered = filtered.filter(p =>
         p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -63,80 +74,125 @@ export default function ClientProjects() {
     const progress = calculateProgress(project.id);
     const milestones = getMilestonesByProject(project.id);
 
+    const navigate = useNavigate();
+
     return (
-      <Link to={`/client/projects/${project.id}`}>
-        <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className="text-lg font-medium">{project.title}</h3>
-                <Badge className={statusColors[project.status]}>
-                  {statusLabels[project.status]}
-                </Badge>
-              </div>
-              <p className="text-sm text-gray-600 line-clamp-2"><RichTextViewer content={project.description || ''} /></p>
+      <Card
+        className="p-6 hover:shadow-lg transition-shadow cursor-pointer relative group"
+        onClick={() => navigate(`/client/projects/${project.id}`)}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="text-lg font-medium group-hover:text-primary transition-colors">{project.title}</h3>
+              <Badge className={(statusColors as any)[project.status] || 'bg-gray-100 text-gray-800'}>
+                {(statusLabels as any)[project.status] || project.status}
+              </Badge>
             </div>
+            <div className="text-sm text-gray-600 line-clamp-2"><RichTextViewer content={project.description || ''} /></div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div className="flex items-center gap-2 text-sm">
-              <IndianRupee className="size-4 text-gray-400" />
-              <span className="text-gray-600">₹{project.client_budget.toLocaleString()}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="size-4 text-gray-400" />
-              <span className="text-gray-600">{project.duration_weeks} weeks</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <User className="size-4 text-gray-400" />
-              <span className="text-gray-600">{project.freelancer_name || 'Not assigned'}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400">Milestones:</span>
-              <span className="text-gray-600">{milestones.length}</span>
-            </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div className="flex items-center gap-2 text-sm">
+            <IndianRupee className="size-4 text-gray-400" />
+            <span className="text-gray-600">₹{project.client_budget.toLocaleString()}</span>
           </div>
-
-          <div className="flex flex-wrap gap-2 mb-4">
-            {project.skills_required.slice(0, 4).map(skill => (
-              <Badge key={skill} variant="secondary" className="text-xs">{skill}</Badge>
-            ))}
-            {project.skills_required.length > 4 && (
-              <Badge variant="secondary" className="text-xs">+{project.skills_required.length - 4} more</Badge>
-            )}
+          <div className="flex items-center gap-2 text-sm">
+            <Calendar className="size-4 text-gray-400" />
+            <span className="text-gray-600">{project.duration_weeks} weeks</span>
           </div>
+          <div className="flex items-center gap-2 text-sm">
+            <User className="size-4 text-gray-400" />
+            <span className="text-gray-600">{project.freelancer_name || 'Not assigned'}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-400">Milestones:</span>
+            <span className="text-gray-600">{milestones.length}</span>
+          </div>
+        </div>
 
-          {project.status === 'in_progress' && progress > 0 && (
-            <div>
-              <div className="flex items-center justify-between text-sm mb-1">
-                <span className="text-gray-600">Progress</span>
-                <span className="font-medium">{progress}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {project.skills_required.slice(0, 4).map(skill => (
+            <Badge key={skill} variant="secondary" className="text-xs">{skill}</Badge>
+          ))}
+          {project.skills_required.length > 4 && (
+            <Badge variant="secondary" className="text-xs">+{project.skills_required.length - 4} more</Badge>
           )}
+        </div>
 
-          <div className="flex items-center justify-between mt-4 pt-4 border-t">
-            <span className="text-sm text-gray-500">
-              Created {new Date(project.created_at).toLocaleDateString()}
-            </span>
+        {project.status === 'in_progress' && progress > 0 && (
+          <div>
+            <div className="flex items-center justify-between text-sm mb-1">
+              <span className="text-gray-600">Progress</span>
+              <span className="font-medium">{progress}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between mt-4 pt-4 border-t">
+          <span className="text-sm text-gray-500">
+            Created {new Date(project.created_at).toLocaleDateString()}
+          </span>
+
+          <div className="flex items-center gap-2">
+            {project.status === 'draft' && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <Trash className="size-4 mr-2" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete your draft project
+                      "{project.title}".
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={(e: React.MouseEvent) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={(e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        deleteProject(project.id);
+                      }}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
             <Button variant="ghost" size="sm">
               View Details <ArrowRight className="size-4 ml-1" />
             </Button>
           </div>
-        </Card>
-      </Link>
+
+
+        </div>
+      </Card>
     );
   };
 
-  const activeProjects = filterProjects(['in_progress', 'assigned']);
-  const biddingProjects = filterProjects(['pending_review', 'in_bidding']);
-  const completedProjects = filterProjects(['completed']);
+  const activeProjects = filterProjects(['in_progress', 'assigned', 'hold']);
+  const biddingProjects = filterProjects(['active', 'in_bidding']);
+  const completedProjects = filterProjects(['completed', 'cancelled']);
   const allFilteredProjects = filterProjects();
 
   const categories = [...new Set(allProjects.map(p => p.category))];
@@ -218,7 +274,7 @@ export default function ClientProjects() {
                 <div className="max-w-md mx-auto">
                   <h3 className="text-lg font-medium mb-2">No projects found</h3>
                   <p className="text-gray-600 mb-6">
-                    {searchQuery || categoryFilter !== 'all' 
+                    {searchQuery || categoryFilter !== 'all'
                       ? 'Try adjusting your filters'
                       : 'Get started by creating your first project'
                     }

@@ -15,13 +15,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Calendar, IndianRupee, FileText, Settings, Plus, X, Phone } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { categories, commonSkills, projectTypes, projectPriorities } from '../../constants/projectConstants';
+import { validateProjectTitle, validateProjectDescription, validateBudget, validateDuration, VALIDATION_MESSAGES } from '../../constants/validationConstants';
 
 export default function EditProject() {
   const { user } = useAuth();
   const { getProject, updateProject } = useData();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  
+
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(1);
   const [visitedSteps, setVisitedSteps] = useState<Set<number>>(new Set([1]));
@@ -31,16 +32,18 @@ export default function EditProject() {
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [newSkillInput, setNewSkillInput] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     category: '',
-    project_type: '',
+    project_type: 'ongoing',
     priority: 'medium',
     client_budget: '',
     duration_weeks: '',
     negotiable: false,
     skills_required: [] as string[],
+    status: '',
   });
 
   // Load project data
@@ -55,7 +58,7 @@ export default function EditProject() {
       try {
         setLoading(true);
         const project = await getProject(id);
-        
+
         if (!project) {
           toast.error('Project not found');
           navigate('/client/projects');
@@ -67,12 +70,13 @@ export default function EditProject() {
           title: project.title || '',
           description: project.description || '',
           category: project.category || '',
-          project_type: '', // This might not be in the project model
+          project_type: project.project_type || '',
           priority: project.priority || 'medium',
           client_budget: project.budget?.toString() || project.client_budget?.toString() || '',
           duration_weeks: project.duration_weeks?.toString() || (project.timeline ? project.timeline.replace(' weeks', '').replace(' weeks', '') : ''),
           negotiable: project.isNegotiableBudget || false,
           skills_required: project.skills_required || [],
+          status: project.status || '',
         });
       } catch (error: any) {
         console.error('Failed to load project:', error);
@@ -134,16 +138,16 @@ export default function EditProject() {
 
   const changeStep = (newStep: number, skipValidation = false) => {
     if (isTransitioning) return;
-    
+
     if (newStep > step && !skipValidation && !canProceed()) {
       return;
     }
-    
+
     if (newStep <= step || visitedSteps.has(newStep) || (newStep === step + 1 && canProceed())) {
       setIsTransitioning(true);
       setStep(newStep);
       setVisitedSteps(prev => new Set([...prev, newStep]));
-      
+
       setTimeout(() => {
         setIsTransitioning(false);
       }, 300);
@@ -154,7 +158,51 @@ export default function EditProject() {
     changeStep(newStep, true);
   };
 
+  const validateStep = (stepNumber: number): boolean => {
+    const stepErrors: Record<string, string> = {};
+
+    if (stepNumber === 1) {
+      const titleResult = validateProjectTitle(formData.title);
+      if (!titleResult.isValid) stepErrors.title = titleResult.error || VALIDATION_MESSAGES.PROJECT_TITLE.REQUIRED;
+
+      const descResult = validateProjectDescription(formData.description);
+      if (!descResult.isValid) stepErrors.description = descResult.error || VALIDATION_MESSAGES.PROJECT_DESCRIPTION.REQUIRED;
+
+      if (!formData.category) stepErrors.category = VALIDATION_MESSAGES.PROJECT_CATEGORY.REQUIRED;
+      if (!formData.project_type) stepErrors.project_type = VALIDATION_MESSAGES.PROJECT_TYPE.REQUIRED;
+
+      setErrors(stepErrors);
+      return Object.keys(stepErrors).length === 0;
+    } else if (stepNumber === 2) {
+      const budgetResult = validateBudget(formData.client_budget);
+      if (!budgetResult.isValid) stepErrors.client_budget = budgetResult.error || VALIDATION_MESSAGES.PROJECT_BUDGET.REQUIRED;
+
+      const durationResult = validateDuration(formData.duration_weeks);
+      if (!durationResult.isValid) stepErrors.duration_weeks = durationResult.error || VALIDATION_MESSAGES.PROJECT_DURATION.REQUIRED;
+
+      if (!formData.priority) stepErrors.priority = VALIDATION_MESSAGES.PROJECT_PRIORITY.REQUIRED;
+
+      setErrors(stepErrors);
+      return Object.keys(stepErrors).length === 0;
+    } else if (stepNumber === 3) {
+      if (formData.skills_required.length === 0) {
+        stepErrors.skills_required = VALIDATION_MESSAGES.PROJECT_SKILLS.MIN_COUNT;
+        setErrors(stepErrors);
+        return false;
+      }
+      setErrors({});
+      return true;
+    }
+    setErrors({});
+    return true;
+  };
+
   const handleNext = () => {
+    if (!validateStep(step)) {
+      const firstError = Object.values(errors)[0];
+      if (firstError) toast.error(firstError);
+      return;
+    }
     if (canProceed() && step < 4) {
       changeStep(step + 1);
     }
@@ -168,15 +216,15 @@ export default function EditProject() {
 
   const handleWheel = (e: WheelEvent) => {
     if (isTransitioning || scrollTimeoutRef.current) return;
-    
+
     e.preventDefault();
-    
+
     scrollTimeoutRef.current = setTimeout(() => {
       scrollTimeoutRef.current = null;
     }, 500);
-    
+
     const deltaY = e.deltaY;
-    
+
     if (deltaY > 0) {
       if (canProceed() && step < 4) {
         handleNext();
@@ -198,20 +246,20 @@ export default function EditProject() {
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (!touchStartRef.current || isTransitioning) return;
-    
+
     const touchEnd = {
       x: e.changedTouches[0].clientX,
       y: e.changedTouches[0].clientY,
       time: Date.now(),
     };
-    
+
     const deltaX = touchEnd.x - touchStartRef.current.x;
     const deltaY = touchEnd.y - touchStartRef.current.y;
     const deltaTime = touchEnd.time - touchStartRef.current.time;
-    
+
     const minSwipeDistance = 50;
     const maxSwipeTime = 300;
-    
+
     if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > minSwipeDistance && deltaTime < maxSwipeTime) {
       if (deltaY < 0) {
         if (canProceed() && step < 4) {
@@ -223,7 +271,7 @@ export default function EditProject() {
         }
       }
     }
-    
+
     touchStartRef.current = null;
   };
 
@@ -242,12 +290,50 @@ export default function EditProject() {
     };
   }, [step, isTransitioning]);
 
-  const handleSubmit = async () => {
+  const validateForm = (): boolean => {
+    const formErrors: Record<string, string> = {};
+
+    // Validate title
+    const titleResult = validateProjectTitle(formData.title);
+    if (!titleResult.isValid) formErrors.title = titleResult.error || VALIDATION_MESSAGES.PROJECT_TITLE.REQUIRED;
+
+    // Validate description
+    const descResult = validateProjectDescription(formData.description);
+    if (!descResult.isValid) formErrors.description = descResult.error || VALIDATION_MESSAGES.PROJECT_DESCRIPTION.REQUIRED;
+
+    // Validate category
+    if (!formData.category) formErrors.category = VALIDATION_MESSAGES.PROJECT_CATEGORY.REQUIRED;
+
+    // Validate project type
+    if (!formData.project_type) formErrors.project_type = VALIDATION_MESSAGES.PROJECT_TYPE.REQUIRED;
+
+    // Validate budget
+    const budgetResult = validateBudget(formData.client_budget);
+    if (!budgetResult.isValid) formErrors.client_budget = budgetResult.error || VALIDATION_MESSAGES.PROJECT_BUDGET.REQUIRED;
+
+    // Validate duration
+    const durationResult = validateDuration(formData.duration_weeks);
+    if (!durationResult.isValid) formErrors.duration_weeks = durationResult.error || VALIDATION_MESSAGES.PROJECT_DURATION.REQUIRED;
+
+    // Validate skills
+    if (formData.skills_required.length === 0) formErrors.skills_required = VALIDATION_MESSAGES.PROJECT_SKILLS.MIN_COUNT;
+
+    setErrors(formErrors);
+    return Object.keys(formErrors).length === 0;
+  };
+
+  const handleSubmit = async (targetStatus?: string) => {
     if (!user || !id) return;
+
+    if (!validateForm()) {
+      const firstError = Object.values(errors)[0];
+      if (firstError) toast.error(firstError);
+      return;
+    }
 
     try {
       const budget = parseInt(formData.client_budget);
-      await updateProject(id, {
+      const updateData: any = {
         title: formData.title,
         description: formData.description,
         category: formData.category,
@@ -258,10 +344,17 @@ export default function EditProject() {
         priority: formData.priority as 'low' | 'medium' | 'high',
         timeline: `${formData.duration_weeks} weeks`,
         isNegotiableBudget: formData.negotiable,
-      });
+        project_type: formData.project_type,
+      };
+
+      if (targetStatus) {
+        updateData.status = targetStatus;
+      }
+
+      await updateProject(id, updateData);
 
       toast.success('Project updated successfully!');
-      
+
       navigate(`/client/projects/${id}`);
     } catch (error: any) {
       console.error('Failed to update project:', error);
@@ -323,11 +416,10 @@ export default function EditProject() {
                   {projectTypes.map(type => (
                     <Card
                       key={type.value}
-                      className={`p-4 cursor-pointer transition-colors ${
-                        formData.project_type === type.value
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'hover:border-gray-400'
-                      }`}
+                      className={`p-4 cursor-pointer transition-colors ${formData.project_type === type.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'hover:border-gray-400'
+                        }`}
                       onClick={() => updateFormData('project_type', type.value)}
                     >
                       <div className="flex items-start justify-between">
@@ -405,11 +497,10 @@ export default function EditProject() {
                   {projectPriorities.map(priority => (
                     <Card
                       key={priority.value}
-                      className={`p-4 cursor-pointer transition-colors ${
-                        formData.priority === priority.value
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'hover:border-gray-400'
-                      }`}
+                      className={`p-4 cursor-pointer transition-colors ${formData.priority === priority.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'hover:border-gray-400'
+                        }`}
                       onClick={() => updateFormData('priority', priority.value)}
                     >
                       <div className="flex items-start justify-between">
@@ -443,7 +534,7 @@ export default function EditProject() {
                 <p className="text-sm text-gray-500 mb-3">
                   Select from the list below or create new skills
                 </p>
-                
+
                 <div className="flex gap-2 mb-4">
                   <Input
                     placeholder="Enter a new skill (e.g., Next.js, Tailwind CSS)"
@@ -615,7 +706,7 @@ export default function EditProject() {
               const isCurrent = step === s.number;
               const isVisited = visitedSteps.has(s.number);
               const canClick = isVisited || isCurrent;
-              
+
               return (
                 <div key={s.number} className="flex items-center flex-1">
                   <div className="flex flex-col items-center flex-1">
@@ -623,15 +714,14 @@ export default function EditProject() {
                       type="button"
                       onClick={() => canClick && handleStepChange(s.number)}
                       disabled={!canClick}
-                      className={`size-10 rounded-full flex items-center justify-center transition-all ${
-                        isCompleted
-                          ? 'bg-green-600 text-white cursor-pointer hover:bg-green-700'
-                          : isCurrent
+                      className={`size-10 rounded-full flex items-center justify-center transition-all ${isCompleted
+                        ? 'bg-green-600 text-white cursor-pointer hover:bg-green-700'
+                        : isCurrent
                           ? 'bg-blue-600 text-white cursor-pointer hover:bg-blue-700'
                           : isVisited
-                          ? 'bg-gray-300 text-gray-600 cursor-pointer hover:bg-gray-400'
-                          : 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-50'
-                      } ${canClick ? 'hover:scale-105' : ''}`}
+                            ? 'bg-gray-300 text-gray-600 cursor-pointer hover:bg-gray-400'
+                            : 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-50'
+                        } ${canClick ? 'hover:scale-105' : ''}`}
                       title={canClick ? `Go to ${s.title}` : 'Complete previous steps first'}
                     >
                       {isCompleted ? <Check className="size-5" /> : s.icon}
@@ -650,7 +740,7 @@ export default function EditProject() {
         </Card>
 
         {/* Form Content */}
-        <div 
+        <div
           ref={containerRef}
           className="overflow-hidden relative"
           onTouchStart={handleTouchStart}
@@ -665,16 +755,16 @@ export default function EditProject() {
                 })
                 .map((stepNum) => {
                   const isCurrentStep = stepNum === step;
-                  
+
                   return (
                     <div
                       key={stepNum}
                       className="w-full h-full overflow-y-auto absolute top-0 left-0 transition-all duration-300 ease-in-out"
-                      style={{ 
+                      style={{
                         height: '100%',
                         width: '100%',
-                        transform: isCurrentStep 
-                          ? `translateY(0)` 
+                        transform: isCurrentStep
+                          ? `translateY(0)`
                           : `translateY(${stepNum < step ? '-100%' : '100%'})`,
                         opacity: isCurrentStep ? 1 : 0,
                         pointerEvents: isCurrentStep ? 'auto' : 'none',
@@ -703,10 +793,26 @@ export default function EditProject() {
                                 <ArrowRight className="size-4 ml-2" />
                               </Button>
                             ) : (
-                              <Button onClick={handleSubmit} size="lg" disabled={isTransitioning}>
-                                Update Project
-                                <Check className="size-4 ml-2" />
-                              </Button>
+                              <div className="flex gap-2">
+                                {(loading || !formData || (formData as any).status === 'draft') && (
+                                  <>
+                                    <Button onClick={() => handleSubmit('draft')} variant="outline" size="lg" disabled={isTransitioning}>
+                                      Save as Draft
+                                      <FileText className="size-4 ml-2" />
+                                    </Button>
+                                    <Button onClick={() => handleSubmit('active')} size="lg" disabled={isTransitioning}>
+                                      Submit Project
+                                      <Check className="size-4 ml-2" />
+                                    </Button>
+                                  </>
+                                )}
+                                {(formData as any).status !== 'draft' && (
+                                  <Button onClick={() => handleSubmit()} size="lg" disabled={isTransitioning}>
+                                    Update Project
+                                    <Check className="size-4 ml-2" />
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </div>
                         )}

@@ -1,11 +1,12 @@
 const Project = require('../models/Project');
+const ProjectTimeline = require('../models/ProjectTimeline');
 const ActivityLogger = require('../services/activityLogger');
 const Notification = require('../models/Notification');
 const ConsultationRequest = require('../models/ConsultationRequest');
 const User = require('../models/User');
 const socketService = require('../services/socketService');
 const emailService = require('../services/emailService');
-const { MESSAGES, STATUS_CODES, NOTIFICATION_TYPES, USER_ROLES } = require('../constants');
+const { MESSAGES, STATUS_CODES, NOTIFICATION_TYPES, USER_ROLES, PROJECT_STATUS } = require('../constants');
 const { processAttachments } = require('../utils/attachmentStorage');
 
 const formatProjectResponse = (project, user) => {
@@ -81,7 +82,7 @@ const getProjects = async (req, res) => {
             { assignedFreelancerId: { $exists: false } },
             { $or: [
               { isOpenForBidding: true },
-              { status: 'bidding' },
+              { status: 'in_bidding' },
               { status: 'active' }
             ]}
           ]
@@ -91,10 +92,10 @@ const getProjects = async (req, res) => {
       // Agents can only see projects assigned to them
       query.assignedAgentId = req.user.id;
     }
-    // Admin and superadmin can see all projects (including drafts)
-    // But for other roles, exclude draft projects unless they own them
-    if (req.user.role !== 'client' && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-      // For non-client, non-admin roles, exclude draft projects
+    // Exclude draft projects for everyone except the owner client
+    if (req.user.role === 'client') {
+      query.client = req.user.id;
+    } else {
       query.status = { $ne: 'draft' };
     }
     
@@ -221,8 +222,7 @@ const getProject = async (req, res) => {
 // @access  Private (Client only)
 const createProject = async (req, res) => {
   try {
-    // Parse JSON fields if they come as strings (from FormData)
-    let title, description, budget, timeline, category, skills, priority;
+    let title, description, budget, timeline, category, skills, priority, status;
     let isNegotiableBudget = false;
     
     if (req.body.title) {
@@ -251,7 +251,10 @@ const createProject = async (req, res) => {
     }
     if (req.body.priority) {
       priority = typeof req.body.priority === 'string' ? req.body.priority : req.body.priority;
-        }
+    }
+    if (req.body.status) {
+      status = typeof req.body.status === 'string' ? req.body.status : req.body.status;
+    }
 
     if (req.body.isNegotiableBudget !== undefined) {
       if (typeof req.body.isNegotiableBudget === 'string') {
@@ -375,9 +378,11 @@ const createProject = async (req, res) => {
       category,
       skills: skills || [],
       priority: priority || 'medium',
+      status: status, // Will use model default if undefined
       attachments: processedAttachments,
       client: targetClientId,
-      isNegotiableBudget
+      isNegotiableBudget,
+      project_type: req.body.project_type || 'from_scratch'
     });
 
     // Log activity
@@ -515,6 +520,27 @@ const updateProject = async (req, res) => {
       updateData.attachments = [...existingAttachments, ...newAttachments];
     }
 
+    // Enforce status flow constraints for clients
+    if (req.user.role === 'client' && req.body.status && req.body.status !== project.status) {
+      const { CLIENT_ALLOWED_TRANSITIONS } = require('../constants');
+      const allowedNextStatuses = CLIENT_ALLOWED_TRANSITIONS[project.status] || [];
+      
+      if (!allowedNextStatuses.includes(req.body.status)) {
+        return res.status(STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: `Invalid status transition from ${project.status} to ${req.body.status} for clients.`
+        });
+      }
+    }
+
+    // Handle statusRemarks for hold or cancelled
+    if (['hold', 'cancelled'].includes(req.body.status) && !req.body.statusRemarks) {
+       return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: `Please provide a reason for setting the project to ${req.body.status}.`
+      });
+    }
+
     const oldStatus = project.status;
     const updatedProject = await Project.findByIdAndUpdate(
       req.params.id,
@@ -524,10 +550,35 @@ const updateProject = async (req, res) => {
      .populate('assignedFreelancer', 'name email userID')
      .populate('assignedAgentId', 'name email userID');
 
-    // Log activity for status changes
+    // Handle status changes - use logStatusChangeAndEmit for notifications and emails
     if (oldStatus !== updatedProject.status) {
       const ActivityLogger = require('../services/activityLogger');
       
+      // Determine action type for timeline
+      let action = 'update_project_status';
+      if (oldStatus === 'pending_review' && updatedProject.status === 'in_progress') {
+        action = 'approve_project';
+      } else if (oldStatus === 'pending_review' && updatedProject.status === 'rejected') {
+        action = 'reject_project';
+      } else if (updatedProject.status === 'hold') {
+        action = 'hold_project';
+      } else if (updatedProject.status === 'cancelled') {
+        action = 'cancel_project';
+      }
+      
+      // Use logStatusChangeAndEmit to send notifications and emails to all relevant parties
+      const remark = req.body.statusRemarks || req.body.rejectionReason || null;
+      await logStatusChangeAndEmit(
+        updatedProject._id,
+        req.user.id,
+        req.user.role,
+        oldStatus,
+        updatedProject.status,
+        action,
+        remark
+      );
+      
+      // Log activity for status changes
       // Log specific approval/rejection activities
       if (oldStatus === 'pending_review' && updatedProject.status === 'in_progress') {
         await ActivityLogger.logActivity({
@@ -570,54 +621,51 @@ const updateProject = async (req, res) => {
           visibleToClient: true,
           visibleToAdmin: true
         }, req);
+      } else if (updatedProject.status === 'hold' || updatedProject.status === 'cancelled') {
+        await ActivityLogger.logActivity({
+          user: req.user.id,
+          project: project._id,
+          activityType: 'project_status_changed',
+          title: `Project ${updatedProject.status.charAt(0).toUpperCase() + updatedProject.status.slice(1)}`,
+          description: `Project "${updatedProject.title}" was set to ${updatedProject.status} by ${req.user.name}. Reason: ${req.body.statusRemarks}`,
+          metadata: {
+            projectTitle: updatedProject.title,
+            oldStatus: oldStatus,
+            newStatus: updatedProject.status,
+            action: updatedProject.status,
+            reason: req.body.statusRemarks,
+            changedBy: req.user.name,
+            changedByRole: req.user.role
+          },
+          tags: ['project', updatedProject.status, 'status', 'change'],
+          severity: 'high',
+          visibleToClient: true,
+          visibleToAdmin: true
+        }, req);
       } else {
-        // Log general status change
-        await ActivityLogger.logProjectStatusChanged(
-          project._id,
-          req.user.id,
-          oldStatus,
-          updatedProject.status,
-          req
-        );
+        // Log general status change with optional remarks
+        const description = `Project "${updatedProject.title}" status changed from "${oldStatus}" to "${updatedProject.status}" by ${req.user.name}${req.body.statusRemarks ? `. Reason: ${req.body.statusRemarks}` : ''}`;
+        
+        await ActivityLogger.logActivity({
+          user: req.user.id,
+          project: project._id,
+          activityType: 'project_status_changed',
+          title: 'Project Status Changed',
+          description: description,
+          metadata: {
+            projectTitle: updatedProject.title,
+            oldStatus: oldStatus,
+            newStatus: updatedProject.status,
+            reason: req.body.statusRemarks || null,
+            changedBy: req.user.name,
+            changedByRole: req.user.role
+          },
+          tags: ['project', 'status', 'change'],
+          severity: 'medium',
+          visibleToClient: true,
+          visibleToAdmin: true
+        }, req);
       }
-    }
-
-    // Emit socket event for status change
-    if (oldStatus !== updatedProject.status) {
-      // Create notification for admin users when status changes
-      await createAdminNotifications({
-        type: 'project_updated',
-        title: 'Project Status Updated',
-        message: `Project "${updatedProject.title}" status changed from ${oldStatus} to ${updatedProject.status} by ${req.user.name}`,
-        projectId: project._id.toString(),
-        metadata: {
-          oldStatus,
-          newStatus: updatedProject.status,
-          updatedBy: req.user.id,
-          updatedByName: req.user.name
-        }
-      });
-
-      socketService.emitStatusUpdated(
-        project._id,
-        oldStatus,
-        updatedProject.status,
-        req.user.id
-      );
-
-      // Emit notification to admin users for status change
-      socketService.emitToAdminUsers('global-notification', {
-        eventType: 'project_updated',
-        title: 'Project Status Updated',
-        message: `Project "${updatedProject.title}" status changed from ${oldStatus} to ${updatedProject.status} by ${req.user.name}`,
-        projectId: project._id.toString(),
-        metadata: {
-          oldStatus,
-          newStatus: updatedProject.status,
-          updatedBy: req.user.id,
-          updatedByName: req.user.name
-        }
-      });
     }
 
     // Emit general project update
@@ -1125,12 +1173,26 @@ const markProjectForBidding = async (req, res) => {
     }
 
     // Mark project as open for bidding
+    const oldStatus = project.status;
     project.isOpenForBidding = true;
-    if (project.status === 'pending') {
-      project.status = 'bidding';
+    if (project.status === 'pending' || project.status === 'active') {
+      project.status = 'in_bidding';
     }
     
     await project.save();
+
+    // If status changed, use logStatusChangeAndEmit to send notifications and emails
+    if (oldStatus !== project.status) {
+      await logStatusChangeAndEmit(
+        project._id,
+        req.user.id,
+        req.user.role,
+        oldStatus,
+        project.status,
+        'mark_for_bidding',
+        null
+      );
+    }
 
     // Log activity
     await ActivityLogger.logActivity({
@@ -1341,6 +1403,900 @@ const requestConsultation = async (req, res) => {
   }
 };
 
+/**
+ * Helper function to log status change to ProjectTimeline and emit socket event
+ */
+const logStatusChangeAndEmit = async (projectId, userId, userRole, oldStatus, newStatus, action, remark = null) => {
+  // Create timeline entry
+  const timelineEntry = await ProjectTimeline.create({
+    projectId,
+    userId,
+    userRole,
+    oldStatus,
+    newStatus,
+    action,
+    remark,
+    timestamp: new Date()
+  });
+
+  // Populate user details for timeline entry
+  const populatedTimeline = await ProjectTimeline.findById(timelineEntry._id)
+    .populate('userId', 'name email userID')
+    .lean();
+
+  // Get project with full details to determine who should receive updates
+  const project = await Project.findById(projectId)
+    .populate('client', '_id name email userID')
+    .populate('assignedAgentId', '_id name email userID')
+    .populate('assignedFreelancerId', '_id name email userID')
+    .lean();
+
+  if (!project) return populatedTimeline;
+
+  // Get user who made the change
+  const changedByUser = await User.findById(userId).select('name email').lean();
+  const changedByName = changedByUser?.name || 'System';
+
+  // Status labels mapping
+  const statusLabels = {
+    [PROJECT_STATUS.DRAFT]: 'Draft',
+    [PROJECT_STATUS.ACTIVE]: 'Pending Review',
+    [PROJECT_STATUS.PENDING_REVIEW]: 'Pending Review',
+    [PROJECT_STATUS.IN_BIDDING]: 'In Bidding',
+    [PROJECT_STATUS.IN_PROGRESS]: 'In Progress',
+    [PROJECT_STATUS.COMPLETED]: 'Completed',
+    [PROJECT_STATUS.HOLD]: 'On Hold',
+    [PROJECT_STATUS.CANCELLED]: 'Cancelled',
+    [PROJECT_STATUS.ASSIGNED]: 'Assigned'
+  };
+
+  const oldStatusLabel = statusLabels[oldStatus] || oldStatus || 'Unknown';
+  const newStatusLabel = statusLabels[newStatus] || newStatus || 'Unknown';
+  const projectTitle = project.title || project.clientTitle || 'Untitled Project';
+
+  // Prepare notification message
+  const notificationTitle = `Project Status Updated: ${newStatusLabel}`;
+  const notificationMessage = `Project "${projectTitle}" status changed from ${oldStatusLabel} to ${newStatusLabel}${changedByName !== 'System' ? ` by ${changedByName}` : ''}${remark ? `. Reason: ${remark}` : ''}`;
+
+  // Prepare recipients for notifications and emails (using Set to avoid duplicates)
+  const recipientsMap = new Map();
+  const notificationEntries = [];
+
+  // Helper function to add recipient if not already added
+  const addRecipient = (userId, email, name, role) => {
+    const userIdStr = userId.toString();
+    if (!recipientsMap.has(userIdStr)) {
+      recipientsMap.set(userIdStr, {
+        userId: userIdStr,
+        email,
+        name,
+        role
+      });
+      notificationEntries.push({
+        user: userId,
+        type: NOTIFICATION_TYPES.PROJECT_UPDATED,
+        title: notificationTitle,
+        message: notificationMessage,
+        projectId: projectId,
+        metadata: {
+          oldStatus,
+          newStatus,
+          oldStatusLabel,
+          newStatusLabel,
+          action,
+          changedBy: userId,
+          changedByName,
+          remark
+        }
+      });
+    }
+  };
+
+  // Always notify all admins and superadmins
+  const adminUsers = await User.find({
+    role: { $in: [USER_ROLES.ADMIN, USER_ROLES.SUPERADMIN] }
+  }).select('_id name email').lean();
+
+  adminUsers.forEach(admin => {
+    addRecipient(admin._id, admin.email, admin.name, 'admin');
+  });
+
+  // Notify project client
+  if (project.client && project.client._id) {
+    addRecipient(project.client._id, project.client.email, project.client.name, 'client');
+  }
+
+  // Notify assigned agent
+  if (project.assignedAgentId && project.assignedAgentId._id) {
+    addRecipient(project.assignedAgentId._id, project.assignedAgentId.email, project.assignedAgentId.name, 'agent');
+  }
+
+  // Notify assigned freelancer if status >= in_progress
+  if (project.assignedFreelancerId && project.assignedFreelancerId._id && 
+      (newStatus === PROJECT_STATUS.IN_PROGRESS || newStatus === PROJECT_STATUS.COMPLETED)) {
+    addRecipient(project.assignedFreelancerId._id, project.assignedFreelancerId.email, project.assignedFreelancerId.name, 'freelancer');
+  }
+
+  // Convert map to array
+  const recipients = Array.from(recipientsMap.values());
+
+  // Create all notifications in the database
+  try {
+    if (notificationEntries.length > 0) {
+      const createdNotifications = await Notification.insertMany(notificationEntries);
+      
+      // Emit socket notifications to connected users
+      recipients.forEach((recipient, index) => {
+        const notification = notificationEntries[index];
+        if (notification && notification.user.toString() === recipient.userId) {
+          socketService.emitNotification(recipient.userId, {
+            type: notification.type,
+            title: notification.title,
+            message: notification.message,
+            projectId: notification.projectId.toString(),
+            metadata: notification.metadata,
+            isRead: false,
+            createdAt: new Date()
+          });
+        }
+      });
+    }
+  } catch (notificationError) {
+    console.error('Failed to create notifications:', notificationError);
+    // Continue even if notifications fail
+  }
+
+  // Send emails to all recipients (async, don't wait)
+  Promise.all(recipients.map(async (recipient) => {
+    if (recipient.email) {
+      try {
+        await emailService.sendProjectStatusChangeEmail({
+          to: recipient.email,
+          userName: recipient.name,
+          projectTitle,
+          oldStatus,
+          newStatus,
+          changedBy: changedByName,
+          remark
+        });
+      } catch (emailError) {
+        console.error(`Failed to send status change email to ${recipient.email}:`, emailError);
+        // Continue with other recipients even if one email fails
+      }
+    }
+  })).catch(err => {
+    console.error('Error sending status change emails:', err);
+  });
+
+  // Emit socket event for real-time updates
+  const recipientUserIds = recipients.map(r => r.userId);
+  socketService.emitProjectStatusUpdated(projectId, newStatus, populatedTimeline, recipientUserIds);
+
+  return populatedTimeline;
+};
+
+// @desc    Post project (draft → active)
+// @route   POST /api/projects/:id/post
+// @access  Private (Client only)
+const postProject = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Only client can post their own project
+    if (req.user.role !== USER_ROLES.CLIENT) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'Only clients can post projects'
+      });
+    }
+
+    if (project.client.toString() !== req.user.id) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'You can only post your own projects'
+      });
+    }
+
+    // Validate current status
+    if (project.status !== PROJECT_STATUS.DRAFT) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: `Project must be in draft status to post. Current status: ${project.status}`
+      });
+    }
+
+    const oldStatus = project.status;
+    project.status = PROJECT_STATUS.ACTIVE;
+    await project.save();
+
+    // Log to timeline and emit socket event
+    const timelineEntry = await logStatusChangeAndEmit(
+      project._id,
+      req.user.id,
+      req.user.role,
+      oldStatus,
+      PROJECT_STATUS.ACTIVE,
+      'post_project',
+      null
+    );
+
+    // Log activity
+    await ActivityLogger.logActivity({
+      user: req.user.id,
+      project: project._id,
+      activityType: 'project_status_changed',
+      title: 'Project Posted',
+      description: `Project "${project.title}" was posted for review`,
+      metadata: {
+        oldStatus,
+        newStatus: PROJECT_STATUS.ACTIVE,
+        action: 'post_project'
+      },
+      tags: ['project', 'status', 'post'],
+      severity: 'medium',
+      visibleToClient: true,
+      visibleToAdmin: true
+    }, req);
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: 'Project posted successfully',
+      data: project,
+      timelineEntry
+    });
+  } catch (error) {
+    console.error('Post project error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Create bidding (active → in_bidding)
+// @route   POST /api/projects/:id/create-bidding
+// @access  Private (Admin/Agent only)
+const createBidding = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Only admin/agent/superadmin can create bidding
+    if (![USER_ROLES.ADMIN, USER_ROLES.AGENT, USER_ROLES.SUPERADMIN].includes(req.user.role)) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'Only admins or agents can create bidding'
+      });
+    }
+
+    // Validate current status
+    if (project.status !== PROJECT_STATUS.ACTIVE) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: `Project must be in active status to create bidding. Current status: ${project.status}`
+      });
+    }
+
+    const oldStatus = project.status;
+    project.status = PROJECT_STATUS.IN_BIDDING;
+    project.isOpenForBidding = true;
+    await project.save();
+
+    // Log to timeline and emit socket event
+    const timelineEntry = await logStatusChangeAndEmit(
+      project._id,
+      req.user.id,
+      req.user.role,
+      oldStatus,
+      PROJECT_STATUS.IN_BIDDING,
+      'create_bidding',
+      null
+    );
+
+    // Log activity
+    await ActivityLogger.logActivity({
+      user: req.user.id,
+      project: project._id,
+      activityType: 'project_status_changed',
+      title: 'Bidding Created',
+      description: `Bidding created for project "${project.title}" by ${req.user.name}`,
+      metadata: {
+        oldStatus,
+        newStatus: PROJECT_STATUS.IN_BIDDING,
+        action: 'create_bidding'
+      },
+      tags: ['project', 'status', 'bidding'],
+      severity: 'high',
+      visibleToClient: true,
+      visibleToAdmin: true
+    }, req);
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: 'Bidding created successfully',
+      data: project,
+      timelineEntry
+    });
+  } catch (error) {
+    console.error('Create bidding error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Award bidding (in_bidding → in_progress)
+// @route   POST /api/projects/:id/award-bidding
+// @access  Private (Admin/Agent only)
+const awardBidding = async (req, res) => {
+  try {
+    const { freelancerId } = req.body;
+
+    if (!freelancerId) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'Freelancer ID is required'
+      });
+    }
+
+    const project = await Project.findById(req.params.id);
+    const freelancer = await User.findById(freelancerId);
+
+    if (!project) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    if (!freelancer || freelancer.role !== USER_ROLES.FREELANCER) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'Invalid freelancer'
+      });
+    }
+
+    // Only admin/agent/superadmin can award bidding
+    if (![USER_ROLES.ADMIN, USER_ROLES.AGENT, USER_ROLES.SUPERADMIN].includes(req.user.role)) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'Only admins or agents can award bidding'
+      });
+    }
+
+    // Validate current status
+    if (project.status !== PROJECT_STATUS.IN_BIDDING) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: `Project must be in in_bidding status to award. Current status: ${project.status}`
+      });
+    }
+
+    const oldStatus = project.status;
+    project.status = PROJECT_STATUS.IN_PROGRESS;
+    project.assignedFreelancerId = freelancerId;
+    project.isOpenForBidding = false;
+    await project.save();
+
+    // Log to timeline and emit socket event
+    const timelineEntry = await logStatusChangeAndEmit(
+      project._id,
+      req.user.id,
+      req.user.role,
+      oldStatus,
+      PROJECT_STATUS.IN_PROGRESS,
+      'award_bidding',
+      `Awarded to freelancer: ${freelancer.name}`
+    );
+
+    // Log activity
+    await ActivityLogger.logActivity({
+      user: req.user.id,
+      project: project._id,
+      activityType: 'project_status_changed',
+      title: 'Bidding Awarded',
+      description: `Project "${project.title}" awarded to ${freelancer.name}`,
+      metadata: {
+        oldStatus,
+        newStatus: PROJECT_STATUS.IN_PROGRESS,
+        action: 'award_bidding',
+        freelancerId,
+        freelancerName: freelancer.name
+      },
+      tags: ['project', 'status', 'award'],
+      severity: 'high',
+      visibleToClient: true,
+      visibleToAdmin: true
+    }, req);
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: 'Bidding awarded successfully',
+      data: project,
+      timelineEntry
+    });
+  } catch (error) {
+    console.error('Award bidding error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Complete project (in_progress → completed)
+// @route   POST /api/projects/:id/complete
+// @access  Private (Admin/Agent/Freelancer only)
+const completeProject = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Only admin/agent/freelancer/superadmin can complete project
+    const allowedRoles = [USER_ROLES.ADMIN, USER_ROLES.AGENT, USER_ROLES.FREELANCER, USER_ROLES.SUPERADMIN];
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'Only admins, agents, or freelancers can complete projects'
+      });
+    }
+
+    // Freelancers can only complete their assigned projects
+    if (req.user.role === USER_ROLES.FREELANCER && 
+        project.assignedFreelancerId?.toString() !== req.user.id) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'You can only complete projects assigned to you'
+      });
+    }
+
+    // Validate current status
+    if (project.status !== PROJECT_STATUS.IN_PROGRESS) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: `Project must be in in_progress status to complete. Current status: ${project.status}`
+      });
+    }
+
+    const oldStatus = project.status;
+    project.status = PROJECT_STATUS.COMPLETED;
+    project.completedAt = new Date();
+    await project.save();
+
+    // Log to timeline and emit socket event
+    const timelineEntry = await logStatusChangeAndEmit(
+      project._id,
+      req.user.id,
+      req.user.role,
+      oldStatus,
+      PROJECT_STATUS.COMPLETED,
+      'complete_project',
+      null
+    );
+
+    // Log activity
+    await ActivityLogger.logActivity({
+      user: req.user.id,
+      project: project._id,
+      activityType: 'project_status_changed',
+      title: 'Project Completed',
+      description: `Project "${project.title}" marked as completed by ${req.user.name}`,
+      metadata: {
+        oldStatus,
+        newStatus: PROJECT_STATUS.COMPLETED,
+        action: 'complete_project'
+      },
+      tags: ['project', 'status', 'complete'],
+      severity: 'high',
+      visibleToClient: true,
+      visibleToAdmin: true
+    }, req);
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: 'Project completed successfully',
+      data: project,
+      timelineEntry
+    });
+  } catch (error) {
+    console.error('Complete project error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Hold project (active/in_bidding → hold)
+// @route   POST /api/projects/:id/hold
+// @access  Private (Client only)
+const holdProject = async (req, res) => {
+  try {
+    let { remark } = req.body;
+
+    // Strip HTML tags and decode HTML entities if remark contains HTML
+    if (remark && typeof remark === 'string') {
+      // Remove HTML tags first
+      remark = remark.replace(/<[^>]*>/g, '');
+      // Decode common HTML entities
+      remark = remark
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/g, "'");
+      // Trim whitespace
+      remark = remark.trim();
+    }
+
+    if (!remark || remark.length === 0) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'Remark is required to hold a project'
+      });
+    }
+
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Only client can hold their own project
+    if (req.user.role !== USER_ROLES.CLIENT) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'Only clients can hold projects'
+      });
+    }
+
+    if (project.client.toString() !== req.user.id) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'You can only hold your own projects'
+      });
+    }
+
+    // Validate current status - allow hold from active, in_bidding, assigned, or in_progress
+    if (![PROJECT_STATUS.ACTIVE, PROJECT_STATUS.IN_BIDDING, PROJECT_STATUS.ASSIGNED, PROJECT_STATUS.IN_PROGRESS].includes(project.status)) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: `Project must be in active, in_bidding, assigned, or in_progress status to hold. Current status: ${project.status}`
+      });
+    }
+
+    const oldStatus = project.status;
+    project.status = PROJECT_STATUS.HOLD;
+    project.statusRemarks = remark;
+    await project.save();
+
+    // Log to timeline and emit socket event
+    const timelineEntry = await logStatusChangeAndEmit(
+      project._id,
+      req.user.id,
+      req.user.role,
+      oldStatus,
+      PROJECT_STATUS.HOLD,
+      'hold_project',
+      remark.trim()
+    );
+
+    // Log activity
+    await ActivityLogger.logActivity({
+      user: req.user.id,
+      project: project._id,
+      activityType: 'project_status_changed',
+      title: 'Project Held',
+      description: `Project "${project.title}" put on hold by ${req.user.name}. Reason: ${remark.trim()}`,
+      metadata: {
+        oldStatus,
+        newStatus: PROJECT_STATUS.HOLD,
+        action: 'hold_project',
+        reason: remark.trim()
+      },
+      tags: ['project', 'status', 'hold'],
+      severity: 'medium',
+      visibleToClient: true,
+      visibleToAdmin: true
+    }, req);
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: 'Project put on hold successfully',
+      data: project,
+      timelineEntry
+    });
+  } catch (error) {
+    console.error('Hold project error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Cancel project (active/in_bidding → cancelled)
+// @route   POST /api/projects/:id/cancel
+// @access  Private (Client only)
+const cancelProject = async (req, res) => {
+  try {
+    let { remark } = req.body;
+
+    // Strip HTML tags and decode HTML entities if remark contains HTML
+    if (remark && typeof remark === 'string') {
+      // Remove HTML tags first
+      remark = remark.replace(/<[^>]*>/g, '');
+      // Decode common HTML entities
+      remark = remark
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/g, "'");
+      // Trim whitespace
+      remark = remark.trim();
+    }
+
+    if (!remark || remark.length === 0) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'Remark is required to cancel a project'
+      });
+    }
+
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Only client can cancel their own project
+    if (req.user.role !== USER_ROLES.CLIENT) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'Only clients can cancel projects'
+      });
+    }
+
+    if (project.client.toString() !== req.user.id) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'You can only cancel your own projects'
+      });
+    }
+
+    // Validate current status - allow cancel from active, in_bidding, assigned, or in_progress
+    if (![PROJECT_STATUS.ACTIVE, PROJECT_STATUS.IN_BIDDING, PROJECT_STATUS.ASSIGNED, PROJECT_STATUS.IN_PROGRESS].includes(project.status)) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: `Project must be in active, in_bidding, assigned, or in_progress status to cancel. Current status: ${project.status}`
+      });
+    }
+
+    const oldStatus = project.status;
+    project.status = PROJECT_STATUS.CANCELLED;
+    project.statusRemarks = remark;
+    await project.save();
+
+    // Log to timeline and emit socket event
+    const timelineEntry = await logStatusChangeAndEmit(
+      project._id,
+      req.user.id,
+      req.user.role,
+      oldStatus,
+      PROJECT_STATUS.CANCELLED,
+      'cancel_project',
+      remark.trim()
+    );
+
+    // Log activity
+    await ActivityLogger.logActivity({
+      user: req.user.id,
+      project: project._id,
+      activityType: 'project_status_changed',
+      title: 'Project Cancelled',
+      description: `Project "${project.title}" cancelled by ${req.user.name}. Reason: ${remark.trim()}`,
+      metadata: {
+        oldStatus,
+        newStatus: PROJECT_STATUS.CANCELLED,
+        action: 'cancel_project',
+        reason: remark.trim()
+      },
+      tags: ['project', 'status', 'cancel'],
+      severity: 'high',
+      visibleToClient: true,
+      visibleToAdmin: true
+    }, req);
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: 'Project cancelled successfully',
+      data: project,
+      timelineEntry
+    });
+  } catch (error) {
+    console.error('Cancel project error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Resume project (hold → in_progress)
+// @route   POST /api/projects/:id/resume
+// @access  Private (Client only)
+const resumeProject = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Only client can resume their own project
+    if (req.user.role !== USER_ROLES.CLIENT) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'Only clients can resume projects'
+      });
+    }
+
+    if (project.client.toString() !== req.user.id) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'You can only resume your own projects'
+      });
+    }
+
+    // Validate current status - allow resume from both hold and cancelled
+    if (project.status !== PROJECT_STATUS.HOLD && project.status !== PROJECT_STATUS.CANCELLED) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: `Project must be in hold or cancelled status to resume. Current status: ${project.status}`
+      });
+    }
+
+    // Validate transition is allowed based on current status
+    const { CLIENT_ALLOWED_TRANSITIONS } = require('../constants');
+    const allowedNextStatuses = CLIENT_ALLOWED_TRANSITIONS[project.status] || [];
+    if (!allowedNextStatuses.includes(PROJECT_STATUS.IN_PROGRESS)) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: `Resuming to in_progress is not allowed from ${project.status} status. Allowed transitions: ${allowedNextStatuses.join(', ')}`
+      });
+    }
+
+    // Check if project has an assigned freelancer (required for in_progress status)
+    if (!project.assignedFreelancerId) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'Cannot resume project to in_progress status without an assigned freelancer'
+      });
+    }
+
+    const oldStatus = project.status;
+    project.status = PROJECT_STATUS.IN_PROGRESS;
+    await project.save();
+
+    // Log to timeline and emit socket event
+    const timelineEntry = await logStatusChangeAndEmit(
+      project._id,
+      req.user.id,
+      req.user.role,
+      oldStatus,
+      PROJECT_STATUS.IN_PROGRESS,
+      'resume_project',
+      null
+    );
+
+    // Log activity
+    await ActivityLogger.logActivity({
+      user: req.user.id,
+      project: project._id,
+      activityType: 'project_status_changed',
+      title: 'Project Resumed',
+      description: `Project "${project.title}" resumed by ${req.user.name} and status changed to In Progress`,
+      metadata: {
+        oldStatus,
+        newStatus: PROJECT_STATUS.IN_PROGRESS,
+        action: 'resume_project'
+      },
+      tags: ['project', 'status', 'resume'],
+      severity: 'medium',
+      visibleToClient: true,
+      visibleToAdmin: true
+    }, req);
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      message: 'Project resumed successfully',
+      data: project,
+      timelineEntry
+    });
+  } catch (error) {
+    console.error('Resume project error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
+// @desc    Get project timeline
+// @route   GET /api/projects/:id/timeline
+// @access  Private
+const getProjectTimeline = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Check permissions
+    if (req.user.role === USER_ROLES.CLIENT && project.client.toString() !== req.user.id) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    const timeline = await ProjectTimeline.find({ projectId: project._id })
+      .populate('userId', 'name email userID role')
+      .sort({ timestamp: -1 })
+      .lean();
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      count: timeline.length,
+      data: timeline
+    });
+  } catch (error) {
+    console.error('Get project timeline error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
 module.exports = {
   getProjects,
   getProject,
@@ -1358,5 +2314,13 @@ module.exports = {
   addAdditionalDescription,
   deleteAdditionalDescription,
   markProjectForBidding,
-  requestConsultation
+  requestConsultation,
+  postProject,
+  createBidding,
+  awardBidding,
+  completeProject,
+  holdProject,
+  cancelProject,
+  resumeProject,
+  getProjectTimeline
 };

@@ -80,6 +80,7 @@ import AgentManagement from "./pages/admin/AgentManagement";
 import ClientsManagement from "./pages/admin/ClientsManagement";
 import FreelancerManagement from "./pages/admin/FreelancerManagement";
 import UserDetail from "./pages/admin/UserDetail";
+import AdminAuditLogs from "./pages/admin/AuditLogs";
 
 // Agent portal
 import AgentDashboard from "./pages/agent/AgentDashboard";
@@ -206,6 +207,7 @@ function AppRoutes() {
       <Route path="/admin/agents" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AgentManagement /></ProtectedRoute>} />
       <Route path="/admin/clients" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><ClientsManagement /></ProtectedRoute>} />
       <Route path="/admin/freelancers-management" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><FreelancerManagement /></ProtectedRoute>} />
+      <Route path="/admin/audit-logs" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminAuditLogs /></ProtectedRoute>} />
 
       {/* Agent routes */}
       <Route path="/agent/dashboard" element={<ProtectedRoute allowedRoles={['agent']}><AgentDashboard /></ProtectedRoute>} />

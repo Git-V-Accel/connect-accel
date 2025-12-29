@@ -171,7 +171,7 @@ export default function SubmitBid() {
                 step="1000"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">Project budget: ${project.budget.toLocaleString()}</p>
+              <p className="text-xs text-gray-500 mt-1">Project budget: ₹{project.budget.toLocaleString()}</p>
             </div>
 
             <div>

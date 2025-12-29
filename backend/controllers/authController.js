@@ -61,41 +61,53 @@ const register = async (req, res) => {
     const { name, email, password, phone } = req.body;
 
     // Validation
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !phone) {
       return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
-        message: MESSAGES.PROVIDE_NAME_EMAIL_PASSWORD
+        message: 'Please provide name, email, password and phone number'
       });
     }
 
     // Check if user exists
-    const userExists = await User.findOne({ email });
-    if (userExists) {
+    let user = await User.findOne({ email });
+    
+    if (user && user.isEmailVerified) {
       return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
         message: MESSAGES.USER_EXISTS
       });
     }
 
-    // Generate userID for client (signup is only for clients)
-    const userID = await generateUserId(USER_ROLES.CLIENT);
-
     // Generate OTP for email verification (6 digits, expires in 10 minutes)
     const { otpCode, otpExpire } = generateOTPWithExpiry(10);
 
-    // Create user with inactive status and OTP
-    const user = await User.create({
-      userID,
-      name,
-      email,
-      password,
-      phone: phone || undefined, // Phone is optional but included if provided
-      role: USER_ROLES.CLIENT, // Explicitly set role as client for signups
-      status: USER_STATUS.INACTIVE, // Set to inactive until OTP is verified
-      isEmailVerified: false,
-      otpCode,
-      otpExpire
-    });
+    if (user) {
+      // If user exists but is not verified, update their info
+      user.name = name;
+      user.password = password;
+      user.phone = phone;
+      user.otpCode = otpCode;
+      user.otpExpire = otpExpire;
+      user.status = USER_STATUS.INACTIVE;
+      await user.save();
+    } else {
+      // Generate userID for client (signup is only for clients)
+      const userID = await generateUserId(USER_ROLES.CLIENT);
+
+      // Create new user with inactive status and OTP
+      user = await User.create({
+        userID,
+        name,
+        email,
+        password,
+        phone,
+        role: USER_ROLES.CLIENT, // Explicitly set role as client for signups
+        status: USER_STATUS.INACTIVE, // Set to inactive until OTP is verified
+        isEmailVerified: false,
+        otpCode,
+        otpExpire
+      });
+    }
 
     // Send OTP email
     const otpMessage = otpVerificationTemplate(otpCode, {
@@ -110,8 +122,8 @@ const register = async (req, res) => {
         message: otpMessage
       });
 
-    res.status(STATUS_CODES.CREATED).json({
-      success: true,
+      res.status(STATUS_CODES.CREATED).json({
+        success: true,
         message: MESSAGES.OTP_SENT,
         email: user.email, // Return email for frontend to show OTP verification
         requiresVerification: true
@@ -119,14 +131,21 @@ const register = async (req, res) => {
     } catch (error) {
       console.error('Email sending error during registration:', error);
       
-      // If email sending fails, delete the user
-      await User.findByIdAndDelete(user._id);
+      // If email sending fails and it was a brand new user (not an existing unverified one), 
+      // delete the user to allow a fresh start. 
+      // For existing unverified users, we keep them so they can try again.
+      // We check if it's new by seeing if it was just created (updatedAt == createdAt) 
+      // and isEmailVerified is false.
+      if (user.createdAt.getTime() === user.updatedAt.getTime()) {
+        await User.findByIdAndDelete(user._id);
+      }
       
       return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: MESSAGES.EMAIL_SEND_FAILED
       });
     }
+
   } catch (error) {
     console.error('Registration error:', error);
     res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
@@ -135,6 +154,7 @@ const register = async (req, res) => {
     });
   }
 };
+
 
 // @desc    Login user
 // @route   POST /api/auth/login
@@ -441,13 +461,22 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Get user (current password was already validated when OTP was sent)
-    const user = await User.findById(req.user.id);
+    // Get user with password to check for reuse
+    const user = await User.findById(req.user.id).select('+password');
 
     if (!user) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
         message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
+    // Check if new password is same as current password
+    const isSame = await user.comparePassword(newPassword);
+    if (isSame) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'New password must be different from current password'
       });
     }
 
@@ -545,7 +574,8 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    userEmail = email.trim().toLowerCase();
+    user = await User.findOne({ email: userEmail });
 
     if (!user) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
@@ -561,7 +591,7 @@ const forgotPassword = async (req, res) => {
     user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     user.resetPasswordExpire = Date.now() + PASSWORD_RESET_CONFIG.TOKEN_EXPIRE_TIME;
 
-    await user.save();
+    await user.save({ validateBeforeSave: false });
 
     // Create reset URL - point to frontend route
     // Use FRONTEND_URL from environment if available, otherwise construct from request
@@ -625,7 +655,7 @@ const resetPassword = async (req, res) => {
     const user = await User.findOne({
       resetPasswordToken,
       resetPasswordExpire: { $gt: Date.now() }
-    });
+    }).select('+password');
 
     if (!user) {
       return res.status(STATUS_CODES.BAD_REQUEST).json({
@@ -634,12 +664,22 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Set new password
+    // Check if new password is same as current password
+    const isSame = await user.comparePassword(req.body.password);
+        if (isSame) {
+          return res.status(STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: 'New password must be different from current password'
+          });
+    }
+
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
 
-    await user.save();
+    // Save without full validation since we're only updating password and token fields
+    // The password itself is validated above (length check) and will be hashed by pre-save hook
+    await user.save({ validateBeforeSave: false });
 
     // Generate tokens
     const token = generateToken(user._id);
@@ -866,13 +906,22 @@ const firstLoginChangePassword = async (req, res) => {
       });
     }
 
-    // Get user
-    const user = await User.findById(req.user.id);
+    // Get user with password to check for reuse
+    const user = await User.findById(req.user.id).select('+password');
 
     if (!user) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
         message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
+    // Check if new password is same as current password
+    const isSame = await user.comparePassword(newPassword);
+    if (isSame) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
+        success: false,
+        message: 'New password must be different from current password'
       });
     }
 

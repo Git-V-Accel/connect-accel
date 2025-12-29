@@ -98,6 +98,7 @@ app.use("/api/bids", require("./routes/bids"));
 app.use("/api/bidding", require("./routes/bidding"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/activity-logs", require("./routes/activityLogs"));
+app.use("/api/audit-logs", require("./routes/auditLogRoutes"));
 app.use("/api/consultations", require("./routes/consultations"));
 app.use("/api/freelancer-project-details", require("./routes/freelancerProjectDetails"));
 

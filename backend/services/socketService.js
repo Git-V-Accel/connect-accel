@@ -72,6 +72,24 @@ class SocketService {
         }
       });
 
+      // Handle joining user room (for user-specific events)
+      socket.on('join:user', (data) => {
+        const { userId } = data;
+        if (userId && userId === socket.userId) {
+          socket.join(`user-${userId}`);
+          console.log(`User ${socket.userId} joined user room: user-${userId}`);
+        }
+      });
+
+      // Handle leaving user room
+      socket.on('leave:user', (data) => {
+        const { userId } = data;
+        if (userId && userId === socket.userId) {
+          socket.leave(`user-${userId}`);
+          console.log(`User ${socket.userId} left user room: user-${userId}`);
+        }
+      });
+
       // Handle disconnection
       socket.on('disconnect', () => {
         console.log(`User ${socket.userId} disconnected from socket`);
@@ -115,6 +133,31 @@ class SocketService {
       });
       console.log(`Emitted ${event} to all users:`, data);
     }
+  }
+
+  // Emit project status update to specific users
+  emitProjectStatusUpdated(projectId, newStatus, timelineEntry, recipientUserIds) {
+    if (!this.io) return;
+
+    const payload = {
+      projectId: projectId.toString(),
+      newStatus,
+      timelineEntry,
+      timestamp: new Date()
+    };
+
+    // Emit to specific user sockets
+    recipientUserIds.forEach(userId => {
+      const userSocket = this.connectedUsers.get(userId.toString());
+      if (userSocket) {
+        userSocket.emit('project_status_updated', payload);
+      }
+    });
+
+    // Also emit to project room for users already in it
+    this.io.to(`project-${projectId}`).emit('project_status_updated', payload);
+
+    console.log(`Emitted project_status_updated for project ${projectId} to ${recipientUserIds.length} users`);
   }
 
   // Project-specific events

@@ -4,6 +4,8 @@ const sendEmail = require('../utils/sendEmail');
 const { userCreationTemplate } = require('../templates/emailTemplates');
 const { generateTemporaryPassword } = require('../utils/passwordGenerator');
 const { generateUserId } = require('../utils/userIdGenerator');
+const { createAuditLog, detectChanges } = require('../utils/auditLogger');
+const { AUDIT_ACTIONS } = require('../constants/auditMessages');
 
 // @desc    Get current user
 // @route   GET /api/users/me
@@ -70,6 +72,9 @@ const updateProfile = async (req, res) => {
       }
     }
 
+    // Get current user data for audit log
+    const oldUser = await User.findById(req.user.id).select('-password');
+
     // Prepare update data - include all fields that can be updated
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -93,6 +98,22 @@ const updateProfile = async (req, res) => {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
         message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
+    // Create audit log for profile update
+    const fieldsToCheck = ['name', 'email', 'phone', 'company', 'title', 'location', 'website', 'bio', 'avatar', 'additionalFields'];
+    const { changes, previousValues, newValues } = detectChanges(oldUser.toObject(), user.toObject(), fieldsToCheck);
+    
+    if (Object.keys(changes).length > 0) {
+      await createAuditLog({
+        performedBy: user,
+        targetUser: user,
+        action: AUDIT_ACTIONS.USER_PROFILE_UPDATED,
+        changes,
+        previousValues,
+        newValues,
+        req
       });
     }
 
@@ -130,6 +151,30 @@ const updateProfile = async (req, res) => {
 // @access  Private
 const deleteAccount = async (req, res) => {
   try {
+    // Get user data before deletion for audit log
+    const user = await User.findById(req.user.id).select('-password');
+    
+    if (!user) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
+    // Create audit log before deletion
+    await createAuditLog({
+      performedBy: user,
+      targetUser: user,
+      action: AUDIT_ACTIONS.USER_DELETED,
+      previousValues: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status
+      },
+      req
+    });
+
     await User.findByIdAndDelete(req.user.id);
 
     res.status(STATUS_CODES.OK).json({
@@ -158,7 +203,7 @@ const getAllUsers = async (req, res) => {
     }
     // Superadmins can see all users
     
-    const users = await User.find(query).select('-password');
+    const users = await User.find(query).select('-password').sort({ createdAt: -1 });
 
     res.status(STATUS_CODES.OK).json({
       success: true,
@@ -359,6 +404,16 @@ const updateUserRole = async (req, res) => {
       });
     }
 
+    // Get old user data for audit log
+    const oldUser = await User.findById(req.params.id).select('-password');
+    
+    if (!oldUser) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { role },
@@ -371,6 +426,18 @@ const updateUserRole = async (req, res) => {
         message: MESSAGES.USER_NOT_FOUND
       });
     }
+
+    // Create audit log for role update
+    const performedByUser = await User.findById(req.user.id).select('-password');
+    await createAuditLog({
+      performedBy: performedByUser,
+      targetUser: user,
+      action: AUDIT_ACTIONS.USER_ROLE_UPDATED,
+      changes: { role: { from: oldUser.role, to: user.role } },
+      previousValues: { role: oldUser.role },
+      newValues: { role: user.role },
+      req
+    });
 
     res.status(STATUS_CODES.OK).json({
       success: true,
@@ -394,7 +461,6 @@ const createUser = async (req, res) => {
     const {
       name,
       email,
-      confirmEmail,
       role,
       phone,
       avatar,
@@ -413,18 +479,10 @@ const createUser = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!name || !email || !confirmEmail || !role) {
+    if (!name || !email || !role) {
       return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
-        message: 'Name, email, confirm email, and role are required'
-      });
-    }
-
-    // Validate email confirmation
-    if (email !== confirmEmail) {
-      return res.status(STATUS_CODES.BAD_REQUEST).json({
-        success: false,
-        message: 'Email and confirm email do not match'
+        message: 'Name, email, and role are required'
       });
     }
 
@@ -502,6 +560,22 @@ const createUser = async (req, res) => {
 
     // Create user
     const user = await User.create(userData);
+
+    // Create audit log for user creation
+    const performedByUser = await User.findById(req.user.id).select('-password');
+    await createAuditLog({
+      performedBy: performedByUser,
+      targetUser: user,
+      action: AUDIT_ACTIONS.USER_CREATED,
+      newValues: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        userID: user.userID
+      },
+      req
+    });
 
     // Send welcome email with credentials
     let emailSent = false;
@@ -587,6 +661,16 @@ const updateUserStatus = async (req, res) => {
       });
     }
 
+    // Get old user data for audit log
+    const oldUser = await User.findById(req.params.id).select('-password');
+    
+    if (!oldUser) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { status },
@@ -599,6 +683,18 @@ const updateUserStatus = async (req, res) => {
         message: MESSAGES.USER_NOT_FOUND
       });
     }
+
+    // Create audit log for status update
+    const performedByUser = await User.findById(req.user.id).select('-password');
+    await createAuditLog({
+      performedBy: performedByUser,
+      targetUser: user,
+      action: AUDIT_ACTIONS.USER_STATUS_UPDATED,
+      changes: { status: { from: oldUser.status, to: user.status } },
+      previousValues: { status: oldUser.status },
+      newValues: { status: user.status },
+      req
+    });
 
     res.status(STATUS_CODES.OK).json({
       success: true,
@@ -669,6 +765,16 @@ const updateUser = async (req, res) => {
     if (location) updateData.location = location;
     if (title) updateData.title = title;
 
+    // Get old user data for audit log
+    const oldUser = await User.findById(req.params.id).select('-password');
+    
+    if (!oldUser) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       updateData,
@@ -679,6 +785,23 @@ const updateUser = async (req, res) => {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
         message: MESSAGES.USER_NOT_FOUND
+      });
+    }
+
+    // Create audit log for user update
+    const fieldsToCheck = ['name', 'email', 'phone', 'avatar', 'adminRole', 'skills', 'hourlyRate', 'experience', 'bio', 'company', 'website', 'location', 'title'];
+    const { changes, previousValues, newValues } = detectChanges(oldUser.toObject(), user.toObject(), fieldsToCheck);
+    
+    if (Object.keys(changes).length > 0) {
+      const performedByUser = await User.findById(req.user.id).select('-password');
+      await createAuditLog({
+        performedBy: performedByUser,
+        targetUser: user,
+        action: AUDIT_ACTIONS.USER_UPDATED,
+        changes,
+        previousValues,
+        newValues,
+        req
       });
     }
 
@@ -701,7 +824,7 @@ const updateUser = async (req, res) => {
 // @access  Private/Superadmin
 const deleteUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).select('-password');
 
     if (!user) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
@@ -709,6 +832,22 @@ const deleteUser = async (req, res) => {
         message: MESSAGES.USER_NOT_FOUND
       });
     }
+
+    // Create audit log before deletion
+    const performedByUser = await User.findById(req.user.id).select('-password');
+    await createAuditLog({
+      performedBy: performedByUser,
+      targetUser: user,
+      action: AUDIT_ACTIONS.USER_DELETED,
+      previousValues: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        userID: user.userID
+      },
+      req
+    });
 
     await User.findByIdAndDelete(req.params.id);
 

@@ -67,6 +67,9 @@ export enum SocketEvents {
   CUSTOM_MESSAGE_INVITATION_SENT = 'custom_message:invitation_sent',
   CUSTOM_MESSAGE_INVITATION_ACCEPTED = 'custom_message:invitation_accepted',
   CUSTOM_MESSAGE_INVITATION_DECLINED = 'custom_message:invitation_declined',
+
+  // Project status events
+  PROJECT_STATUS_UPDATED = 'project_status_updated',
 }
 
 // Socket room types

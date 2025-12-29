@@ -16,12 +16,15 @@ import { ArrowLeft, ArrowRight, Check, Calendar, IndianRupee, FileText, Settings
 import { toast } from '../../utils/toast';
 import { categories, commonSkills, projectTypes, projectPriorities } from '../../constants/projectConstants';
 import { RichTextViewer } from '../../components/common';
+import { Chip } from '@mui/material';
+import { validateProjectTitle, validateProjectDescription, validateBudget, validateDuration, VALIDATION_MESSAGES } from '../../constants/validationConstants';
+import { requestConsultation } from '../../services/projectService';
 
 export default function CreateProject() {
   const { user } = useAuth();
   const { createProject } = useData();
   const navigate = useNavigate();
-  
+
   const [step, setStep] = useState(1);
   const [visitedSteps, setVisitedSteps] = useState<Set<number>>(new Set([1]));
   const formContentRef = useRef<HTMLDivElement>(null);
@@ -30,6 +33,8 @@ export default function CreateProject() {
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [newSkillInput, setNewSkillInput] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [consultationLoading, setConsultationLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -73,6 +78,45 @@ export default function CreateProject() {
     }
   };
 
+  const validateStep = (stepNumber: number): boolean => {
+    const stepErrors: Record<string, string> = {};
+
+    if (stepNumber === 1) {
+      const titleResult = validateProjectTitle(formData.title);
+      if (!titleResult.isValid) stepErrors.title = titleResult.error || VALIDATION_MESSAGES.PROJECT_TITLE.REQUIRED;
+
+      const descResult = validateProjectDescription(formData.description);
+      if (!descResult.isValid) stepErrors.description = descResult.error || VALIDATION_MESSAGES.PROJECT_DESCRIPTION.REQUIRED;
+
+      if (!formData.category) stepErrors.category = VALIDATION_MESSAGES.PROJECT_CATEGORY.REQUIRED;
+      if (!formData.project_type) stepErrors.project_type = VALIDATION_MESSAGES.PROJECT_TYPE.REQUIRED;
+
+      setErrors(stepErrors);
+      return Object.keys(stepErrors).length === 0;
+    } else if (stepNumber === 2) {
+      const budgetResult = validateBudget(formData.client_budget);
+      if (!budgetResult.isValid) stepErrors.client_budget = budgetResult.error || VALIDATION_MESSAGES.PROJECT_BUDGET.REQUIRED;
+
+      const durationResult = validateDuration(formData.duration_weeks);
+      if (!durationResult.isValid) stepErrors.duration_weeks = durationResult.error || VALIDATION_MESSAGES.PROJECT_DURATION.REQUIRED;
+
+      if (!formData.priority) stepErrors.priority = VALIDATION_MESSAGES.PROJECT_PRIORITY.REQUIRED;
+
+      setErrors(stepErrors);
+      return Object.keys(stepErrors).length === 0;
+    } else if (stepNumber === 3) {
+      if (formData.skills_required.length === 0) {
+        stepErrors.skills_required = VALIDATION_MESSAGES.PROJECT_SKILLS.MIN_COUNT;
+        setErrors(stepErrors);
+        return false;
+      }
+      setErrors({});
+      return true;
+    }
+    setErrors({});
+    return true;
+  };
+
   const canProceed = () => {
     switch (step) {
       case 1:
@@ -90,18 +134,18 @@ export default function CreateProject() {
 
   const changeStep = (newStep: number, skipValidation = false) => {
     if (isTransitioning) return;
-    
+
     // Validation: can only go forward if current step is valid
     if (newStep > step && !skipValidation && !canProceed()) {
       return;
     }
-    
+
     // Can go back to any visited step, or forward if validation passes
     if (newStep <= step || visitedSteps.has(newStep) || (newStep === step + 1 && canProceed())) {
       setIsTransitioning(true);
       setStep(newStep);
       setVisitedSteps(prev => new Set([...prev, newStep]));
-      
+
       setTimeout(() => {
         setIsTransitioning(false);
       }, 300); // Match CSS transition duration
@@ -113,6 +157,11 @@ export default function CreateProject() {
   };
 
   const handleNext = () => {
+    if (!validateStep(step)) {
+      const firstError = Object.values(errors)[0];
+      if (firstError) toast.error(firstError);
+      return;
+    }
     if (canProceed() && step < 4) {
       changeStep(step + 1);
     }
@@ -127,15 +176,15 @@ export default function CreateProject() {
   // Throttled scroll handler
   const handleWheel = (e: WheelEvent) => {
     if (isTransitioning || scrollTimeoutRef.current) return;
-    
+
     e.preventDefault();
-    
+
     scrollTimeoutRef.current = setTimeout(() => {
       scrollTimeoutRef.current = null;
     }, 500); // Throttle: 500ms between scroll actions
-    
+
     const deltaY = e.deltaY;
-    
+
     if (deltaY > 0) {
       // Scrolling down - go to next step
       if (canProceed() && step < 4) {
@@ -160,21 +209,21 @@ export default function CreateProject() {
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (!touchStartRef.current || isTransitioning) return;
-    
+
     const touchEnd = {
       x: e.changedTouches[0].clientX,
       y: e.changedTouches[0].clientY,
       time: Date.now(),
     };
-    
+
     const deltaX = touchEnd.x - touchStartRef.current.x;
     const deltaY = touchEnd.y - touchStartRef.current.y;
     const deltaTime = touchEnd.time - touchStartRef.current.time;
-    
+
     // Minimum swipe distance and maximum time
     const minSwipeDistance = 50;
     const maxSwipeTime = 300;
-    
+
     // Check if it's a vertical swipe (more vertical than horizontal)
     if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > minSwipeDistance && deltaTime < maxSwipeTime) {
       if (deltaY < 0) {
@@ -189,7 +238,7 @@ export default function CreateProject() {
         }
       }
     }
-    
+
     touchStartRef.current = null;
   };
 
@@ -209,32 +258,89 @@ export default function CreateProject() {
     };
   }, [step, isTransitioning]);
 
-  const handleSubmit = async () => {
+  const handleRequestConsultation = async () => {
+    if (!user) {
+      toast.error('Please log in to request a consultation');
+      return;
+    }
+
+    setConsultationLoading(true);
+    try {
+      // Prepare project details from form data
+      const consultationData: {
+        projectTitle?: string;
+        projectDescription?: string;
+        projectBudget?: string;
+        projectTimeline?: string;
+        projectCategory?: string;
+        message?: string;
+      } = {};
+
+      if (formData.title) consultationData.projectTitle = formData.title;
+      if (formData.description) {
+        // Strip HTML tags for description
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = formData.description;
+        consultationData.projectDescription = tempDiv.textContent || tempDiv.innerText || '';
+      }
+      if (formData.client_budget) consultationData.projectBudget = `₹${formData.client_budget}`;
+      if (formData.duration_weeks) consultationData.projectTimeline = `${formData.duration_weeks} weeks`;
+      if (formData.category) consultationData.projectCategory = formData.category;
+
+      consultationData.message = `Consultation request for project: ${formData.title || 'New Project'}`;
+
+      await requestConsultation(consultationData);
+      toast.success('Consultation request sent successfully! Our team will contact you shortly.');
+    } catch (error: any) {
+      console.error('Failed to request consultation:', error);
+      const errorMessage = error?.response?.data?.message || error.message || 'Failed to send consultation request';
+      toast.error(errorMessage);
+    } finally {
+      setConsultationLoading(false);
+    }
+  };
+
+  const handleSubmit = async (status: string) => {
     if (!user) return;
 
+    // Validate all steps before submission
+    for (let i = 1; i <= 3; i++) {
+      if (!validateStep(i)) {
+        const firstError = Object.values(errors)[0];
+        if (firstError) toast.error(firstError);
+        setStep(i); // Navigate to the step with errors
+        return;
+      }
+    }
+
     try {
-    const budget = parseInt(formData.client_budget);
+      const budget = parseInt(formData.client_budget);
       const project = await createProject({
-      title: formData.title,
-      description: formData.description,
-      client_id: user.id,
-      client_name: user.name,
-      status: 'pending_review',
-      category: formData.category,
-      skills_required: formData.skills_required,
-      budget: budget,
-      client_budget: budget,
-      duration_weeks: parseInt(formData.duration_weeks),
-      priority: formData.priority as 'low' | 'medium' | 'high',
-      complexity: 'moderate', // Default value, can be updated later
-      requirements: false, // Default value
+        title: formData.title,
+        description: formData.description,
+        client_id: user.id,
+        client_name: user.name,
+        status: status === "draft" ? "draft" : "active",
+        category: formData.category,
+        skills_required: formData.skills_required,
+        budget: budget,
+        client_budget: budget,
+        duration_weeks: parseInt(formData.duration_weeks),
+        priority: formData.priority as 'low' | 'medium' | 'high',
+        complexity: 'moderate', // Default value, can be updated later
+        requirements: false, // Default value
         timeline: `${formData.duration_weeks} weeks`,
         isNegotiableBudget: formData.negotiable,
-    });
+        project_type: formData.project_type,
+      });
 
-    toast.success('Project submitted successfully! Our team will review it shortly.');
-    
-    navigate('/client/projects');
+      const successMessage = status === 'draft'
+        ? 'Project saved as draft successfully!'
+        : 'Project submitted successfully! Our team will review it shortly.';
+
+      toast.success(successMessage);
+
+      navigate('/client/projects');
     } catch (error: any) {
       // Error is already handled in DataContext with toast
       console.error('Failed to create project:', error);
@@ -258,19 +364,28 @@ export default function CreateProject() {
                   id="title"
                   placeholder="e.g., E-commerce Website for Fashion Store"
                   value={formData.title}
-                  onChange={e => updateFormData('title', e.target.value)}
+                  onChange={e => {
+                    updateFormData('title', e.target.value);
+                    if (errors.title) setErrors({ ...errors, title: '' });
+                  }}
+                  className={errors.title ? 'border-red-500' : ''}
                 />
+                {errors.title && <p className="text-sm text-red-600 mt-1">{errors.title}</p>}
               </div>
 
               <div>
                 <Label htmlFor="description">Project Description *</Label>
                 <RichTextEditor
                   value={formData.description}
-                  onChange={(value) => updateFormData('description', value)}
+                  onChange={(value) => {
+                    updateFormData('description', value);
+                    if (errors.description) setErrors({ ...errors, description: '' });
+                  }}
                   placeholder="Describe your project in detail. What are you trying to build? What problem does it solve?"
-                  className="mt-1"
+                  className={`mt-1 ${errors.description ? 'border-red-500' : ''}`}
                   minHeight="200px"
                 />
+                {errors.description && <p className="text-sm text-red-600 mt-1">{errors.description}</p>}
                 <p className="text-sm text-gray-500 mt-1">
                   Be as detailed as possible. This helps us match you with the right freelancers.
                 </p>
@@ -278,8 +393,11 @@ export default function CreateProject() {
 
               <div>
                 <Label htmlFor="category">Project Category *</Label>
-                <Select value={formData.category} onValueChange={val => updateFormData('category', val)}>
-                  <SelectTrigger>
+                <Select value={formData.category} onValueChange={val => {
+                  updateFormData('category', val);
+                  if (errors.category) setErrors({ ...errors, category: '' });
+                }}>
+                  <SelectTrigger className={errors.category ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -288,6 +406,7 @@ export default function CreateProject() {
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.category && <p className="text-sm text-red-600 mt-1">{errors.category}</p>}
               </div>
 
               <div>
@@ -296,11 +415,10 @@ export default function CreateProject() {
                   {projectTypes.map(type => (
                     <Card
                       key={type.value}
-                      className={`p-4 cursor-pointer transition-colors ${
-                        formData.project_type === type.value
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'hover:border-gray-400'
-                      }`}
+                      className={`p-4 cursor-pointer transition-colors ${formData.project_type === type.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'hover:border-gray-400'
+                        }`}
                       onClick={() => updateFormData('project_type', type.value)}
                     >
                       <div className="flex items-start justify-between">
@@ -315,6 +433,7 @@ export default function CreateProject() {
                     </Card>
                   ))}
                 </div>
+                {errors.project_type && <p className="text-sm text-red-600 mt-1">{errors.project_type}</p>}
               </div>
             </div>
           </div>
@@ -337,8 +456,13 @@ export default function CreateProject() {
                     type="number"
                     placeholder="50000"
                     value={formData.client_budget}
-                    onChange={e => updateFormData('client_budget', e.target.value)}
+                    onChange={e => {
+                      updateFormData('client_budget', e.target.value);
+                      if (errors.client_budget) setErrors({ ...errors, client_budget: '' });
+                    }}
+                    className={errors.client_budget ? 'border-red-500' : ''}
                   />
+                  {errors.client_budget && <p className="text-sm text-red-600 mt-1">{errors.client_budget}</p>}
                   <p className="text-sm text-gray-500 mt-1">
                     This is your total budget including all milestones and our service fees
                   </p>
@@ -351,11 +475,16 @@ export default function CreateProject() {
                     type="number"
                     placeholder="8"
                     value={formData.duration_weeks}
-                    onChange={e => updateFormData('duration_weeks', e.target.value)}
+                    onChange={e => {
+                      updateFormData('duration_weeks', e.target.value);
+                      if (errors.duration_weeks) setErrors({ ...errors, duration_weeks: '' });
+                    }}
+                    className={errors.duration_weeks ? 'border-red-500' : ''}
                   />
+                  {errors.duration_weeks && <p className="text-sm text-red-600 mt-1">{errors.duration_weeks}</p>}
                 </div>
               </div>
- <Card className="p-4">
+              <Card className="p-4">
                 <div className="flex items-start gap-3">
                   <Checkbox
                     id="negotiable"
@@ -378,12 +507,15 @@ export default function CreateProject() {
                   {projectPriorities.map(priority => (
                     <Card
                       key={priority.value}
-                      className={`p-4 cursor-pointer transition-colors ${
-                        formData.priority === priority.value
-                          ? 'border-blue-500 bg-blue-50'
+                      className={`p-4 cursor-pointer transition-colors ${formData.priority === priority.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : errors.priority ? 'border-red-300 hover:border-red-400'
                           : 'hover:border-gray-400'
-                      }`}
-                      onClick={() => updateFormData('priority', priority.value)}
+                        }`}
+                      onClick={() => {
+                        updateFormData('priority', priority.value);
+                        if (errors.priority) setErrors({ ...errors, priority: '' });
+                      }}
                     >
                       <div className="flex items-start justify-between">
                         <div>
@@ -397,9 +529,8 @@ export default function CreateProject() {
                     </Card>
                   ))}
                 </div>
+                {errors.priority && <p className="text-sm text-red-600 mt-1">{errors.priority}</p>}
               </div>
-
-             
             </div>
           </div>
         );
@@ -414,11 +545,6 @@ export default function CreateProject() {
 
             <div className="space-y-4">
               <div>
-                <Label>Required Skills *</Label>
-                <p className="text-sm text-gray-500 mb-3">
-                  Select from the list below or create new skills
-                </p>
-                
                 {/* Add New Skill Input */}
                 <div className="flex gap-2 mb-4">
                   <Input
@@ -439,25 +565,7 @@ export default function CreateProject() {
                   </Button>
                 </div>
 
-                {/* Selected Skills Display */}
-                {formData.skills_required.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-sm font-medium mb-2">Selected Skills:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.skills_required.map(skill => (
-                        <Badge
-                          key={skill}
-                          variant="default"
-                          className="cursor-pointer hover:bg-blue-700 transition-colors flex items-center gap-1"
-                          onClick={() => toggleSkill(skill)}
-                        >
-                          {skill}
-                          <X className="size-3" />
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
 
                 {/* Predefined Skills */}
                 <div>
@@ -466,15 +574,18 @@ export default function CreateProject() {
                     {commonSkills.map(skill => {
                       const isSelected = formData.skills_required.includes(skill);
                       return (
-                        <Badge
+                        <Chip
                           key={skill}
-                          variant={isSelected ? 'default' : 'outline'}
+                          variant={isSelected ? 'filled' : 'outlined'}
+                          label={
+                            <span className="flex items-center">
+                              {isSelected && <Check className="size-3 mr-1" />}
+                              {skill}
+                            </span>
+                          }
                           className="cursor-pointer hover:bg-blue-100 transition-colors"
                           onClick={() => toggleSkill(skill)}
-                        >
-                          {isSelected && <Check className="size-3 mr-1" />}
-                          {skill}
-                        </Badge>
+                        />
                       );
                     })}
                   </div>
@@ -482,6 +593,27 @@ export default function CreateProject() {
 
                 {formData.skills_required.length === 0 && (
                   <p className="text-sm text-red-500 mt-2">Please select or add at least one skill</p>
+                )}
+                {/* Selected Skills Display */}
+                {formData.skills_required.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm font-medium mb-2">Selected Skills:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.skills_required.map(skill => (
+                        <Chip
+                          key={skill}
+                          label={
+                            <span className="flex items-center gap-1">
+                              {skill}
+                              <X className="size-3" />
+                            </span>
+                          }
+                          className="cursor-pointer hover:bg-blue-700 transition-colors"
+                          onClick={() => toggleSkill(skill)}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -599,61 +731,63 @@ export default function CreateProject() {
             <h1 className="text-3xl">Create New Project</h1>
             <p className="text-gray-600">Submit a project and get matched with expert freelancers</p>
           </div>
-          <Button variant="default" onClick={() => alert('Consultation request Send successfully')}>
+          <Button
+            variant="default"
+            onClick={handleRequestConsultation}
+            disabled={consultationLoading}
+          >
             <Phone className="size-4 mr-2" />
-            Consultation
+            {consultationLoading ? 'Sending...' : 'Consultation'}
           </Button>
         </div>
 
-        {/* Progress Steps */}
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            {steps.map((s, index) => {
-              const isCompleted = step > s.number;
-              const isCurrent = step === s.number;
-              const isVisited = visitedSteps.has(s.number);
-              const canClick = isVisited || isCurrent;
-              
-              return (
-                <div key={s.number} className="flex items-center flex-1">
-                  <div className="flex flex-col items-center flex-1">
-                    <button
-                      type="button"
-                      onClick={() => canClick && handleStepChange(s.number)}
-                      disabled={!canClick}
-                      className={`size-10 rounded-full flex items-center justify-center transition-all ${
-                        isCompleted
-                          ? 'bg-green-600 text-white cursor-pointer hover:bg-green-700'
-                          : isCurrent
-                          ? 'bg-blue-600 text-white cursor-pointer hover:bg-blue-700'
-                          : isVisited
+
+
+        <div className="flex items-center justify-between">
+          {steps.map((s, index) => {
+            const isCompleted = step > s.number;
+            const isCurrent = step === s.number;
+            const isVisited = visitedSteps.has(s.number);
+            const canClick = isVisited || isCurrent;
+
+            return (
+              <div key={s.number} className="flex items-center flex-1">
+                <div className="flex flex-col items-center flex-1">
+                  <button
+                    type="button"
+                    onClick={() => canClick && handleStepChange(s.number)}
+                    disabled={!canClick}
+                    className={`size-10 rounded-full flex items-center justify-center transition-all ${isCompleted
+                      ? 'bg-green-600 text-white cursor-pointer hover:bg-green-700'
+                      : isCurrent
+                        ? 'bg-blue-600 text-white cursor-pointer hover:bg-blue-700'
+                        : isVisited
                           ? 'bg-gray-300 text-gray-600 cursor-pointer hover:bg-gray-400'
                           : 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-50'
                       } ${canClick ? 'hover:scale-105' : ''}`}
-                      title={canClick ? `Go to ${s.title}` : 'Complete previous steps first'}
-                    >
-                      {isCompleted ? <Check className="size-5" /> : s.icon}
-                    </button>
-                    <p className={`text-sm mt-2 ${step >= s.number ? 'font-medium' : 'text-gray-500'}`}>
-                      {s.title}
-                    </p>
-                  </div>
-                  {index < steps.length - 1 && (
-                    <div className={`h-1 flex-1 mx-2 rounded transition-colors ${step > s.number ? 'bg-green-600' : 'bg-gray-200'}`}></div>
-                  )}
+                    title={canClick ? `Go to ${s.title}` : 'Complete previous steps first'}
+                  >
+                    {isCompleted ? <Check className="size-5" /> : s.icon}
+                  </button>
+                  <p className={`text-sm mt-2 ${step >= s.number ? 'font-medium' : 'text-gray-500'}`}>
+                    {s.title}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        </Card>
+                {index < steps.length - 1 && (
+                  <div className={`h-1 flex-1 mx-2 rounded transition-colors ${step > s.number ? 'bg-green-600' : 'bg-gray-200'}`}></div>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
         {/* Form Content */}
-        <div 
+        <div
           ref={containerRef}
           className="overflow-hidden relative"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          style={{ height: '600px' }}
+          style={{ height: '62vh' }}
         >
           <Card ref={formContentRef} className="p-4 scroll-mt-4 h-full overflow-hidden">
             <div className="relative h-full">
@@ -666,61 +800,75 @@ export default function CreateProject() {
                   const isCurrentStep = stepNum === step;
                   const unlockedSteps = [1, 2, 3, 4].filter(s => visitedSteps.has(s) || s === step);
                   const currentIndex = unlockedSteps.indexOf(step);
-                  
-                  return (
-                    <div
-                      key={stepNum}
-                      className="w-full h-full overflow-y-auto absolute top-0 left-0 transition-all duration-300 ease-in-out"
-                      style={{ 
-                        height: '100%',
-                        width: '100%',
-                        transform: isCurrentStep 
-                          ? `translateY(0)` 
-                          : `translateY(${stepNum < step ? '-100%' : '100%'})`,
-                        opacity: isCurrentStep ? 1 : 0,
-                        pointerEvents: isCurrentStep ? 'auto' : 'none',
-                        zIndex: isCurrentStep ? 10 : 1,
-                      }}
-                    >
-                      <div className="space-y-6">
-                        {renderStep(stepNum)}
-                        {/* Navigation Buttons - only show for current step */}
-                        {isCurrentStep && (
-                          <div className="flex items-center justify-between pt-4 border-t">
-                            <Button
-                              variant="outline"
-                              onClick={handleBack}
-                              disabled={step === 1 || isTransitioning}
-                            >
-                              <ArrowLeft className="size-4 mr-2" />
-                              Previous
-                            </Button>
 
-                            {step < 4 ? (
-                              <Button
-                                onClick={handleNext}
-                                disabled={!canProceed() || isTransitioning}
-                              >
-                                Next
-                                <ArrowRight className="size-4 ml-2" />
-                              </Button>
-                            ) : (
-                              <Button onClick={handleSubmit} size="lg" disabled={isTransitioning}>
-                                Submit Project
-                                <Check className="size-4 ml-2" />
-                              </Button>
-                            )}
-                          </div>
-                        )}
+                  return (
+                    <>
+
+                      <div
+                        key={stepNum}
+                        className="w-full h-full overflow-y-auto absolute top-0 left-0 transition-all duration-300 ease-in-out"
+                        style={{
+                          height: '100%',
+                          width: '100%',
+                          transform: isCurrentStep
+                            ? `translateY(0)`
+                            : `translateY(${stepNum < step ? '-100%' : '100%'})`,
+                          opacity: isCurrentStep ? 1 : 0,
+                          pointerEvents: isCurrentStep ? 'auto' : 'none',
+                          zIndex: isCurrentStep ? 10 : 1,
+                        }}
+                      >
+                        <div className="space-y-6">
+                          {renderStep(stepNum)}
+                          {/* Navigation Buttons - only show for current step */}
+
+                        </div>
+
+
                       </div>
-                    </div>
+
+                    </>
+
+
                   );
                 })}
             </div>
           </Card>
         </div>
 
-       
+        <div className="flex items-center justify-between ">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={step === 1 || isTransitioning}
+          >
+            <ArrowLeft className="size-4 mr-2" />
+            Previous
+          </Button>
+
+          {step < 4 ? (
+            <Button
+              onClick={handleNext}
+              disabled={!canProceed() || isTransitioning}
+            >
+              Next
+              <ArrowRight className="size-4 ml-2" />
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button onClick={() => handleSubmit('draft')} variant="outline" size="lg" disabled={isTransitioning}>
+                Save as Draft
+                <FileText className="size-4 ml-2" />
+              </Button>
+              <Button onClick={() => handleSubmit('pending_review')} size="lg" disabled={isTransitioning}>
+                Submit Project
+                <Check className="size-4 ml-2" />
+              </Button>
+            </div>
+          )}
+        </div>
+
+
       </div>
     </DashboardLayout>
   );

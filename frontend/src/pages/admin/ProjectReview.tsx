@@ -59,6 +59,7 @@ import {
   Award,
   Star,
   Eye,
+  Loader2,
 } from "lucide-react";
 import { toast } from "../../utils/toast";
 import ProjectTimeline from "../../components/project/ProjectTimeline";
@@ -88,6 +89,7 @@ export default function ProjectReview() {
 
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingBids, setLoadingBids] = useState(false);
   const [projectBids, setProjectBids] = useState<Bid[]>([]);
   const [biddingsByBidId, setBiddingsByBidId] = useState<Map<string, any[]>>(new Map());
   const [acceptedBidding, setAcceptedBidding] = useState<any>(null);
@@ -148,7 +150,7 @@ export default function ProjectReview() {
   // Load agents list - Only for admin/superadmin (agents don't need this list)
   useEffect(() => {
     if (!isAdmin) return; // Only load agents list for admins/superadmins
-    
+
     const loadAgents = async () => {
       try {
         const users = await userService.listUsers();
@@ -165,11 +167,12 @@ export default function ProjectReview() {
   useEffect(() => {
     const loadBids = async () => {
       if (!id) return;
+      setLoadingBids(true);
       try {
         const response = await bidService.getProjectBids(id);
         const bids = Array.isArray(response) ? response : [];
         setProjectBids(bids);
-        
+
         // Load freelancer proposals (biddings) for each admin bid
         const biddingsMap = new Map<string, any[]>();
         await Promise.all(
@@ -190,6 +193,8 @@ export default function ProjectReview() {
       } catch (error: any) {
         console.error('Failed to load bids:', error);
         setProjectBids([]);
+      } finally {
+        setLoadingBids(false);
       }
     };
     loadBids();
@@ -214,10 +219,10 @@ export default function ProjectReview() {
 
         // Find the accepted one
         const accepted = allBiddings.find(
-          (bidding: any) => 
-            bidding.isAccepted === true && 
-            (bidding.freelancerId?._id?.toString() === project.freelancer_id || 
-             bidding.freelancerId?.toString() === project.freelancer_id)
+          (bidding: any) =>
+            bidding.isAccepted === true &&
+            (bidding.freelancerId?._id?.toString() === project.freelancer_id ||
+              bidding.freelancerId?.toString() === project.freelancer_id)
         );
 
         if (accepted) {
@@ -232,10 +237,10 @@ export default function ProjectReview() {
               if (response.data.success && response.data.data) {
                 const biddings = Array.isArray(response.data.data) ? response.data.data : [];
                 const acceptedBid = biddings.find(
-                  (b: any) => 
-                    b.isAccepted === true && 
-                    (b.freelancerId?._id?.toString() === project.freelancer_id || 
-                     b.freelancerId?.toString() === project.freelancer_id)
+                  (b: any) =>
+                    b.isAccepted === true &&
+                    (b.freelancerId?._id?.toString() === project.freelancer_id ||
+                      b.freelancerId?.toString() === project.freelancer_id)
                 );
                 if (acceptedBid) {
                   setAcceptedBidding(acceptedBid);
@@ -591,6 +596,20 @@ export default function ProjectReview() {
     }));
   };
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="size-12 text-blue-600 mx-auto mb-4 animate-spin" />
+            <h2 className="text-2xl mb-2">Loading Project...</h2>
+            <p className="text-gray-600">Please wait while we fetch the project details</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (!project) {
     return (
       <DashboardLayout>
@@ -623,10 +642,10 @@ export default function ProjectReview() {
     try {
       await updateProject(project.id, {
         status: "in_progress",
-    });
+      });
       toast.success("Project approved and status changed to In Progress!");
-    setIsApproveDialogOpen(false);
-      
+      setIsApproveDialogOpen(false);
+
       // Reload project to get updated status
       if (id) {
         try {
@@ -635,7 +654,7 @@ export default function ProjectReview() {
         } catch (error) {
           console.error('Failed to reload project:', error);
         }
-        
+
         // Reload activity logs after approval
         try {
           const logs = await getProjectActivityLogs(id);
@@ -663,9 +682,9 @@ export default function ProjectReview() {
       await updateProject(project.id, {
         status: "rejected",
         ...({ rejectionReason: rejectionReason.trim() } as any), // Include rejection reason in the update
-    });
+      });
       toast.success("Project rejected successfully");
-    setIsRejectDialogOpen(false);
+      setIsRejectDialogOpen(false);
       setRejectionReason("");
       setFieldError("rejectionReason", "");
       // Reload activity logs after rejection
@@ -677,7 +696,7 @@ export default function ProjectReview() {
           console.error('Failed to reload activity logs:', error);
         }
       }
-    navigate(isAgent ? "/agent/projects" : "/admin/projects");
+      navigate(isAgent ? "/agent/projects" : "/admin/projects");
     } catch (error: any) {
       console.error('Failed to reject project:', error);
       toast.error(error?.response?.data?.message || "Failed to reject project");
@@ -775,7 +794,7 @@ export default function ProjectReview() {
 
   const handleConfirmWithdrawBid = async (reason: string) => {
     if (!bidToWithdraw) return;
-    
+
     try {
       await bidService.deleteBid(bidToWithdraw.id, reason);
       toast.success('Bid withdrawn successfully');
@@ -1146,7 +1165,7 @@ export default function ProjectReview() {
                           </div>
                         ) : (
                           <p className="mt-1">
-                            ₹{project.client_budget.toLocaleString()}
+                            ₹{project.client_budget?.toLocaleString() || "0"}
                           </p>
                         )}
                       </div>
@@ -1196,7 +1215,7 @@ export default function ProjectReview() {
                         <Target className="size-3 mr-1" />
                         Total: ₹
                         {projectMilestones
-                          .reduce((sum, m) => sum + m.amount, 0)
+                          .reduce((sum, m) => sum + (Number(m.amount) || 0), 0)
                           .toLocaleString()}
                       </Badge>
                     </div>
@@ -1217,19 +1236,19 @@ export default function ProjectReview() {
                                     milestone.status === "paid"
                                       ? "default"
                                       : milestone.status === "approved"
-                                      ? "default"
-                                      : milestone.status === "submitted"
-                                      ? "secondary"
-                                      : "outline"
+                                        ? "default"
+                                        : milestone.status === "submitted"
+                                          ? "secondary"
+                                          : "outline"
                                   }
                                   className={
                                     milestone.status === "paid"
                                       ? "bg-green-100 text-green-800 border-green-200"
                                       : milestone.status === "approved"
-                                      ? "bg-blue-100 text-blue-800 border-blue-200"
-                                      : milestone.status === "submitted"
-                                      ? "bg-yellow-100 text-yellow-800 border-yellow-200"
-                                      : "bg-gray-100 text-gray-800 border-gray-200"
+                                        ? "bg-blue-100 text-blue-800 border-blue-200"
+                                        : milestone.status === "submitted"
+                                          ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                                          : "bg-gray-100 text-gray-800 border-gray-200"
                                   }
                                 >
                                   {milestone.status}
@@ -1253,15 +1272,15 @@ export default function ProjectReview() {
                                 <div className="flex items-center gap-1">
                                   <IndianRupee className="size-3" />
                                   <span className="font-medium text-gray-700">
-                                    ₹{milestone.amount.toLocaleString()}
+                                    ₹{milestone.amount?.toLocaleString() || "0"}
                                   </span>
                                 </div>
                                 {project && (
                                   <span className="text-xs">
                                     (
                                     {(
-                                      (milestone.amount /
-                                        project.client_budget) *
+                                      ((Number(milestone.amount) || 0) /
+                                        (project.client_budget || 1)) *
                                       100
                                     ).toFixed(1)}
                                     % of budget)
@@ -1346,9 +1365,9 @@ export default function ProjectReview() {
               <TabsContent value="timeline" className="space-y-4">
                 <Card className="p-6">
                   <h3 className="font-medium mb-4">Project Timeline</h3>
-                  <ProjectTimeline 
-                    activityLogs={activityLogs} 
-                    project={project} 
+                  <ProjectTimeline
+                    activityLogs={activityLogs}
+                    project={project}
                     loading={loadingLogs}
                   />
                 </Card>
@@ -1357,259 +1376,259 @@ export default function ProjectReview() {
               {/* Assigned Freelancer Tab */}
               <TabsContent value="freelancer" className="space-y-4">
                 {loadingFreelancer ? (
-                        <Card className="p-6">
-                          <div className="text-center py-8">
+                  <Card className="p-6">
+                    <div className="text-center py-8">
                       <p className="text-gray-600">Loading freelancer details...</p>
-                          </div>
-                        </Card>
+                    </div>
+                  </Card>
                 ) : project.freelancer_id ? (
                   assignedFreelancer ? (
                     (() => {
                       const freelancer = assignedFreelancer;
-                    return (
-                      <>
-                        <Card className="p-6">
-                          <div className="flex items-start justify-between mb-6">
-                            <div className="flex items-center gap-4">
-                              <div className="size-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-medium">
-                                {freelancer.name?.charAt(0)?.toUpperCase() || 'F'}
-                              </div>
-                              <div>
-                                <h2 className="text-2xl font-medium">
-                                  {freelancer.name}
-                                </h2>
-                                <p className="text-gray-600">
-                                  {freelancer.title || 'Freelancer'}
-                                </p>
-                                {freelancer.rating !== undefined && freelancer.rating > 0 && (
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-yellow-500">⭐</span>
-                                  <span className="font-medium">
-                                    {freelancer.rating.toFixed(1)}
-                                  </span>
-                                  <span className="text-gray-500">
-                                      ({freelancer.total_reviews || 0} reviews)
-                                  </span>
+                      return (
+                        <>
+                          <Card className="p-6">
+                            <div className="flex items-start justify-between mb-6">
+                              <div className="flex items-center gap-4">
+                                <div className="size-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-medium">
+                                  {freelancer.name?.charAt(0)?.toUpperCase() || 'F'}
                                 </div>
-                                )}
+                                <div>
+                                  <h2 className="text-2xl font-medium">
+                                    {freelancer.name}
+                                  </h2>
+                                  <p className="text-gray-600">
+                                    {freelancer.title || 'Freelancer'}
+                                  </p>
+                                  {freelancer.rating !== undefined && freelancer.rating > 0 && (
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="text-yellow-500">⭐</span>
+                                      <span className="font-medium">
+                                        {freelancer.rating.toFixed(1)}
+                                      </span>
+                                      <span className="text-gray-500">
+                                        ({freelancer.total_reviews || 0} reviews)
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
+                              {freelancer.availability && freelancer.availability !== 'unknown' && (
+                                <Badge
+                                  className={
+                                    freelancer.availability === "available"
+                                      ? "bg-green-100 text-green-700"
+                                      : freelancer.availability === "busy"
+                                        ? "bg-yellow-100 text-yellow-700"
+                                        : "bg-gray-100 text-gray-700"
+                                  }
+                                >
+                                  {freelancer.availability}
+                                </Badge>
+                              )}
                             </div>
-                            {freelancer.availability && freelancer.availability !== 'unknown' && (
-                            <Badge
-                              className={
-                                freelancer.availability === "available"
-                                  ? "bg-green-100 text-green-700"
-                                  : freelancer.availability === "busy"
-                                  ? "bg-yellow-100 text-yellow-700"
-                                  : "bg-gray-100 text-gray-700"
-                              }
-                            >
-                              {freelancer.availability}
-                            </Badge>
-                            )}
-                          </div>
 
-                          <div className="space-y-4 pt-4 border-t">
-                            {freelancer.email && (
-                            <div>
-                              <Label className="text-gray-600">Email</Label>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Mail className="size-4 text-gray-400" />
-                                <p>{freelancer.email}</p>
-                              </div>
-                            </div>
-                            )}
+                            <div className="space-y-4 pt-4 border-t">
+                              {freelancer.email && (
+                                <div>
+                                  <Label className="text-gray-600">Email</Label>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Mail className="size-4 text-gray-400" />
+                                    <p>{freelancer.email}</p>
+                                  </div>
+                                </div>
+                              )}
 
-                            {freelancer.bio && (
-                            <div>
-                              <Label className="text-gray-600">Bio</Label>
-                                <div className="mt-1">
-                                  <RichTextViewer content={freelancer.bio || ''} />
-                            </div>
-                              </div>
-                            )}
+                              {freelancer.bio && (
+                                <div>
+                                  <Label className="text-gray-600">Bio</Label>
+                                  <div className="mt-1">
+                                    <RichTextViewer content={freelancer.bio || ''} />
+                                  </div>
+                                </div>
+                              )}
 
-                            {freelancer.hourly_rate && freelancer.hourly_rate > 0 && (
-                            <div>
-                              <Label className="text-gray-600">
-                                Hourly Rate
-                              </Label>
-                              <p className="mt-1 font-medium">
-                                ₹{freelancer.hourly_rate}/hour
-                              </p>
-                            </div>
-                            )}
-
-                            {freelancer.skills &&
-                              freelancer.skills.length > 0 && (
+                              {freelancer.hourly_rate && freelancer.hourly_rate > 0 && (
                                 <div>
                                   <Label className="text-gray-600">
-                                    Skills
+                                    Hourly Rate
                                   </Label>
-                                  <div className="flex flex-wrap gap-2 mt-2">
-                                    {freelancer.skills.map((skill, idx) => (
-                                      <Badge key={idx} variant="outline">
-                                        {skill}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                            {freelancer.member_since && (
-                            <div>
-                              <Label className="text-gray-600">
-                                Member Since
-                              </Label>
-                              <p className="mt-1">
-                                {new Date(
-                                  freelancer.member_since
-                                ).toLocaleDateString()}
-                              </p>
-                            </div>
-                            )}
-                          </div>
-                        </Card>
-
-                        {/* Accepted Proposal Section */}
-                        {loadingAcceptedBidding ? (
-                          <Card className="p-6">
-                            <div className="text-center py-4">
-                              <p className="text-gray-600">Loading proposal details...</p>
-                            </div>
-                          </Card>
-                        ) : acceptedBidding ? (
-                          <Card className="p-6">
-                            <h3 className="text-lg font-medium mb-4">Accepted Proposal</h3>
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label className="text-gray-600">Bid Amount</Label>
-                                  <p className="text-xl font-semibold mt-1">
-                                    ₹{acceptedBidding.bidAmount?.toLocaleString() || 'N/A'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <Label className="text-gray-600">Timeline</Label>
-                                  <p className="text-xl font-semibold mt-1">
-                                    {acceptedBidding.timeline || 'N/A'}
-                                  </p>
-                                </div>
-                              </div>
-                              <div>
-                                <Label className="text-gray-600">Proposal</Label>
-                                <div className="mt-2">
-                                  <RichTextViewer content={acceptedBidding.proposal || acceptedBidding.description || 'No proposal provided.'} />
-                                </div>
-                              </div>
-                              {acceptedBidding.submittedAt && (
-                                <div>
-                                  <Label className="text-gray-600">Submitted On</Label>
-                                  <p className="mt-1">
-                                    {new Date(acceptedBidding.submittedAt).toLocaleString()}
+                                  <p className="mt-1 font-medium">
+                                    ₹{freelancer.hourly_rate}/hour
                                   </p>
                                 </div>
                               )}
-                            </div>
-                          </Card>
-                        ) : null}
 
-                        {(freelancer as any).portfolio &&
-                          (freelancer as any).portfolio.length > 0 && (
-                            <Card className="p-6">
-                              <h3 className="font-medium mb-4">Portfolio</h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {(freelancer as any).portfolio.map((item: any, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    className="border rounded-lg p-4"
-                                  >
-                                    <h4 className="font-medium mb-2">
-                                      {item.title}
-                                    </h4>
-                                    <p className="text-sm text-gray-600 mb-2">
-                                      {item.description}
-                                    </p>
-                                    {item.technologies &&
-                                      item.technologies.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-2">
-                                          {item.technologies.map(
-                                            (tech, techIdx) => (
-                                              <Badge
-                                                key={techIdx}
-                                                variant="secondary"
-                                                className="text-xs"
-                                              >
-                                                {tech}
-                                              </Badge>
-                                            )
-                                          )}
-                                        </div>
-                                      )}
-                                    {item.url && (
-                                      <a
-                                        href={item.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:text-blue-700 text-sm mt-2 inline-block"
-                                      >
-                                        View Project →
-                                      </a>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </Card>
-                          )}
-
-                        {(freelancer as any).certifications &&
-                          (freelancer as any).certifications.length > 0 && (
-                            <Card className="p-6">
-                              <h3 className="font-medium mb-4">
-                                Certifications
-                              </h3>
-                              <div className="space-y-3">
-                                {(freelancer as any).certifications.map((cert: any, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center justify-between border-b pb-3 last:border-0"
-                                  >
-                                    <div>
-                                      <p className="font-medium">{cert.name}</p>
-                                      <p className="text-sm text-gray-600">
-                                        {cert.issuer}
-                                      </p>
+                              {freelancer.skills &&
+                                freelancer.skills.length > 0 && (
+                                  <div>
+                                    <Label className="text-gray-600">
+                                      Skills
+                                    </Label>
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                      {freelancer.skills.map((skill, idx) => (
+                                        <Badge key={idx} variant="outline">
+                                          {skill}
+                                        </Badge>
+                                      ))}
                                     </div>
-                                    <Badge variant="outline">{cert.year}</Badge>
                                   </div>
-                                ))}
+                                )}
+
+                              {freelancer.member_since && (
+                                <div>
+                                  <Label className="text-gray-600">
+                                    Member Since
+                                  </Label>
+                                  <p className="mt-1">
+                                    {new Date(
+                                      freelancer.member_since
+                                    ).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </Card>
+
+                          {/* Accepted Proposal Section */}
+                          {loadingAcceptedBidding ? (
+                            <Card className="p-6">
+                              <div className="text-center py-4">
+                                <p className="text-gray-600">Loading proposal details...</p>
                               </div>
                             </Card>
-                          )}
+                          ) : acceptedBidding ? (
+                            <Card className="p-6">
+                              <h3 className="text-lg font-medium mb-4">Accepted Proposal</h3>
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="text-gray-600">Bid Amount</Label>
+                                    <p className="text-xl font-semibold mt-1">
+                                      ₹{acceptedBidding.bidAmount?.toLocaleString() || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <Label className="text-gray-600">Timeline</Label>
+                                    <p className="text-xl font-semibold mt-1">
+                                      {acceptedBidding.timeline || 'N/A'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-gray-600">Proposal</Label>
+                                  <div className="mt-2">
+                                    <RichTextViewer content={acceptedBidding.proposal || acceptedBidding.description || 'No proposal provided.'} />
+                                  </div>
+                                </div>
+                                {acceptedBidding.submittedAt && (
+                                  <div>
+                                    <Label className="text-gray-600">Submitted On</Label>
+                                    <p className="mt-1">
+                                      {new Date(acceptedBidding.submittedAt).toLocaleString()}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </Card>
+                          ) : null}
 
-                        <Card className="p-6">
-                          <div className="flex gap-3">
-                            <Button
-                              variant="outline"
-                              className="flex-1"
-                              onClick={() =>
-                                navigate(
-                                  `/admin/users/${freelancer.id}/freelancer`
-                                )
-                              }
-                            >
-                              <User className="size-4 mr-2" />
-                              View Full Profile
-                            </Button>
-                            <Button variant="outline" className="flex-1">
-                              <MessageSquare className="size-4 mr-2" />
-                              Send Message
-                            </Button>
-                          </div>
-                        </Card>
-                      </>
-                    );
-                  })()
+                          {(freelancer as any).portfolio &&
+                            (freelancer as any).portfolio.length > 0 && (
+                              <Card className="p-6">
+                                <h3 className="font-medium mb-4">Portfolio</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {(freelancer as any).portfolio.map((item: any, idx: number) => (
+                                    <div
+                                      key={idx}
+                                      className="border rounded-lg p-4"
+                                    >
+                                      <h4 className="font-medium mb-2">
+                                        {item.title}
+                                      </h4>
+                                      <p className="text-sm text-gray-600 mb-2">
+                                        {item.description}
+                                      </p>
+                                      {item.technologies &&
+                                        item.technologies.length > 0 && (
+                                          <div className="flex flex-wrap gap-1 mt-2">
+                                            {item.technologies.map(
+                                              (tech, techIdx) => (
+                                                <Badge
+                                                  key={techIdx}
+                                                  variant="secondary"
+                                                  className="text-xs"
+                                                >
+                                                  {tech}
+                                                </Badge>
+                                              )
+                                            )}
+                                          </div>
+                                        )}
+                                      {item.url && (
+                                        <a
+                                          href={item.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:text-blue-700 text-sm mt-2 inline-block"
+                                        >
+                                          View Project →
+                                        </a>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </Card>
+                            )}
+
+                          {(freelancer as any).certifications &&
+                            (freelancer as any).certifications.length > 0 && (
+                              <Card className="p-6">
+                                <h3 className="font-medium mb-4">
+                                  Certifications
+                                </h3>
+                                <div className="space-y-3">
+                                  {(freelancer as any).certifications.map((cert: any, idx: number) => (
+                                    <div
+                                      key={idx}
+                                      className="flex items-center justify-between border-b pb-3 last:border-0"
+                                    >
+                                      <div>
+                                        <p className="font-medium">{cert.name}</p>
+                                        <p className="text-sm text-gray-600">
+                                          {cert.issuer}
+                                        </p>
+                                      </div>
+                                      <Badge variant="outline">{cert.year}</Badge>
+                                    </div>
+                                  ))}
+                                </div>
+                              </Card>
+                            )}
+
+                          <Card className="p-6">
+                            <div className="flex gap-3">
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() =>
+                                  navigate(
+                                    `/admin/users/${freelancer.id}/freelancer`
+                                  )
+                                }
+                              >
+                                <User className="size-4 mr-2" />
+                                View Full Profile
+                              </Button>
+                              <Button variant="outline" className="flex-1">
+                                <MessageSquare className="size-4 mr-2" />
+                                Send Message
+                              </Button>
+                            </div>
+                          </Card>
+                        </>
+                      );
+                    })()
                   ) : (
                     <Card className="p-6">
                       <div className="text-center py-8">
@@ -1649,7 +1668,14 @@ export default function ProjectReview() {
 
               {/* Bidding Info Tab */}
               <TabsContent value="bidding" className="space-y-4">
-                {projectBids.length > 0 ? (
+                {loadingBids ? (
+                  <Card className="p-6">
+                    <div className="text-center py-12">
+                      <Loader2 className="size-12 text-blue-600 mx-auto mb-4 animate-spin" />
+                      <p className="text-gray-600">Loading bids...</p>
+                    </div>
+                  </Card>
+                ) : projectBids.length > 0 ? (
                   <>
                     <Card className="p-6">
                       <div className="flex items-center justify-between mb-4">
@@ -1818,7 +1844,7 @@ export default function ProjectReview() {
                                         {biddingsByBidId.get(bid.id)!.slice(0, 3).map((bidding: any) => {
                                           const freelancerId = bidding.freelancerId?._id || bidding.freelancerId;
                                           const freelancerName = bidding.freelancerId?.name || 'Unknown Freelancer';
-                                          
+
                                           return (
                                             <div key={bidding._id || bidding.id} className="p-3 bg-gray-50 rounded-lg border">
                                               <div className="flex items-center justify-between">
@@ -1892,16 +1918,16 @@ export default function ProjectReview() {
                         const bidCreatedByAdminOrSuperadmin = existingBid && (existingBid.bidder?.role === 'admin' || existingBid.bidder?.role === 'superadmin');
                         const bidCreatedByAgent = existingBid && existingBid.bidderId === user?.id;
                         const shouldHideAddBid = bidCreatedByAdminOrSuperadmin || bidCreatedByAgent;
-                        
+
                         return !shouldHideAddBid ? (
-                        <Button
-                          onClick={() =>
+                          <Button
+                            onClick={() =>
                               navigate(isAgent ? `/agent/projects/${project.id}/create-bid` : `/admin/projects/${project.id}/create-bid`)
-                          }
-                        >
-                          <Award className="size-4 mr-2" />
-                          Create Bid
-                        </Button>
+                            }
+                          >
+                            <Award className="size-4 mr-2" />
+                            Create Bid
+                          </Button>
                         ) : null;
                       })()}
                     </div>
@@ -1928,7 +1954,7 @@ export default function ProjectReview() {
                           // Update project status
                           await updateProject(project.id, { status: newStatus as any });
                           toast.success(`Project status updated to ${statusLabels[newStatus as keyof typeof statusLabels] || newStatus}`);
-                          
+
                           // Force refresh from backend to get latest data (bypass cache)
                           // Small delay to ensure backend has processed the update
                           setTimeout(async () => {
@@ -1976,16 +2002,16 @@ export default function ProjectReview() {
                   const bidCreatedByAdminOrSuperadmin = existingBid && (existingBid.bidder?.role === 'admin' || existingBid.bidder?.role === 'superadmin');
                   const bidCreatedByAgent = existingBid && existingBid.bidderId === user?.id;
                   const shouldHideAddBid = bidCreatedByAdminOrSuperadmin || bidCreatedByAgent;
-                  
+
                   return !shouldHideAddBid ? (
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
                       onClick={() => navigate(isAgent ? `/agent/projects/${project.id}/create-bid` : `/admin/projects/${project.id}/create-bid`)}
-                >
-                  <Users className="size-4 mr-2" />
-                  Add Bids
-                </Button>
+                    >
+                      <Users className="size-4 mr-2" />
+                      Add Bids
+                    </Button>
                   ) : null;
                 })()}
                 <Button
@@ -2060,12 +2086,12 @@ export default function ProjectReview() {
                     </div>
                     {(() => {
                       // For agents, show their own info if they're assigned
-                      const assignedAgent = agents.find(a => a.id === project.assigned_agent_id) || 
-                                          (user?.id === project.assigned_agent_id && isAgent ? {
-                                            name: user.name,
-                                            userID: user.userID,
-                                            email: user.email
-                                          } : null);
+                      const assignedAgent = agents.find(a => a.id === project.assigned_agent_id) ||
+                        (user?.id === project.assigned_agent_id && isAgent ? {
+                          name: user.name,
+                          userID: user.userID,
+                          email: user.email
+                        } : null);
                       return assignedAgent ? (
                         <div className="space-y-1 text-sm">
                           <p className="font-medium">{assignedAgent.name}</p>
@@ -2304,7 +2330,7 @@ export default function ProjectReview() {
                     <p className="text-sm text-gray-500 mt-1">
                       Amount: ₹
                       {(
-                        (project.client_budget *
+                        ((project.client_budget || 0) *
                           parseFloat(milestoneAmountPercent)) /
                         100
                       ).toLocaleString()}
@@ -2357,7 +2383,7 @@ export default function ProjectReview() {
                   )}
                   {project && (
                     <p className="text-xs text-gray-400 mt-1">
-                      Max: ₹{project.client_budget.toLocaleString()}
+                      Max: ₹{(project.client_budget || 0).toLocaleString()}
                     </p>
                   )}
                 </div>
@@ -2538,7 +2564,7 @@ export default function ProjectReview() {
                     <p className="text-sm text-gray-500 mt-1">
                       Amount: ₹
                       {(
-                        (project.client_budget *
+                        ((project.client_budget || 0) *
                           parseFloat(editMilestoneAmountPercent)) /
                         100
                       ).toLocaleString()}
@@ -2592,7 +2618,7 @@ export default function ProjectReview() {
                   )}
                   {project && (
                     <p className="text-xs text-gray-400 mt-1">
-                      Max: ₹{project.client_budget.toLocaleString()}
+                      Max: ₹{(project.client_budget || 0).toLocaleString()}
                     </p>
                   )}
                 </div>
@@ -2669,7 +2695,7 @@ export default function ProjectReview() {
                     {editingMilestone.title}
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
-                    Amount: ₹{editingMilestone.amount.toLocaleString()}
+                    Amount: ₹{editingMilestone.amount?.toLocaleString() || "0"}
                   </p>
                   <p className="text-sm text-gray-600">
                     Due:{" "}
@@ -2711,7 +2737,7 @@ export default function ProjectReview() {
                 {isEditingAgent ? 'Re-assign Agent' : 'Assign to Agent'}
               </DialogTitle>
               <DialogDescription>
-                {isEditingAgent 
+                {isEditingAgent
                   ? 'Select a new agent to assign to this project'
                   : 'Select an agent to assign to this project'}
               </DialogDescription>
@@ -2726,8 +2752,8 @@ export default function ProjectReview() {
                     setFieldError("selectedAgentId", validateAgentSelection(value));
                   }}
                 >
-                  <SelectTrigger 
-                    id="agent-select" 
+                  <SelectTrigger
+                    id="agent-select"
                     className={`mt-2 ${validationErrors.selectedAgentId ? "border-red-500" : ""}`}
                   >
                     <SelectValue placeholder="Choose an agent..." />

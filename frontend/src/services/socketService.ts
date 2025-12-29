@@ -47,14 +47,28 @@ class SocketService {
     this.token = token;
     this.isConnecting = true;
 
-    const url = serverUrl || import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+    // Intelligent URL detection
+    let url = serverUrl || (import.meta as any).env.VITE_SOCKET_URL;
+
+    if (!url) {
+      // Fallback to API base URL but strip the /api suffix
+      const apiBaseUrl = (import.meta as any).env.VITE_API_BASE_URL;
+      if (apiBaseUrl) {
+        url = apiBaseUrl.replace(/\/api$/, '');
+      } else {
+        // Ultimate fallback
+        url = 'http://localhost:3001';
+      }
+    }
+
+    console.log(`Connecting to socket at: ${url}`);
 
     this.socket = io(url, {
       auth: {
         token,
         userId,
       },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'], // Use polling first for better compatibility
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: this.reconnectDelay,
@@ -98,7 +112,7 @@ class SocketService {
       this.reconnectAttempts = 0;
       this.isConnecting = false;
       this.notifyConnectionHandlers(true);
-      
+
       // Join user's room
       if (this.userId) {
         this.socket?.emit('join:user', { userId: this.userId });
@@ -113,6 +127,11 @@ class SocketService {
     this.socket.on(SocketEvents.CONNECT_ERROR, (error) => {
       console.error('Socket connection error:', error);
       this.isConnecting = false;
+      // Don't spam console with connection errors if server is down
+      // Only log if it's not a connection refused error
+      if (!error.message?.includes('ERR_CONNECTION_REFUSED') && !error.message?.includes('xhr poll error')) {
+        console.warn('Socket.IO connection failed. Make sure the backend server is running.');
+      }
     });
 
     this.socket.on(SocketEvents.RECONNECT, (attemptNumber) => {
@@ -401,6 +420,12 @@ class SocketService {
       console.log('Message unpinned:', data);
       this.notifyHandlers(SocketEvents.MESSAGE_UNPINNED, data);
     });
+
+    // Project status events
+    this.socket.on(SocketEvents.PROJECT_STATUS_UPDATED, (data: any) => {
+      console.log('Project status updated:', data);
+      this.notifyHandlers(SocketEvents.PROJECT_STATUS_UPDATED, data);
+    });
   }
 
   /**
@@ -622,6 +647,33 @@ class SocketService {
     this.socket.emit('join:conversation', {
       conversation_id: conversationId,
       user_id: this.userId,
+    });
+  }
+
+  /**
+   * Join project room
+   */
+  joinProject(projectId: string): void {
+    if (!this.socket || !this.socket.connected) {
+      console.warn('Socket not connected');
+      return;
+    }
+
+    this.socket.emit('join-project', {
+      projectId,
+    });
+  }
+
+  /**
+   * Leave project room
+   */
+  leaveProject(projectId: string): void {
+    if (!this.socket || !this.socket.connected) {
+      return;
+    }
+
+    this.socket.emit('leave-project', {
+      projectId,
     });
   }
 

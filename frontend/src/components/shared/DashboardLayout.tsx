@@ -4,6 +4,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { Button } from "../ui/button";
 import { ThemeSwitch } from "../common/ThemeSwitch";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "../../components/ui/alert-dialog";
 import { useTheme } from "next-themes";
 import { NotificationsDrawer } from "./NotificationsDrawer";
 import { useSocket } from "../../hooks/useSocket";
@@ -114,7 +115,7 @@ export default function DashboardLayout({
             icon: <MessageSquare className="size-5" />,
             path: "/messages",
           },
-          
+
         ];
 
       case "freelancer":
@@ -159,7 +160,7 @@ export default function DashboardLayout({
             icon: <MessageSquare className="size-5" />,
             path: "/messages",
           },
-         
+
         ];
 
       case "admin":
@@ -312,7 +313,7 @@ export default function DashboardLayout({
             icon: <MessageSquare className="size-5" />,
             path: "/messages",
           },
-          
+
         ];
 
       default:
@@ -361,9 +362,9 @@ export default function DashboardLayout({
                   onChange={(e, checked) => setTheme(checked ? "dark" : "light")}
                 />
               )}
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setNotificationsOpen(true)}
                 className="relative"
               >
@@ -379,9 +380,25 @@ export default function DashboardLayout({
                   <div className="text-sm">{user.name}</div>
                   <div className="text-xs text-gray-500 capitalize">{user.role}</div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={handleLogout}>
-                  <LogOut className="w-5 h-5" />
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <LogOut className="w-5 h-5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to logout?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           </div>
@@ -421,9 +438,8 @@ export default function DashboardLayout({
                       <Link
                         to={item.path}
                         title={!sidebarOpen ? item.label : undefined}
-                        className={`group flex items-center gap-3 py-2 rounded-lg transition-colors ${
-                          isActive ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"
-                        }`}
+                        className={`group flex items-center gap-3 py-2 rounded-lg transition-colors ${isActive ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"
+                          }`}
                         style={{
                           // ensure content doesn't jump while width animates
                           alignItems: "center",
@@ -486,13 +502,13 @@ export default function DashboardLayout({
             left: sidebarOpen ? `${SIDEBAR_OPEN_PX}px` : `${SIDEBAR_CLOSED_PX}px`,
             top: "40vh",
             transform: "translate(-50%, -50%)",
-            zIndex: 60,
+            zIndex: 10,
             width: 36,
             height: 36,
             transition: "left 300ms cubic-bezier(0.2,0.8,0.2,1), transform 300ms cubic-bezier(0.2,0.8,0.2,1)",
             willChange: "left, transform",
           }}
-          className="flex items-center justify-center rounded-full bg-white shadow-md border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+          className="flex items-center justify-center rounded-full bg-white shadow-md border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50 cursor-pointer"
         >
           <span className={`inline-block transition-transform duration-300 ${sidebarOpen ? "rotate-0" : "rotate-180"}`}>
             {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -512,9 +528,9 @@ export default function DashboardLayout({
       </div>
 
       {/* Notifications Drawer */}
-      <NotificationsDrawer 
-        open={notificationsOpen} 
-        onClose={() => setNotificationsOpen(false)} 
+      <NotificationsDrawer
+        open={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
       />
     </div>
   );

@@ -58,6 +58,15 @@ export interface Bid {
     userID?: string;
     role?: string;
   };
+  // Compatibility with DataContext/older components
+  project_id?: string;
+  freelancer_id?: string;
+  freelancer_name?: string;
+  freelancer_rating?: number;
+  amount?: number;
+  proposal?: string;
+  delivery_time?: string;
+  admin_notes?: string;
 }
 
 export interface CreateBidPayload {
@@ -97,13 +106,22 @@ export const getAllBids = async (params?: {
 }): Promise<{ bids: Bid[]; pagination: any }> => {
   const response = await apiClient.get(API_CONFIG.BIDS.LIST, { params });
   if (response.data.success && response.data.data) {
-    const data = response.data.data as { bids: Bid[]; pagination: any };
+    const data = response.data.data;
+
+    // Support both direct array and { bids: [], pagination: {} } formats
+    const bidsArray = Array.isArray(data) ? data : (data.bids || []);
+    const pagination = Array.isArray(data) ? {} : (data.pagination || {});
+
     return {
-      bids: data.bids.map(normalizeBid),
-      pagination: data.pagination,
+      bids: bidsArray.map(normalizeBid),
+      pagination: pagination,
     };
   }
-  throw new Error(response.data.message || 'Failed to fetch bids');
+  // Return empty array if no data
+  return {
+    bids: [],
+    pagination: {},
+  };
 };
 
 export const getAvailableAdminBids = async (params?: {
@@ -115,13 +133,22 @@ export const getAvailableAdminBids = async (params?: {
 }): Promise<{ bids: Bid[]; pagination: any }> => {
   const response = await apiClient.get(API_CONFIG.BIDS.AVAILABLE, { params });
   if (response.data.success && response.data.data) {
-    const data = response.data.data as { bids: Bid[]; pagination: any };
+    const data = response.data.data;
+
+    // Support both direct array and { bids: [], pagination: {} } formats
+    const bidsArray = Array.isArray(data) ? data : (data.bids || []);
+    const pagination = Array.isArray(data) ? {} : (data.pagination || {});
+
     return {
-      bids: data.bids.map(normalizeBid),
-      pagination: data.pagination,
+      bids: bidsArray.map(normalizeBid),
+      pagination: pagination,
     };
   }
-  throw new Error(response.data.message || 'Failed to fetch available bids');
+  // Return empty array if no data
+  return {
+    bids: [],
+    pagination: {},
+  };
 };
 
 export const getProjectBids = async (
@@ -266,26 +293,35 @@ function normalizeBid(bid: any): Bid {
     reviewNotes: bid.reviewNotes,
     project: bid.projectId
       ? {
-          id: bid.projectId._id || bid.projectId,
-          title: bid.projectId.title || bid.projectTitle,
-          description: bid.projectId.description,
-          budget: bid.projectId.budget,
-          timeline: bid.projectId.timeline,
-          status: bid.projectId.status,
-          category: bid.projectId.category,
-        }
+        id: bid.projectId._id || bid.projectId,
+        title: bid.projectId.title || bid.projectTitle,
+        description: bid.projectId.description,
+        budget: bid.projectId.budget,
+        timeline: bid.projectId.timeline,
+        status: bid.projectId.status,
+        category: bid.projectId.category,
+      }
       : undefined,
     bidder: bid.bidderId
       ? {
-          id: bid.bidderId._id || bid.bidderId,
-          name: bid.bidderId.name || bid.bidderName,
-          email: bid.bidderId.email || bid.bidderEmail,
-          avatar: bid.bidderId.avatar,
-          rating: bid.bidderId.rating,
-          completedProjects: bid.bidderId.completedProjects,
-          userID: bid.bidderId.userID,
-          role: bid.bidderId.role,
-        }
+        id: bid.bidderId._id || bid.bidderId,
+        name: bid.bidderId.name || bid.bidderName,
+        email: bid.bidderId.email || bid.bidderEmail,
+        avatar: bid.bidderId.avatar,
+        rating: bid.bidderId.rating,
+        completedProjects: bid.bidderId.completedProjects,
+        userID: bid.bidderId.userID,
+        role: bid.bidderId.role,
+      }
       : undefined,
+    // Compatibility fields
+    project_id: bid.projectId?._id || bid.projectId || '',
+    freelancer_id: bid.bidderId?._id || bid.bidderId || '',
+    freelancer_name: bid.bidderName || bid.bidder?.name || '',
+    amount: bid.bidAmount || 0,
+    proposal: bid.description || '',
+    delivery_time: bid.timeline || '',
+    admin_notes: bid.notes || bid.reviewNotes || '',
+    freelancer_rating: bid.bidderId?.rating || bid.bidder?.rating || 0,
   };
 }

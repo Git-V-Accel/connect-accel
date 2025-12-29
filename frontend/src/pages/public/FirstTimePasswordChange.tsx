@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { PasswordInput } from '../../components/common';
+import { PasswordField } from '../../components/common';
 import { Shield, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import * as authService from '../../services/authService';
@@ -16,13 +16,14 @@ export default function FirstTimePasswordChange() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isPasswordValid, setIsPasswordValid] = useState(false);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     // Check if user has token (from login) but redirect if already active
     const token = sessionStorage.getItem('auth_token');
     const storedUser = sessionStorage.getItem('connect_accel_user');
-    
+
     if (!token) {
       // No token means user didn't login, redirect to login
       navigate('/login', { replace: true });
@@ -69,8 +70,8 @@ export default function FirstTimePasswordChange() {
       return;
     }
 
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters long.');
+    if (!isPasswordValid) {
+      toast.error('Password does not meet the requirements.');
       setLoading(false);
       return;
     }
@@ -83,11 +84,11 @@ export default function FirstTimePasswordChange() {
 
     try {
       const response = await authService.firstLoginChangePassword(password, confirmPassword);
-      
+
       if (response.success && response.user) {
         setSuccess(true);
         toast.success(response.message || 'Password changed successfully! Your account has been activated.');
-        
+
         // Create updated user object
         const updatedUser = {
           id: response.user.id,
@@ -116,9 +117,8 @@ export default function FirstTimePasswordChange() {
           socketService.connect(updatedUser.id, token);
         }
 
-        // Redirect to dashboard after a short delay to ensure context is updated
         setTimeout(() => {
-          const route = getRoleBasedRoute(response.user.role);
+          const route = getRoleBasedRoute(response.user?.role || '');
           // Use window.location.href to force a full page reload and re-initialize auth context
           window.location.href = route;
         }, 1500);
@@ -175,36 +175,31 @@ export default function FirstTimePasswordChange() {
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <Label htmlFor="password">New Password</Label>
-              <PasswordInput
-                id="password"
-                name="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1"
-                placeholder="Enter your new password"
-                disabled={loading}
-              />
-              <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
-            </div>
+            <PasswordField
+              id="password"
+              name="password"
+              label="New Password"
+              placeholder="Enter your new password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onValidationChange={setIsPasswordValid}
+              autoComplete="new-password"
+              disabled={loading}
+            />
 
-            <div>
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <PasswordInput
-                id="confirmPassword"
-                name="confirmPassword"
-                autoComplete="new-password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-1"
-                placeholder="Confirm your new password"
-                disabled={loading}
-              />
-            </div>
+            <PasswordField
+              id="confirmPassword"
+              name="confirmPassword"
+              label="Confirm New Password"
+              placeholder="Confirm your new password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              showValidation={false}
+              autoComplete="new-password"
+              disabled={loading}
+            />
 
             <div>
               <Button type="submit" className="w-full" disabled={loading}>

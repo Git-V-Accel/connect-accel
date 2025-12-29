@@ -3,19 +3,19 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Shield, Eye, EyeOff } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import * as authService from '../../services/authService';
+import { PasswordField } from '../../components/common';
 
 export default function ResetPassword() {
   const { resetToken } = useParams<{ resetToken: string }>();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [passwordReset, setPasswordReset] = useState(false);
+  const [isPasswordValid, setIsPasswordValid] = useState(false);
 
   useEffect(() => {
     if (!resetToken) {
@@ -32,8 +32,8 @@ export default function ResetPassword() {
       return;
     }
 
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters long');
+    if (!isPasswordValid) {
+      toast.error('Password does not meet the requirements');
       return;
     }
 
@@ -81,7 +81,7 @@ export default function ResetPassword() {
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to reset password';
       toast.error(message);
-      
+
       // If token is invalid or expired, redirect to forgot password
       if (err?.response?.status === 400) {
         setTimeout(() => {
@@ -135,60 +135,31 @@ export default function ResetPassword() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <Label htmlFor="password">New Password</Label>
-              <div className="relative mt-1">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pr-10"
-                  placeholder="Enter new password"
-                  disabled={loading}
-                  minLength={6}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
-              <p className="mt-1 text-xs text-gray-500">Password must be at least 6 characters long</p>
-            </div>
+            <PasswordField
+              id="password"
+              name="password"
+              label="New Password"
+              placeholder="Enter new password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onValidationChange={setIsPasswordValid}
+              autoComplete="new-password"
+              disabled={loading}
+            />
 
-            <div>
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <div className="relative mt-1">
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="pr-10"
-                  placeholder="Confirm new password"
-                  disabled={loading}
-                  minLength={6}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  tabIndex={-1}
-                >
-                  {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
-            </div>
+            <PasswordField
+              id="confirmPassword"
+              name="confirmPassword"
+              label="Confirm New Password"
+              placeholder="Confirm new password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              showValidation={false}
+              autoComplete="new-password"
+              disabled={loading}
+            />
 
             <div>
               <Button type="submit" className="w-full" disabled={loading || !password.trim() || !confirmPassword.trim()}>

@@ -12,7 +12,7 @@ import type { Bid as ApiBid } from '../../services/bidService';
 import apiClient from '../../services/apiService';
 import { API_CONFIG } from '../../config/api';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
-import { 
+import {
   ArrowLeft,
   IndianRupee,
   Clock,
@@ -114,33 +114,33 @@ export default function AdminBidDetail() {
     (bid ? projects.find((p) => p.id === bid.project_id) : null) ||
     (apiBid?.project
       ? ({
-          id: apiBid.project.id,
-          title: apiBid.project.title,
-          budget: apiBid.project.budget ?? 0,
-          category: '',
-          skills_required: [],
-          duration_weeks: 0,
-        } as any)
+        id: apiBid.project.id,
+        title: apiBid.project.title,
+        budget: apiBid.project.budget ?? 0,
+        category: '',
+        skills_required: [],
+        duration_weeks: 0,
+      } as any)
       : null);
 
   const freelancer =
     (bid ? freelancers.find((f) => f.id === bid.freelancer_id) : null) ||
     (apiBid?.bidder
       ? ({
-          id: apiBid.bidder.id,
-          name: apiBid.bidder.name,
-          email: apiBid.bidder.email,
-          rating: apiBid.bidder.rating ?? 0,
-          total_reviews: 0,
-          title: '',
-          skills: [],
-          hourly_rate: 0,
-          availability: '',
-          phone: '',
-          location: '',
-        } as any)
+        id: apiBid.bidder.id,
+        name: apiBid.bidder.name,
+        email: apiBid.bidder.email,
+        rating: apiBid.bidder.rating ?? 0,
+        total_reviews: 0,
+        title: '',
+        skills: [],
+        hourly_rate: 0,
+        availability: '',
+        phone: '',
+        location: '',
+      } as any)
       : null);
-  
+
   // Calculate freelancer stats from projects (local data only)
   const freelancerProjects = freelancer ? getProjectsByUser(freelancer.id, 'freelancer') : [];
   const completedProjectsCount = freelancerProjects.filter(p => p.status === 'completed').length;
@@ -287,7 +287,7 @@ export default function AdminBidDetail() {
             {/* Full Proposal */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <h2 className="text-2xl mb-6">Full Proposal</h2>
-              
+
               <div className="space-y-6">
                 {/* Freelancer Info */}
                 {freelancer && (
@@ -312,7 +312,7 @@ export default function AdminBidDetail() {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Success Rate</span>
                         <span>
-                          {totalProjectsCount > 0 
+                          {totalProjectsCount > 0
                             ? `${((completedProjectsCount / totalProjectsCount) * 100).toFixed(0)}%`
                             : 'N/A'}
                         </span>
@@ -358,7 +358,7 @@ export default function AdminBidDetail() {
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h2 className="text-xl mb-4">Proposed Milestones</h2>
                 <div className="space-y-3">
-                  {bid.milestones.map((milestone, index) => (
+                  {bid.milestones.map((milestone: any, index: number) => (
                     <div key={index} className="p-4 border border-gray-200 rounded-lg">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
@@ -366,7 +366,7 @@ export default function AdminBidDetail() {
                           <p className="text-sm text-gray-600">{milestone.description}</p>
                         </div>
                         <div className="text-right ml-4">
-                          <div className="text-sm">${milestone.amount.toLocaleString()}</div>
+                          <div className="text-sm">₹{milestone.amount.toLocaleString()}</div>
                           <div className="text-xs text-gray-500">{milestone.duration}</div>
                         </div>
                       </div>
@@ -376,7 +376,7 @@ export default function AdminBidDetail() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Total:</span>
                       <span className="text-lg">
-                        ${bid.milestones.reduce((sum, m) => sum + m.amount, 0).toLocaleString()}
+                        ₹{bid.milestones.reduce((sum: number, m: any) => sum + m.amount, 0).toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -395,7 +395,7 @@ export default function AdminBidDetail() {
                   {loadingBiddings ? 'Loading...' : biddings.length}
                 </Badge>
               </div>
-              
+
               {loadingBiddings ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4" />
@@ -414,7 +414,7 @@ export default function AdminBidDetail() {
                     const freelancerName = bidding.freelancerId?.name || 'Unknown Freelancer';
                     const freelancerEmail = bidding.freelancerId?.email || '';
                     const submittedDate = bidding.submittedAt ? new Date(bidding.submittedAt).toLocaleDateString() : 'N/A';
-                    
+
                     return (
                       <Card key={bidding._id || bidding.id} className="p-4">
                         <div className="space-y-3">
@@ -442,7 +442,7 @@ export default function AdminBidDetail() {
                               )}
                             </div>
                           </div>
-                          
+
                           {bidding.description && (
                             <div className="pt-3 border-t">
                               <div className="text-sm text-gray-600 mb-2">Proposal:</div>
@@ -451,10 +451,10 @@ export default function AdminBidDetail() {
                               </div>
                             </div>
                           )}
-                          
+
                           <div className="flex items-center gap-2 pt-2 border-t">
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               asChild
                             >
@@ -464,8 +464,8 @@ export default function AdminBidDetail() {
                               </Link>
                             </Button>
                             {freelancerId && (
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
                                 asChild
                               >
@@ -489,115 +489,115 @@ export default function AdminBidDetail() {
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h2 className="text-xl mb-4">Actions</h2>
                 <div className="flex flex-wrap items-center gap-3">
-                {(bid.status === 'pending' || bid.status === 'under_review') && !bid.isShortlisted ? (
-                  <>
-                    <Button 
-                      onClick={handleAccept}
-                      disabled={actionLoading}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle2 className="size-4 mr-2" />
-                      Accept
-                    </Button>
-                    <Button 
-                      onClick={handleReject}
-                      disabled={actionLoading}
-                      variant="destructive"
-                    >
-                      <XCircle className="size-4 mr-2" />
-                      Reject
-                    </Button>
-                    <Button 
-                      onClick={handleShortlist}
-                      disabled={actionLoading}
-                      variant="outline"
-                    >
-                      <Users className="size-4 mr-2" />
-                      Shortlist
-                    </Button>
-                  </>
-                ) : bid.status === 'accepted' || bid.isAccepted ? (
-                  <>
-                    <Button 
-                      onClick={handleUndoAccept}
-                      disabled={actionLoading}
-                      variant="outline"
-                    >
-                      <RotateCcw className="size-4 mr-2" />
-                      Undo Accept
-                    </Button>
-                    <Button 
-                      onClick={handleReject}
-                      disabled={actionLoading}
-                      variant="destructive"
-                    >
-                      <XCircle className="size-4 mr-2" />
-                      Reject
-                    </Button>
-                    <Button 
-                      onClick={handleShortlist}
-                      disabled={actionLoading}
-                      variant="outline"
-                    >
-                      <Users className="size-4 mr-2" />
-                      Shortlist
-                    </Button>
-                  </>
-                ) : bid.status === 'rejected' || bid.isDeclined ? (
-                  <>
-                    <Button 
-                      onClick={handleAccept}
-                      disabled={actionLoading}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle2 className="size-4 mr-2" />
-                      Accept
-                    </Button>
-                    <Button 
-                      onClick={handleUndoReject}
-                      disabled={actionLoading}
-                      variant="outline"
-                    >
-                      <RotateCcw className="size-4 mr-2" />
-                      Undo Reject
-                    </Button>
-                    <Button 
-                      onClick={handleShortlist}
-                      disabled={actionLoading}
-                      variant="outline"
-                    >
-                      <Users className="size-4 mr-2" />
-                      Shortlist
-                    </Button>
-                  </>
-                ) : (bid.status === 'shortlisted' || bid.isShortlisted) && !bid.isAccepted && !bid.isDeclined ? (
-                  <>
-                    <Button 
-                      onClick={handleAccept}
-                      disabled={actionLoading}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle2 className="size-4 mr-2" />
-                      Accept
-                    </Button>
-                    <Button 
-                      onClick={handleReject}
-                      disabled={actionLoading}
-                      variant="destructive"
-                    >
-                      <XCircle className="size-4 mr-2" />
-                      Reject
-                    </Button>
-                    <Button 
-                      onClick={handleUndoShortlist}
-                      disabled={actionLoading}
-                      variant="outline"
-                    >
-                      <RotateCcw className="size-4 mr-2" />
-                      Undo Shortlist
-                    </Button>
-                  </>
-                ) : null}
+                  {(bid.status === 'pending' || bid.status === 'under_review') && !bid.isShortlisted ? (
+                    <>
+                      <Button
+                        onClick={handleAccept}
+                        disabled={actionLoading}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle2 className="size-4 mr-2" />
+                        Accept
+                      </Button>
+                      <Button
+                        onClick={handleReject}
+                        disabled={actionLoading}
+                        variant="destructive"
+                      >
+                        <XCircle className="size-4 mr-2" />
+                        Reject
+                      </Button>
+                      <Button
+                        onClick={handleShortlist}
+                        disabled={actionLoading}
+                        variant="outline"
+                      >
+                        <Users className="size-4 mr-2" />
+                        Shortlist
+                      </Button>
+                    </>
+                  ) : bid.status === 'accepted' || bid.isAccepted ? (
+                    <>
+                      <Button
+                        onClick={handleUndoAccept}
+                        disabled={actionLoading}
+                        variant="outline"
+                      >
+                        <RotateCcw className="size-4 mr-2" />
+                        Undo Accept
+                      </Button>
+                      <Button
+                        onClick={handleReject}
+                        disabled={actionLoading}
+                        variant="destructive"
+                      >
+                        <XCircle className="size-4 mr-2" />
+                        Reject
+                      </Button>
+                      <Button
+                        onClick={handleShortlist}
+                        disabled={actionLoading}
+                        variant="outline"
+                      >
+                        <Users className="size-4 mr-2" />
+                        Shortlist
+                      </Button>
+                    </>
+                  ) : bid.status === 'rejected' || bid.isDeclined ? (
+                    <>
+                      <Button
+                        onClick={handleAccept}
+                        disabled={actionLoading}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle2 className="size-4 mr-2" />
+                        Accept
+                      </Button>
+                      <Button
+                        onClick={handleUndoReject}
+                        disabled={actionLoading}
+                        variant="outline"
+                      >
+                        <RotateCcw className="size-4 mr-2" />
+                        Undo Reject
+                      </Button>
+                      <Button
+                        onClick={handleShortlist}
+                        disabled={actionLoading}
+                        variant="outline"
+                      >
+                        <Users className="size-4 mr-2" />
+                        Shortlist
+                      </Button>
+                    </>
+                  ) : (bid.status === 'shortlisted' || bid.isShortlisted) && !bid.isAccepted && !bid.isDeclined ? (
+                    <>
+                      <Button
+                        onClick={handleAccept}
+                        disabled={actionLoading}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle2 className="size-4 mr-2" />
+                        Accept
+                      </Button>
+                      <Button
+                        onClick={handleReject}
+                        disabled={actionLoading}
+                        variant="destructive"
+                      >
+                        <XCircle className="size-4 mr-2" />
+                        Reject
+                      </Button>
+                      <Button
+                        onClick={handleUndoShortlist}
+                        disabled={actionLoading}
+                        variant="outline"
+                      >
+                        <RotateCcw className="size-4 mr-2" />
+                        Undo Shortlist
+                      </Button>
+                    </>
+                  ) : null}
                 </div>
               </div>
             )}
@@ -624,7 +624,7 @@ export default function AdminBidDetail() {
                 <div>
                   <div className="text-sm text-gray-500">Required Skills</div>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {project.skills_required.map(skill => (
+                    {project.skills_required.map((skill: string) => (
                       <span key={skill} className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
                         {skill}
                       </span>
