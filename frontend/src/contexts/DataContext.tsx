@@ -450,7 +450,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         if (user) {
-            sessionStorage.setItem('connect_accel_data', JSON.stringify(data));
+            const timeoutId = setTimeout(() => {
+                sessionStorage.setItem('connect_accel_data', JSON.stringify(data));
+            }, 1000);
+            return () => clearTimeout(timeoutId);
         }
     }, [data, user]);
 

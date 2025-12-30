@@ -98,7 +98,7 @@ export default function ResetPassword() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <Link to="/" className="flex justify-center items-center gap-2 mb-6">
-            <div className="size-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-accent-gradient flex items-center justify-center">
               <Shield className="size-6 text-white" />
             </div>
             <span className="text-2xl">Connect-Accel</span>
@@ -121,7 +121,7 @@ export default function ResetPassword() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <Link to="/" className="flex justify-center items-center gap-2 mb-6">
-          <div className="size-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-accent-gradient flex items-center justify-center">
             <Shield className="size-6 text-white" />
           </div>
           <span className="text-2xl">Connect-Accel</span>

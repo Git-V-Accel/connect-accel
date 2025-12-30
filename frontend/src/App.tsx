@@ -8,15 +8,26 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { DataProvider } from "./contexts/DataContext";
 import { useAuth } from "./contexts/AuthContext";
 
-// Public pages
-import LandingPage from "./pages/public/LandingPage";
+// Public landing pages from website
+import LandingPage from "./website/pages/Index";
+import HowItWorksPage from "./website/pages/HowItWorks";
+import PricingPage from "./website/pages/Pricing";
+import ContactPage from "./website/pages/Contact";
+import TechnologyPage from "./website/pages/Technology";
+import SecurityPage from "./website/pages/Security";
+import ForClientsPage from "./website/pages/ForClients";
+import ForEngineersPage from "./website/pages/ForEngineers";
+import AboutPage from "./website/pages/About";
+import FAQPage from "./website/pages/FAQ";
+import CaseStudiesPage from "./website/pages/CaseStudies";
+import { ScrollToTop } from "./website/components/ScrollToTop";
+
+// App Public pages
 import LoginPage from "./pages/public/LoginPage";
 import SignupPage from "./pages/public/SignupPage";
 import ForgotPassword from "./pages/public/ForgotPassword";
 import ResetPassword from "./pages/public/ResetPassword";
 import FirstTimePasswordChange from "./pages/public/FirstTimePasswordChange";
-import HowItWorksPage from "./pages/public/HowItWorksPage";
-import PricingPage from "./pages/public/PricingPage";
 
 // Client portal
 import ClientDashboard from "./pages/client/ClientDashboard";
@@ -129,6 +140,14 @@ function AppRoutes() {
       <Route path="/first-login/change-password" element={<FirstTimePasswordChange />} />
       <Route path="/how-it-works" element={<HowItWorksPage />} />
       <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/contact" element={<ContactPage />} />
+      <Route path="/platform/technology" element={<TechnologyPage />} />
+      <Route path="/platform/security" element={<SecurityPage />} />
+      <Route path="/for-clients" element={<ForClientsPage />} />
+      <Route path="/for-engineers" element={<ForEngineersPage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/faq" element={<FAQPage />} />
+      <Route path="/case-studies" element={<CaseStudiesPage />} />
 
       {/* Client routes */}
       <Route path="/client/dashboard" element={<ProtectedRoute allowedRoles={['client']}><ClientDashboard /></ProtectedRoute>} />
@@ -241,6 +260,7 @@ function AppWithTheme() {
       <CssBaseline />
       <AuthProvider>
         <DataProvider>
+          <ScrollToTop />
           <AppRoutes />
           <Toaster />
         </DataProvider>

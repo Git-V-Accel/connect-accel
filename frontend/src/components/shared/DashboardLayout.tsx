@@ -335,7 +335,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top Nav (unchanged) */}
-      <nav className="bg-white border-b border-gray-200 fixed w-full z-10 top-0">
+      <nav className="bg-white border-b border-gray-200 fixed w-full z-50 top-0">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
@@ -347,7 +347,7 @@ export default function DashboardLayout({
               </button>
               <Link to="/" className="flex items-center ml-4 lg:ml-0">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-lg bg-accent-gradient flex items-center justify-center">
                     <Shield className="w-5 h-5 text-white" />
                   </div>
                   <span className="text-xl">Connect-Accel</span>
