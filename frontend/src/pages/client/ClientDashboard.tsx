@@ -5,6 +5,7 @@ import { ActivityItem } from '../../components/shared/ActivityItem';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { DashboardBanner } from '../../components/shared/DashboardBanner';
 import { PendingActions } from '../../components/shared/PendingActions';
+import DashboardSkeleton from '../../components/shared/DashboardSkeleton';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
@@ -109,20 +110,7 @@ export default function ClientDashboard() {
 
   if (loading) {
     return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <PageHeader
-            title="Dashboard"
-            description="Welcome back! Here's what's happening with your projects."
-            actionLabel="New Project"
-            actionIcon={<Plus className="w-5 h-5" />}
-            actionLink="/client/projects/new"
-          />
-          <div className="text-center py-12">
-            <p className="text-gray-600">Loading dashboard data...</p>
-          </div>
-        </div>
-      </DashboardLayout>
+      <DashboardSkeleton />
     );
   }
 

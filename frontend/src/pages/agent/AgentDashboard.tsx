@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import DashboardSkeleton from '../../components/shared/DashboardSkeleton';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
-import { 
-  Users, Briefcase, TrendingUp, IndianRupee, 
+import {
+  Users, Briefcase, TrendingUp, IndianRupee,
   Clock, CheckCircle, AlertTriangle, UserPlus,
   MessageSquare, Calendar, Target, Award
 } from 'lucide-react';
@@ -11,24 +13,36 @@ import {
 export default function AgentDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
   const { projects, bids, consultations, getProjectsByAgent, getBidsByAgent } = useData();
-  
+
   const agentProjects = getProjectsByAgent(user?.id || '');
   const agentBids = getBidsByAgent(user?.id || '');
-  
+
   // Calculate metrics
   const activeProjects = agentProjects.filter(p => p.status === 'in_progress').length;
   const pendingReview = projects.filter(p => p.status === 'pending_review').length;
   const inBidding = agentProjects.filter(p => p.status === 'in_bidding').length;
   const completedProjects = agentProjects.filter(p => p.status === 'completed').length;
-  
+
   const totalRevenue = agentProjects
     .filter(p => p.status === 'completed')
     .reduce((sum, p) => sum + (p.margin || 0), 0);
-  
+
   const pendingBids = agentBids.filter(b => b.status === 'pending').length;
   const shortlistedBids = agentBids.filter(b => b.status === 'shortlisted').length;
-  
+
   const upcomingConsultations = consultations.filter(
     c => c.admin_id === user?.id && c.status === 'scheduled'
   ).length;
@@ -208,9 +222,8 @@ export default function AgentDashboard() {
                           <h3 className="font-medium text-sm">{project?.title}</h3>
                           <p className="text-sm text-gray-600">{bid.freelancer_name}</p>
                         </div>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          bid.status === 'shortlisted' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
-                        }`}>
+                        <span className={`text-xs px-2 py-1 rounded-full ${bid.status === 'shortlisted' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
+                          }`}>
                           {bid.status}
                         </span>
                       </div>
@@ -310,8 +323,8 @@ export default function AgentDashboard() {
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-green-600 h-2 rounded-full transition-all"
-                    style={{ 
-                      width: `${agentProjects.length > 0 ? Math.round((completedProjects / agentProjects.length) * 100) : 0}%` 
+                    style={{
+                      width: `${agentProjects.length > 0 ? Math.round((completedProjects / agentProjects.length) * 100) : 0}%`
                     }}
                   />
                 </div>
@@ -321,7 +334,7 @@ export default function AgentDashboard() {
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-600">Bid Success Rate</span>
                   <span className="font-medium">
-                    {agentBids.length > 0 
+                    {agentBids.length > 0
                       ? Math.round((agentBids.filter(b => b.status === 'accepted').length / agentBids.length) * 100)
                       : 0}%
                   </span>
@@ -329,10 +342,10 @@ export default function AgentDashboard() {
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-blue-600 h-2 rounded-full transition-all"
-                    style={{ 
-                      width: `${agentBids.length > 0 
+                    style={{
+                      width: `${agentBids.length > 0
                         ? Math.round((agentBids.filter(b => b.status === 'accepted').length / agentBids.length) * 100)
-                        : 0}%` 
+                        : 0}%`
                     }}
                   />
                 </div>

@@ -1,5 +1,7 @@
 
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import DashboardSkeleton from '../../components/shared/DashboardSkeleton';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -39,6 +41,19 @@ const pendingActions = [
 ];
 
 export default function SuperAdminDashboard() {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-8 animate-in fade-in duration-500">
@@ -123,8 +138,8 @@ export default function SuperAdminDashboard() {
                 const content = (
                   <div
                     className={`p-4 border rounded-lg transition-colors ${isDispute
-                        ? 'bg-red-50 border-red-200 hover:bg-red-100 cursor-pointer'
-                        : 'bg-purple-50 border-purple-200'
+                      ? 'bg-red-50 border-red-200 hover:bg-red-100 cursor-pointer'
+                      : 'bg-purple-50 border-purple-200'
                       }`}
                   >
                     <div className="flex items-center justify-between">

@@ -502,7 +502,7 @@ export default function DashboardLayout({
             left: sidebarOpen ? `${SIDEBAR_OPEN_PX}px` : `${SIDEBAR_CLOSED_PX}px`,
             top: "40vh",
             transform: "translate(-50%, -50%)",
-            zIndex: 10,
+            zIndex: 20,
             width: 36,
             height: 36,
             transition: "left 300ms cubic-bezier(0.2,0.8,0.2,1), transform 300ms cubic-bezier(0.2,0.8,0.2,1)",
