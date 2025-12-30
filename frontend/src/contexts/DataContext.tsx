@@ -42,7 +42,7 @@ export interface Project {
     rejectionReason?: string;
     timeline?: string;
     project_type?: string;
-    attachments?: string[];
+    attachments?: string[] | File[];
 }
 
 export interface Milestone {
@@ -509,6 +509,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             if ((updates as any).assigned_agent_id) payload.assignedAgentId = (updates as any).assigned_agent_id;
             if (updates.statusRemarks) payload.statusRemarks = updates.statusRemarks;
             if (updates.rejectionReason) payload.rejectionReason = updates.rejectionReason;
+            if (updates.attachments) payload.attachments = updates.attachments;
 
             const updatedProject = await projectService.updateProject(id, payload);
             const normalizedProject = projectService.normalizeProject(updatedProject);

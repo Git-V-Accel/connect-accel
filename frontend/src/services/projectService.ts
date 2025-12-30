@@ -91,11 +91,12 @@ export interface CreateProjectPayload {
   project_type?: string;
 }
 
-export interface UpdateProjectPayload extends Omit<Partial<CreateProjectPayload>, 'status'> {
+export interface UpdateProjectPayload extends Omit<Partial<CreateProjectPayload>, 'status' | 'attachments'> {
   status?: string;
   assignedAgentId?: string;
   statusRemarks?: string;
   rejectionReason?: string;
+  attachments?: Array<File | any>;
 }
 
 export interface CreateMilestonePayload {
@@ -298,8 +299,20 @@ export const updateProject = async (projectId: string, data: UpdateProjectPayloa
   if (data.statusRemarks) formData.append('statusRemarks', data.statusRemarks);
   if (data.rejectionReason) formData.append('rejectionReason', data.rejectionReason);
   if (data.attachments) {
-    data.attachments.forEach(file => formData.append('files', file));
+    const keptExisting: any[] = [];
+    data.attachments.forEach((attachment) => {
+      if (attachment instanceof File) {
+        formData.append('attachments', attachment);
+      } else if (attachment) {
+        keptExisting.push(attachment);
+      }
+    });
+
+    // Send kept existing attachments metadata under the same key.
+    // Backend will parse JSON and merge with any uploaded files.
+    formData.append('attachments', JSON.stringify(keptExisting));
   }
+
   if ((data as any).project_type) formData.append('project_type', (data as any).project_type);
 
   const res = await apiClient.put<{ success: boolean; data: ProjectResponse }>(

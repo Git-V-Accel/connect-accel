@@ -87,7 +87,27 @@ const upload = multer({
 });
 
 // Middleware for multiple files
-const uploadFiles = upload.array('files', 50); // Allow up to 50 files
+const uploadFiles = (req, res, next) => {
+  const handler = upload.fields([
+    { name: 'files', maxCount: 50 },
+    { name: 'attachments', maxCount: 50 },
+  ]);
+
+  handler(req, res, (err) => {
+    if (err) return next(err);
+
+    const files = [];
+    if (Array.isArray(req.files)) {
+      files.push(...req.files);
+    } else if (req.files && typeof req.files === 'object') {
+      if (Array.isArray(req.files.files)) files.push(...req.files.files);
+      if (Array.isArray(req.files.attachments)) files.push(...req.files.attachments);
+    }
+    req.files = files;
+
+    next();
+  });
+};
 
 // Middleware for single file
 const uploadSingle = upload.single('file');

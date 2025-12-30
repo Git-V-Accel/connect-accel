@@ -21,6 +21,7 @@ import { validateProjectTitle, validateProjectDescription, validateBudget, valid
 import { requestConsultation } from '../../services/projectService';
 import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group';
 import { formatFileSize, getFileIcon, openFileInNewTab } from '../../utils/file';
+import API_CONFIG from '../../config/api';
 
 interface ProjectFormProps {
   mode?: 'create' | 'edit';
@@ -55,6 +56,7 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
     skills_required: [] as string[],
     attachments: [] as File[],
   });
+  const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
   // Load project data for edit mode
@@ -64,18 +66,19 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
         try {
           const project = await getProject(id);
           if (project) {
-            setFormData({
-              title: project.title || '',
-              description: project.description || '',
-              category: project.category || '',
-              project_type: project.project_type || '',
-              priority: project.priority || 'medium',
-              client_budget: project.client_budget?.toString() || '',
-              duration_weeks: project.duration_weeks?.toString() || '',
-              negotiable: project.isNegotiableBudget || false,
-              skills_required: project.skills_required || [],
-              attachments: [], // Don't load existing attachments for edit
-            });
+              setFormData({
+                title: project.title || '',
+                description: project.description || '',
+                category: project.category || '',
+                project_type: project.project_type || '',
+                priority: project.priority || 'medium',
+                client_budget: project.client_budget?.toString() || '',
+                duration_weeks: project.duration_weeks?.toString() || '',
+                negotiable: project.isNegotiableBudget || false,
+                skills_required: project.skills_required || [],
+                attachments: [], // New attachments will be added here
+              });
+            setExistingAttachments(project.attachments || []);
           }
         } catch (error) {
           console.error('Failed to load project:', error);
@@ -163,6 +166,10 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
       ...prev,
       attachments: prev.attachments.filter((_, i) => i !== index)
     }));
+  };
+
+  const removeExistingAttachment = (index: number) => {
+    setExistingAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const validateStep = (stepNumber: number): boolean => {
@@ -406,7 +413,7 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
           timeline: `${formData.duration_weeks} weeks`,
           isNegotiableBudget: formData.negotiable,
           project_type: formData.project_type,
-          attachments: formData.attachments,
+          attachments: [...existingAttachments, ...formData.attachments],
         });
         toast.success('Project updated successfully!');
       } else {
@@ -489,6 +496,7 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
               <div>
                 <Label htmlFor="description">Project Description *</Label>
                 <RichTextEditor
+                  key={`description-${mode}-${id}`} // Force re-render when switching modes or loading different project
                   value={formData.description}
                   onChange={(value) => {
                     updateFormData('description', value);
@@ -751,9 +759,44 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
               </div>
             </div>
 
+            {(mode === 'edit' && existingAttachments.length > 0) && (
+              <div className="space-y-3">
+                <h3 className="font-medium">Existing Attachments ({existingAttachments.length})</h3>
+                <div className="grid gap-3">
+                  {existingAttachments.map((att, index) => {
+                    const { Icon, color, bg } = getFileIcon(att.name || att.originalName || att.fileName || 'file');
+                    const url = `${API_CONFIG.API_URL.replace('/api', '')}${att.url || att.fileUrl || ''}`;
+                    return (
+                      <div key={index} className="flex items-center justify-between p-3 bg-white border rounded-md shadow-sm">
+                        <div
+                          className="flex items-center gap-3 cursor-pointer group"
+                          onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.open(url, '_blank', 'noopener,noreferrer'); } }}
+                          role="button"
+                          tabIndex={0}
+                          title="Open in new tab"
+                        >
+                          <div className={`p-2 ${bg} rounded`}>
+                            <Icon className={`size-4 ${color}`} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium truncate max-w-[200px] group-hover:underline">{att.name || att.originalName || att.fileName || 'Attachment'}</p>
+                            <p className="text-xs text-gray-500">{formatFileSize(att.size || att.fileSize || att.compressedSize || 0)}</p>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => removeExistingAttachment(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {formData.attachments.length > 0 && (
               <div className="space-y-3">
-                <h3 className="font-medium">Attached Files ({formData.attachments.length})</h3>
+                <h3 className="font-medium">New Attachments ({formData.attachments.length})</h3>
                 <div className="grid gap-3">
                   {formData.attachments.map((file, index) => {
                     const { Icon, color, bg } = getFileIcon(file.name);
@@ -798,7 +841,7 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
             <Card className="p-6 space-y-4">
               <div>
                 <h3 className="text-lg font-medium mb-2">{formData.title}</h3>
-                <p className="text-gray-600"><RichTextViewer content={formData.description || ''} /></p>
+                <div className="text-gray-600"><RichTextViewer content={formData.description || ''} /></div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4 pt-4 border-t">
@@ -830,11 +873,16 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
                     {formData.negotiable && <span className="text-xs text-gray-500 ml-2">(Negotiable)</span>}
                   </p>
                 </div>
-                {formData.attachments.length > 0 && (
+                {((mode === 'edit' && existingAttachments.length > 0) || formData.attachments.length > 0) && (
                   <div>
                     <p className="text-sm text-gray-500">Attachments</p>
                     <p className="font-medium">
-                      {formData.attachments.length} file{formData.attachments.length !== 1 ? 's' : ''}
+                      {(mode === 'edit' ? existingAttachments.length : 0) + formData.attachments.length} file{((mode === 'edit' ? existingAttachments.length : 0) + formData.attachments.length) !== 1 ? 's' : ''}
+                      {mode === 'edit' && existingAttachments.length > 0 && formData.attachments.length > 0 && (
+                        <span className="text-xs text-gray-500 ml-1">
+                          ({existingAttachments.length} existing, {formData.attachments.length} new)
+                        </span>
+                      )}
                     </p>
                   </div>
                 )}
@@ -887,7 +935,7 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
             <ArrowLeft className="size-4 mr-2" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl">Create New Project</h1>
+            <h1 className="text-3xl">{mode === 'edit' ? "Edit Project" : "Create New Project"}</h1>
             <p className="text-gray-600">Submit a project and get matched with expert freelancers</p>
           </div>
           <Button

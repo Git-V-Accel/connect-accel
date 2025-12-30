@@ -505,20 +505,43 @@ const updateProject = async (req, res) => {
       });
     }
 
-    // Handle file uploads if any
-    const newAttachments = processAttachments(req.files, req.body.attachments);
-    if (req.body.attachments) {
+    // Handle attachments (single field):
+    // - Uploaded files come in via multer (req.files)
+    // - Kept existing attachments come in as JSON string in req.body.attachments (multipart text)
+    // If the client includes the `attachments` field (even as an empty array), we treat it as
+    // the authoritative kept list and rebuild attachments as: keptExisting + uploadedFiles.
+
+    const attachmentsRaw = req.body.attachments;
+    const hasAttachmentsField = Object.prototype.hasOwnProperty.call(req.body, 'attachments');
+
+    let attachmentsPayload = attachmentsRaw;
+    if (typeof attachmentsRaw === 'string') {
+      try {
+        const parsed = JSON.parse(attachmentsRaw);
+        attachmentsPayload = parsed;
+      } catch (_) {
+        // keep as-is (could be base64 single string, etc.)
+      }
+    }
+
+    const processedAttachments = processAttachments(req.files, attachmentsPayload);
+
+    // prevent raw body value from being written directly into Mongo
+    if (hasAttachmentsField) {
       delete req.body.attachments;
     }
 
+    let finalAttachments;
+    if (hasAttachmentsField) {
+      finalAttachments = processedAttachments;
+    } else {
+      const currentAttachments = Array.isArray(project.attachments) ? project.attachments : [];
+      finalAttachments = [...currentAttachments, ...processedAttachments];
+    }
+    
     // Prepare update data
     const updateData = { ...req.body };
-    
-    // If new files were uploaded, merge with existing attachments
-    if (newAttachments && newAttachments.length > 0) {
-      const existingAttachments = project.attachments || [];
-      updateData.attachments = [...existingAttachments, ...newAttachments];
-    }
+    updateData.attachments = finalAttachments;
 
     // Enforce status flow constraints for clients
     if (req.user.role === 'client' && req.body.status && req.body.status !== project.status) {
@@ -683,7 +706,7 @@ const updateProject = async (req, res) => {
     console.error('Update project error:', error);
     res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: MESSAGES.SERVER_ERROR
+      message: error.message || MESSAGES.SERVER_ERROR
     });
   }
 };
