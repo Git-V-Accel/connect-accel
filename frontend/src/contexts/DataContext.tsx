@@ -42,6 +42,7 @@ export interface Project {
     rejectionReason?: string;
     timeline?: string;
     project_type?: string;
+    attachments?: string[];
 }
 
 export interface Milestone {
@@ -231,7 +232,7 @@ interface DataContextType {
     notifications: Notification[];
 
     // Project methods
-    createProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => Promise<Project>;
+    createProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'attachments'> & { attachments?: File[] }) => Promise<Project>;
     updateProject: (id: string, updates: Partial<Project>) => Promise<Project>;
     getProject: (id: string, forceRefresh?: boolean) => Promise<Project | undefined>;
     getProjectsByUser: (userId: string, role: string) => Project[];
@@ -455,7 +456,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }, [data, user]);
 
     // Project methods
-    const createProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
+    const createProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'attachments'> & { attachments?: File[] }) => {
         try {
             const payload: projectService.CreateProjectPayload = {
                 title: projectData.title,
@@ -470,6 +471,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 complexity: projectData.complexity,
                 status: (projectData.status as 'draft' | 'pending_review' | undefined) || 'pending_review',
                 project_type: projectData.project_type,
+                attachments: projectData.attachments,
             };
 
             const createdProject = await projectService.createProject(payload);

@@ -937,7 +937,9 @@ const firstLoginChangePassword = async (req, res) => {
     user.password = newPassword;
     user.isFirstLogin = false;
     user.status = USER_STATUS.ACTIVE; // Activate the user after password change
-    await user.save();
+    // Save without full validation since we're only updating password and status
+    // (some users may not have all required profile fields like phone yet)
+    await user.save({ validateBeforeSave: false });
 
     // Send email notification
     try {

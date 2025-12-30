@@ -58,13 +58,22 @@ const fileFilter = (req, file, cb) => {
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
     'text/plain',
     'application/zip',
-    'application/x-zip-compressed'
+    'application/x-zip-compressed',
+    // Presentations
+    'application/vnd.ms-powerpoint', // .ppt
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+    // Spreadsheets
+    'application/vnd.ms-excel', // .xls
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    // CSV
+    'text/csv',
+    'application/csv'
   ];
 
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error(`Invalid file type. Allowed types: Images (JPG, PNG, GIF, WEBP), PDFs, Documents (DOC, DOCX, TXT, ZIP)`), false);
+    cb(new Error(`Invalid file type. Allowed types: Images (JPG, JPEG, PNG, GIF, WEBP), PDFs, Documents (DOC, DOCX, TXT, ZIP), Presentations (PPT, PPTX), Spreadsheets (XLS, XLSX), CSV`), false);
   }
 };
 
@@ -73,12 +82,12 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 25 * 1024 * 1024 // 25MB max file size
+    fileSize: 10 * 1024 * 1024 // 25MB max file size
   }
 });
 
 // Middleware for multiple files
-const uploadFiles = upload.array('files', 10); // Allow up to 10 files
+const uploadFiles = upload.array('files', 50); // Allow up to 50 files
 
 // Middleware for single file
 const uploadSingle = upload.single('file');

@@ -45,7 +45,10 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { statusLabels, statusColors, clientAllowedTransitions, statusNeedsRemark } from "../../constants/projectConstants";
 import { postProject, holdProject as holdProjectApi, cancelProject as cancelProjectApi, resumeProject as resumeProjectApi } from "../../services/projectService";
+import API_CONFIG from "../../config/api";
 import HoldCancelModal from "../../components/project/HoldCancelModal";
+import { formatFileSize, getFileIcon, openFileInNewTab } from "../../utils/file";
+import AttachmentItem from "../../components/common/AttachmentItem";
 
 const milestoneStatusColors = {
   pending: "bg-gray-100 text-gray-700",
@@ -346,7 +349,6 @@ export default function ProjectDetail() {
             </Button>
             <div>
               <h1 className="text-3xl mb-2">{project?.title || ""}</h1>
-              <RichTextViewer content={project?.description || ""} />
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -445,6 +447,7 @@ export default function ProjectDetail() {
               Payments ({payments.length})
             </TabsTrigger>
             <TabsTrigger value="team">Team</TabsTrigger>
+            <TabsTrigger value="attachments">Attachments ({(project?.attachments || []).length})</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -453,7 +456,9 @@ export default function ProjectDetail() {
             <div className="grid md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-6">
                 <Card className="p-6">
-                  <h3 className="text-lg font-medium mb-4">Project Details</h3>
+                  <h3 className="text-lg font-medium mb-4">Project Details</h3>   
+                  <p className="text-sm text-gray-600 ">Description</p>
+                  <RichTextViewer content={project?.description || ""} />
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Category</p>
@@ -975,6 +980,32 @@ export default function ProjectDetail() {
                 )}
               </div>
             </Card>
+          </TabsContent>
+
+          {/* Attachments Tab */}
+          <TabsContent value="attachments" className="space-y-4">
+            {(!project?.attachments || project.attachments.length === 0) ? (
+              <Card className="p-12 text-center">
+                <h3 className="text-lg font-medium mb-2">No attachments</h3>
+                <p className="text-gray-600">Any files you upload for this project will appear here.</p>
+              </Card>
+            ) : (
+              <Card className="p-6">
+                <div className="space-y-3">
+             
+                  {project.attachments.length > 0 && (
+                                  <div className="pt-4 border-t">
+                                    <p className="text-sm text-gray-500 mb-2">Attachments</p>
+                                    <div className="grid gap-2">
+                                      {project.attachments.map((att: any, idx: number) => (
+                                        <AttachmentItem key={idx} attachment={att} />
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                </div>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
 

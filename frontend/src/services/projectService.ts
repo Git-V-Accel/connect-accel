@@ -181,6 +181,7 @@ const normalizeProject = (project: ProjectResponse) => {
     project_type: project.project_type === 'Ongoing Project' ? 'ongoing' :
       project.project_type === 'From Scratch' ? 'from_scratch' :
         project.project_type,
+    attachments: (project as any).attachments || [],
   };
 };
 
@@ -259,7 +260,7 @@ export const createProject = async (data: CreateProjectPayload): Promise<Project
   if (data.complexity) formData.append('complexity', data.complexity);
   if (data.status) formData.append('status', data.status);
   if (data.attachments) {
-    data.attachments.forEach(file => formData.append('attachments', file));
+    data.attachments.forEach(file => formData.append('files', file));
   }
   if (data.project_type) formData.append('project_type', data.project_type);
 
@@ -297,7 +298,7 @@ export const updateProject = async (projectId: string, data: UpdateProjectPayloa
   if (data.statusRemarks) formData.append('statusRemarks', data.statusRemarks);
   if (data.rejectionReason) formData.append('rejectionReason', data.rejectionReason);
   if (data.attachments) {
-    data.attachments.forEach(file => formData.append('attachments', file));
+    data.attachments.forEach(file => formData.append('files', file));
   }
   if ((data as any).project_type) formData.append('project_type', (data as any).project_type);
 
