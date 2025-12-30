@@ -697,7 +697,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
 
     const getProjectsByAgent = (agentId: string) => {
-        return data.projects.filter((p: Project) => p.admin_id === agentId);
+        return data.projects.filter((p: Project) => p.assigned_agent_id === agentId);
     };
 
     const deleteProject = async (id: string) => {

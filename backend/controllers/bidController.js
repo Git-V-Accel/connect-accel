@@ -50,7 +50,7 @@ const submitBid = async (req, res) => {
 
     // Process attachments
     const processedAttachments = processAttachments(req.files, attachments);
-    
+
     // Create new bid
     const bid = new Bid({
       projectId,
@@ -85,6 +85,13 @@ const getAllBids = async (req, res) => {
     const query = {};
     if (status && status !== 'all') {
       query.status = status;
+    }
+
+    // If user is agent, only show bids for projects assigned to them
+    if (req.user.role === 'agent') {
+      const projects = await Project.find({ assignedAgentId: req.user.id }).select('_id');
+      const projectIds = projects.map(p => p._id);
+      query.projectId = { $in: projectIds };
     }
 
     const total = await Bid.countDocuments(query);
@@ -188,18 +195,18 @@ const updateBidStatus = async (req, res) => {
   try {
     const { bidId } = req.params;
     const { status, reviewNotes } = req.body;
-    
+
     const bid = await Bid.findById(bidId);
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
     }
-    
+
     bid.status = status;
     if (reviewNotes) bid.reviewNotes = reviewNotes;
     bid.reviewedBy = req.user.id;
-    
+
     await bid.save();
-    
+
     sendResponse(res, true, bid, 'Bid status updated successfully');
   } catch (error) {
     handleError(res, error, 'Failed to update bid status');
@@ -213,12 +220,12 @@ const updateBid = async (req, res) => {
   try {
     const { bidId } = req.params;
     const updates = req.body;
-    
+
     const bid = await Bid.findByIdAndUpdate(bidId, updates, { new: true });
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
     }
-    
+
     sendResponse(res, true, bid, 'Bid updated successfully');
   } catch (error) {
     handleError(res, error, 'Failed to update bid');
@@ -232,21 +239,21 @@ const deleteBid = async (req, res) => {
   try {
     const { bidId } = req.params;
     // Check if reason is provided, for logging/withdraw logic
-    
+
     const bid = await Bid.findById(bidId);
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
     }
-    
+
     // Instead of hard delete, maybe withdraw? 
     // But route says DELETE. Let's do hard delete for now or check status.
     // If pending, allow delete.
     if (bid.status !== 'pending' && req.user.role !== 'admin') {
-         return sendResponse(res, false, null, 'Cannot delete bid in current status', 400);
+      return sendResponse(res, false, null, 'Cannot delete bid in current status', 400);
     }
-    
+
     await Bid.findByIdAndDelete(bidId);
-    
+
     sendResponse(res, true, null, 'Bid deleted successfully');
   } catch (error) {
     handleError(res, error, 'Failed to delete bid');
@@ -272,12 +279,12 @@ const updateShortlistStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { isShortlisted } = req.body;
-    
+
     const bid = await Bid.findByIdAndUpdate(id, { isShortlisted }, { new: true });
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
     }
-    
+
     sendResponse(res, true, bid, 'Bid shortlist status updated');
   } catch (error) {
     handleError(res, error, 'Failed to update shortlist status');
@@ -291,12 +298,12 @@ const updateAcceptanceStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { isAccepted } = req.body;
-    
+
     const bid = await Bid.findByIdAndUpdate(id, { isAccepted }, { new: true });
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
     }
-    
+
     sendResponse(res, true, bid, 'Bid acceptance status updated');
   } catch (error) {
     handleError(res, error, 'Failed to update acceptance status');
@@ -310,12 +317,12 @@ const updateDeclineStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { isDeclined } = req.body;
-    
+
     const bid = await Bid.findByIdAndUpdate(id, { isDeclined }, { new: true });
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
     }
-    
+
     sendResponse(res, true, bid, 'Bid decline status updated');
   } catch (error) {
     handleError(res, error, 'Failed to update decline status');

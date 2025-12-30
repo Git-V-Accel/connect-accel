@@ -226,10 +226,10 @@ export default function AgentDashboard() {
                   <Target className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                   <p>No active bids</p>
                   <button
-                    onClick={() => navigate('/agent/bids')}
+                    onClick={() => navigate('/agent/bids/create')}
                     className="mt-3 text-sm text-blue-600 hover:underline"
                   >
-                    View All Bids
+                    Create Bid Invitation
                   </button>
                 </div>
               )}
