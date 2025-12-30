@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -25,7 +26,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '../../components/ui/dialog';
 import {
   Select,
@@ -36,43 +36,19 @@ import {
 } from '../../components/ui/select';
 import {
   Search,
-  Filter,
   Clock,
   IndianRupee,
   Users,
   Calendar,
-  TrendingUp,
   Send,
   FileText,
   Star,
-  MapPin,
-  Briefcase,
   CheckCircle,
   AlertCircle,
   Gavel,
   Eye,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
-
-interface Project {
-  id: string;
-  title: string;
-  description: string;
-  budget: string;
-  budgetType: 'fixed' | 'hourly';
-  duration: string;
-  postedDate: string;
-  category: string;
-  skills: string[];
-  client: {
-    name: string;
-    rating: number;
-    projectsPosted: number;
-    location: string;
-  };
-  bidsCount: number;
-  status: 'open' | 'in-review' | 'awarded';
-}
 
 interface Bidding {
   _id: string;
@@ -124,7 +100,7 @@ export default function FreelancerBids() {
         setLoading(false);
         return;
       }
-      
+
       try {
         setLoading(true);
         const response = await apiClient.get(API_CONFIG.BIDDING.GET_BY_FREELANCER(user.id));
@@ -209,6 +185,10 @@ export default function FreelancerBids() {
     }
   };
 
+  if (loading) {
+    return <PageSkeleton />;
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -257,7 +237,7 @@ export default function FreelancerBids() {
                   const adminBidAmount = bidding.adminBidId?.bidAmount || 0;
                   const adminTimeline = bidding.adminBidId?.timeline || 'N/A';
                   const submittedDate = bidding.submittedAt ? new Date(bidding.submittedAt).toLocaleDateString() : 'N/A';
-                  
+
                   return (
                     <AccordionItem key={bidding._id || bidding.id} value={bidding._id || bidding.id} className="border rounded-lg px-6">
                       <AccordionTrigger className="hover:no-underline">

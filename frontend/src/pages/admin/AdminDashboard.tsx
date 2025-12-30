@@ -1,16 +1,35 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import DashboardSkeleton from '../../components/shared/DashboardSkeleton';
 import { StatCard } from '../../components/shared/StatCard';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { useData } from '../../contexts/DataContext';
-import { Briefcase, Users, IndianRupee, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
+import {
+    Briefcase,
+    Clock,
+    CheckCircle2,
+    ArrowRight,
+} from 'lucide-react';
 import { statusColors, statusLabels } from '../../constants/projectConstants';
 
 export default function AdminDashboard() {
     const { projects, consultations, bids } = useData();
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setLoading(false);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, []);
+
+    if (loading) {
+        return <DashboardSkeleton />;
+    }
 
     const pendingProjects = projects.filter(p => p.status === 'pending_review' || p.status === 'pending' || p.status === 'active');
     const biddingProjects = projects.filter(p => p.status === 'in_bidding');

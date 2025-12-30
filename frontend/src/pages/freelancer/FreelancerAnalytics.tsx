@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
@@ -6,26 +8,35 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { Progress } from '../../components/ui/progress';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { 
-  TrendingUp, 
+import {
+  TrendingUp,
   TrendingDown,
-  IndianRupee, 
-  Briefcase, 
+  IndianRupee,
+  Briefcase,
   Star,
   Target,
   Award,
   CheckCircle,
   Clock,
-  ThumbsUp,
-  BarChart3,
-  Calendar
+  ThumbsUp
 } from 'lucide-react';
-import { useState } from 'react';
 
 export default function FreelancerAnalytics() {
   const { user } = useAuth();
   const { getProjectsByUser, getBidsByFreelancer, getPaymentsByUser } = useData();
   const [timeframe, setTimeframe] = useState('30');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   if (!user) return null;
 
@@ -40,13 +51,13 @@ export default function FreelancerAnalytics() {
   const totalBids = bids.length;
   const acceptedBids = bids.filter(b => b.status === 'accepted').length;
   const winRate = totalBids > 0 ? ((acceptedBids / totalBids) * 100).toFixed(1) : 0;
-  
+
   const totalEarnings = payments
-    .filter(p => p.to_user_id === user.id && p.status === 'completed')
-    .reduce((sum, p) => sum + p.amount, 0);
-  
-  const avgProjectValue = completedProjects > 0 
-    ? totalEarnings / completedProjects 
+    .filter((p: any) => p.to_user_id === user.id && p.status === 'completed')
+    .reduce((sum: number, p: any) => sum + p.amount, 0);
+
+  const avgProjectValue = completedProjects > 0
+    ? totalEarnings / completedProjects
     : 0;
 
   // Calculate trends (mock data for demonstration)
@@ -55,7 +66,7 @@ export default function FreelancerAnalytics() {
   const winRateTrend = 8.3;
 
   // Performance by category
-  const projectsByCategory = projects.reduce((acc, project) => {
+  const projectsByCategory = projects.reduce((acc: any, project: any) => {
     acc[project.category] = (acc[project.category] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
@@ -188,7 +199,7 @@ export default function FreelancerAnalytics() {
                       <span className="font-medium">₹{data.amount.toLocaleString()}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                      <div 
+                      <div
                         className="bg-gradient-to-r from-green-500 to-green-600 h-full rounded-full transition-all"
                         style={{ width: `${(data.amount / maxEarning) * 100}%` }}
                       />
@@ -266,7 +277,7 @@ export default function FreelancerAnalytics() {
                       <span className="text-gray-600">{data.count} projects ({data.percentage.toFixed(0)}%)</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                      <div 
+                      <div
                         className="bg-gradient-to-r from-blue-500 to-purple-600 h-full rounded-full"
                         style={{ width: `${data.percentage}%` }}
                       />

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
@@ -8,9 +9,9 @@ import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import * as bidService from '../../services/bidService';
 import type { Bid } from '../../services/bidService';
-import { 
-  Search, 
-  Filter, 
+import {
+  Search,
+  Filter,
   Calendar,
   IndianRupee,
   Users,
@@ -28,6 +29,7 @@ export default function AgentProjects() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [bids, setBids] = useState<Bid[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Filter projects assigned to this agent
   const agentProjects = projects.filter(p => p.assigned_agent_id === user?.id);
@@ -35,24 +37,35 @@ export default function AgentProjects() {
   // Fetch bids for agent's assigned projects
   useEffect(() => {
     const loadBids = async () => {
-      if (!user?.id) return;
+      // Simulate loading for UI consistency or wait for data
+      // If user ID is missing, valid to wait
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
       try {
+        setLoading(true);
         const response = await bidService.getAllBids({
           page: 1,
-          limit: 1000, // Get all bids for agent's projects
+          limit: 1000,
         });
-        // Backend already filters bids for agent's assigned projects
         setBids(response.bids);
       } catch (error) {
         console.error('Failed to load bids:', error);
+      } finally {
+        setLoading(false);
       }
     };
     loadBids();
   }, [user?.id]);
 
+  if (loading) {
+    return <PageSkeleton />;
+  }
+
   const filteredProjects = agentProjects.filter(project => {
     const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.description.toLowerCase().includes(searchTerm.toLowerCase());
+      project.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -202,7 +215,7 @@ export default function AgentProjects() {
               const margin = project.agent_margin_percentage || 0;
               const clientBudget = project.budget;
               const freelancerBudget = clientBudget * (1 - margin / 100);
-              
+
               return (
                 <div key={project.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between mb-4">

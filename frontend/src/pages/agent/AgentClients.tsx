@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
-  Search, 
-  Filter, 
+import {
+  Search,
   User,
   FolderKanban,
   IndianRupee,
@@ -15,8 +15,6 @@ import {
   Eye,
   MessageSquare,
   TrendingUp,
-  CheckCircle2,
-  Clock,
   Mail,
   Phone
 } from 'lucide-react';
@@ -25,11 +23,22 @@ export default function AgentClients() {
   const { projects, clients, consultations } = useData();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   // Get projects assigned to this agent
   const agentProjects = projects.filter(p => p.assigned_agent_id === user?.id);
-  
+
   // Extract unique clients from agent's projects (using project's client data)
   const agentClientsMap = new Map<string, any>();
   agentProjects.forEach(project => {
@@ -45,13 +54,13 @@ export default function AgentClients() {
       });
     }
   });
-  
+
   // Convert map to array
   const agentClients = Array.from(agentClientsMap.values());
 
   const filteredClients = agentClients.filter(client => {
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         client.email.toLowerCase().includes(searchTerm.toLowerCase());
+      client.email.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -160,13 +169,13 @@ export default function AgentClients() {
               const totalSpent = getClientTotalSpent(client.id);
               const activeProjects = clientProjects.filter(p => ['open', 'in_progress'].includes(p.status));
               const completedProjects = clientProjects.filter(p => p.status === 'completed');
-              
+
               return (
                 <div key={client.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-4">
                       <div className="size-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-xl">
-                        {client.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {client.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                       </div>
                       <div>
                         <h3 className="text-xl">{client.name}</h3>
@@ -250,7 +259,7 @@ export default function AgentClients() {
                         Message
                       </Link>
                     </Button>
-                   
+
                   </div>
                 </div>
               );

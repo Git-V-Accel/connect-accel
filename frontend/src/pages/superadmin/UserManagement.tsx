@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import PaginationControls from '../../components/common/PaginationControls';
 import DataTable, { Column } from '../../components/common/DataTable';
@@ -28,20 +28,17 @@ import { useAuth } from '../../contexts/AuthContext';
 import * as userService from '../../services/userService';
 import {
   Search,
-  Filter,
   User,
-  Mail,
   Phone,
+  CheckCircle2,
   Calendar,
-  Shield,
-  Ban,
-  CheckCircle,
-  XCircle,
-  Trash2,
-  MoreVertical,
   Building,
   Briefcase,
+  Ban,
+  Trash2,
   Plus,
+  Shield,
+  Filter,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
@@ -63,7 +60,6 @@ export default function UserManagement() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState<UnifiedUser | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -71,11 +67,11 @@ export default function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('all');
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const isSuperAdmin = currentUser?.role === 'superadmin';
-  console.log(currentUser,isSuperAdmin,"Selvaaaa");
+  console.log(currentUser, isSuperAdmin, "Selvaaaa");
   const isAdmin = currentUser?.role === 'admin';
 
 
@@ -119,7 +115,7 @@ export default function UserManagement() {
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (u.company && u.company.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+
     const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
 
     return matchesSearch && matchesStatus;
@@ -144,7 +140,7 @@ export default function UserManagement() {
     return (usersByRole as any)[activeTab] || usersByRole.all;
   };
   const currentTabUsers = getCurrentTabUsers();
-  
+
   // Calculate pagination
   const totalPages = Math.ceil(currentTabUsers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -163,7 +159,7 @@ export default function UserManagement() {
     setLoading(true);
     try {
       await userService.updateUserStatus(user.id, newStatus as any);
-    toast.success(`User status updated to ${newStatus}`);
+      toast.success(`User status updated to ${newStatus}`);
       await loadUsers();
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to update status';
@@ -179,9 +175,9 @@ export default function UserManagement() {
     setLoading(true);
     try {
       await userService.deleteUser(selectedUser.id);
-    toast.success('User deleted successfully');
-    setShowDeleteDialog(false);
-    setSelectedUser(null);
+      toast.success('User deleted successfully');
+      setShowDeleteDialog(false);
+      setSelectedUser(null);
       await loadUsers();
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to delete user';
@@ -277,11 +273,11 @@ export default function UserManagement() {
         const isSuperAdminUser = user.role === 'superadmin';
         const isOwnAccount = user.id === currentUser?.id;
         const shouldHideActions = isSuperAdminUser || (isSuperAdmin && isOwnAccount);
-        
+
         if (shouldHideActions) {
           return <span className="text-gray-400 text-sm">-</span>;
         }
-        
+
         return (
           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
             <Button
@@ -290,7 +286,7 @@ export default function UserManagement() {
               onClick={() => handleStatusToggle(user)}
               title={user.status === 'active' ? 'Suspend User' : 'Activate User'}
             >
-              {user.status === 'active' ? <Ban className="size-4" /> : <CheckCircle className="size-4" />}
+              {user.status === 'active' ? <Ban className="size-4" /> : <CheckCircle2 className="size-4" />}
             </Button>
             {isSuperAdmin && (
               <Button
@@ -300,7 +296,7 @@ export default function UserManagement() {
                   setSelectedUser(user);
                   setShowDeleteDialog(true);
                 }}
-                className="text-red-600 hover:text-red-700"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
               >
                 <Trash2 className="size-4" />
               </Button>
@@ -311,6 +307,11 @@ export default function UserManagement() {
     },
   ];
 
+
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   return (
     <DashboardLayout>
@@ -378,7 +379,7 @@ export default function UserManagement() {
               </div>
             </Card>
           )}
-        
+
         </div>
 
         {/* Filters */}
@@ -411,8 +412,8 @@ export default function UserManagement() {
             </div>
           </div>
 
-        {loading && <div className="text-sm text-gray-600">Loading users...</div>}
-        {error && <div className="text-sm text-red-600">{error}</div>}
+          {loading && <div className="text-sm text-gray-600">Loading users...</div>}
+          {error && <div className="text-sm text-red-600">{error}</div>}
         </Card>
 
         {/* Users List */}
@@ -427,7 +428,7 @@ export default function UserManagement() {
                 <TabsTrigger value="admin">Admins ({(usersByRole as any).admin?.length || 0})</TabsTrigger>
               )}
             </TabsList>
-            
+
             <PaginationControls
               currentPage={currentPage}
               totalPages={totalPages}
