@@ -87,6 +87,12 @@ const getAllBids = async (req, res) => {
       query.status = status;
     }
 
+    // Agents should only see bids for projects assigned to them
+    if (req.user?.role === 'agent') {
+      const assignedProjectIds = await Project.find({ assignedAgentId: req.user.id }).distinct('_id');
+      query.projectId = { $in: assignedProjectIds };
+    }
+
     const total = await Bid.countDocuments(query);
     const bids = await Bid.find(query)
       .populate('projectId')
@@ -175,6 +181,15 @@ const getBidDetails = async (req, res) => {
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
     }
+
+    // Agents can only access bids for projects assigned to them
+    if (req.user?.role === 'agent') {
+      const project = bid.projectId;
+      const assignedAgentId = project?.assignedAgentId?.toString?.() || project?.assignedAgentId;
+      if (!assignedAgentId || assignedAgentId.toString() !== req.user.id) {
+        return sendResponse(res, false, null, 'Access denied', 403);
+      }
+    }
     sendResponse(res, true, bid, 'Bid details retrieved successfully');
   } catch (error) {
     handleError(res, error, 'Failed to retrieve bid details');
@@ -214,12 +229,40 @@ const updateBid = async (req, res) => {
     const { bidId } = req.params;
     const updates = req.body;
     
-    const bid = await Bid.findByIdAndUpdate(bidId, updates, { new: true });
+    const bid = await Bid.findById(bidId);
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
     }
+
+    // Check if user owns this bid or is admin
+    if (bid.bidderId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return sendResponse(res, false, null, 'Not authorized to edit this bid', 403);
+    }
+
+    // Get the project to check its status
+    const project = await Project.findById(bid.projectId);
+    if (!project) {
+      return sendResponse(res, false, null, 'Associated project not found', 404);
+    }
+
+    // Allow editing only if project status is 'in_bidding'
+    if (project.status !== 'in_bidding') {
+      return sendResponse(res, false, null, `Cannot edit bid: project status must be 'in_bidding'. Current status: ${project.status}`, 400);
+    }
+
+    // Don't allow status changes through this endpoint (use updateBidStatus instead)
+    const allowedUpdates = ['bidAmount', 'timeline', 'description', 'attachments', 'notes'];
+    const actualUpdates = {};
     
-    sendResponse(res, true, bid, 'Bid updated successfully');
+    for (const key of allowedUpdates) {
+      if (updates[key] !== undefined) {
+        actualUpdates[key] = updates[key];
+      }
+    }
+
+    const updatedBid = await Bid.findByIdAndUpdate(bidId, actualUpdates, { new: true });
+    
+    sendResponse(res, true, updatedBid, 'Bid updated successfully');
   } catch (error) {
     handleError(res, error, 'Failed to update bid');
   }

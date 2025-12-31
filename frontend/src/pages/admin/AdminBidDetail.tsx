@@ -29,7 +29,8 @@ import {
   MapPin,
   Users,
   Eye,
-  RotateCcw
+  RotateCcw,
+  Edit
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
@@ -489,6 +490,17 @@ export default function AdminBidDetail() {
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h2 className="text-xl mb-4">Actions</h2>
                 <div className="flex flex-wrap items-center gap-3">
+                  {/* Edit Button - Show only when project is in_bidding */}
+                  {project?.status === 'in_bidding' && (
+                    <Button
+                      onClick={() => navigate(`/admin/bids/${bid.id}/edit`)}
+                      variant="outline"
+                    >
+                      <Edit className="size-4 mr-2" />
+                      Edit Bid
+                    </Button>
+                  )}
+                  
                   {(bid.status === 'pending' || bid.status === 'under_review') && !bid.isShortlisted ? (
                     <>
                       <Button

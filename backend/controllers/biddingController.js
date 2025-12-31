@@ -278,6 +278,11 @@ const getBiddingsByAdminBid = async (req, res) => {
       agentHasAccess = project?.assignedAgentId?.toString() === req.user.id;
     }
 
+    // Agents must be assigned to the project to view biddings
+    if (req.user.role === 'agent' && !agentHasAccess) {
+      return sendResponse(res, false, null, 'Access denied', 403);
+    }
+
     if (req.user.role === 'freelancer') {
       const isAssignedFreelancer = project?.assignedFreelancerId?.toString() === req.user.id
         || project?.assignedFreelancer?._id?.toString() === req.user.id;
@@ -353,6 +358,11 @@ const getBiddingDetails = async (req, res) => {
     if (req.user.role === 'agent') {
       const project = bidding.projectId;
       agentHasAccess = project?.assignedAgentId?.toString() === req.user.id;
+    }
+
+    // Agents must be assigned to the project to view bidding details
+    if (req.user.role === 'agent' && !agentHasAccess) {
+      return sendResponse(res, false, null, 'Access denied', 403);
     }
 
     if (!isBidder && !isAdminBidOwner && !isAdmin && !agentHasAccess) {

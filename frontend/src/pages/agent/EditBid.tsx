@@ -9,7 +9,7 @@ import { RichTextEditor } from "../../components/common/RichTextEditor";
 import { Label } from "../../components/ui/label";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
-import { createBid } from "../../services/bidService";
+import { getBidDetails, updateBid } from "../../services/bidService";
 import {
   projectTypes,
   statusColors,
@@ -29,23 +29,21 @@ import {
 } from "lucide-react";
 import { toast } from "../../utils/toast";
 import { RichTextViewer } from "../../components/common";
-import ProjectDetail from "../client/ProjectDetail";
 
-export default function CreateBid() {
-  const { id } = useParams();
+export default function EditBid() {
+  const { bidId } = useParams();
   const navigate = useNavigate();
   const { projects } = useData();
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [bid, setBid] = useState<any>(null);
 
   // Filter projects based on user role
   const availableProjects =
     user?.role === "agent"
       ? projects.filter((p) => p.assigned_agent_id === user?.id)
       : projects;
-
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(id || "");
-  const project = availableProjects.find((p) => p.id === selectedProjectId);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -57,82 +55,67 @@ export default function CreateBid() {
   });
 
   useEffect(() => {
-    if (project) {
-      setFormData({
-        title: project.title || "",
-        description: project.description || "",
-        category: project.category || "",
-        project_type: project.project_type || "",
-        amount: "",
-        duration_weeks: "",
-      });
-    }
-  }, [project]);
+    const loadBid = async () => {
+      if (!bidId) return;
+      
+      try {
+        setLoading(true);
+        const bidData = await getBidDetails(bidId);
+        setBid(bidData);
+        
+        // Set form data with existing bid information
+        setFormData({
+          title: bidData.projectTitle || "",
+          description: bidData.description || "",
+          category: (bidData.project as any)?.category || "",
+          project_type: (bidData.project as any)?.project_type || "",
+          amount: bidData.bidAmount?.toString() || "",
+          duration_weeks: bidData.timeline?.includes('weeks') 
+            ? bidData.timeline.replace(' weeks', '') 
+            : bidData.timeline || "",
+        });
+      } catch (error: any) {
+        console.error("Failed to load bid:", error);
+        toast.error(error.message || "Failed to load bid");
+        navigate("/agent/bids");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleProjectSelect = (projectId: string) => {
-    setSelectedProjectId(projectId);
-    const selectedProject = availableProjects.find((p) => p.id === projectId);
-    if (selectedProject) {
-      setFormData({
-        title: selectedProject.title || "",
-        description: selectedProject.description || "",
-        category: selectedProject.category || "",
-        project_type: (selectedProject as any)?.project_type || "",
-        amount: "",
-        duration_weeks: "",
-      });
-    }
-  };
+    loadBid();
+  }, [bidId, navigate, user]);
 
-  if (!selectedProjectId) {
+  if (loading) {
     return (
       <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                onClick={() =>
-                  navigate(
-                    user?.role === "agent" ? "/agent/bids" : "/admin/bids"
-                  )
-                }
-              >
-                <ArrowLeft className="size-4 mr-2" />
-              </Button>
-              <div>
-                <h1 className="text-3xl">Create Bid</h1>
-                <p className="text-gray-600 mt-1">
-                  Select a project to create a bid
-                </p>
-              </div>
-            </div>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4" />
+            <p className="text-gray-600">Loading bid details...</p>
           </div>
-
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="project-select">Select Project *</Label>
-                <select
-                  id="project-select"
-                  value={selectedProjectId}
-                  onChange={(e) => handleProjectSelect(e.target.value)}
-                  className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Choose a project...</option>
-                  {availableProjects.map((proj) => (
-                    <option key={proj.id} value={proj.id}>
-                      {proj.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </Card>
         </div>
       </DashboardLayout>
     );
   }
+
+  if (!bid) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <AlertCircle className="size-12 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-2xl mb-2">Bid Not Found</h2>
+            <Button onClick={() => navigate("/agent/bids")}>
+              Back to Bid Management
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const project = bid.project || availableProjects.find((p) => p.id === bid.projectId);
 
   if (!project) {
     return (
@@ -141,11 +124,28 @@ export default function CreateBid() {
           <div className="text-center">
             <AlertCircle className="size-12 text-gray-400 mx-auto mb-4" />
             <h2 className="text-2xl mb-2">Project Not Found</h2>
-            <Button
-              onClick={() =>
-                navigate(user?.role === "agent" ? "/agent/bids" : "/admin/bids")
-              }
-            >
+            <Button onClick={() => navigate("/agent/bids")}>
+              Back to Bid Management
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Check if project is in_bidding status
+  if (project.status !== 'in_bidding') {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <AlertCircle className="size-12 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-2xl mb-2">Cannot Edit Bid</h2>
+            <p className="text-gray-600 mb-4">
+              Bids can only be edited when the project status is "In Bidding". 
+              Current status: {statusLabels[project.status] || project.status}
+            </p>
+            <Button onClick={() => navigate("/agent/bids")}>
               Back to Bid Management
             </Button>
           </div>
@@ -187,25 +187,21 @@ export default function CreateBid() {
 
     try {
       setSubmitting(true);
-      await createBid({
-        projectId: project.id,
-        projectTitle: formData.title.trim(),
+      await updateBid(bidId!, {
         bidAmount: bidAmount,
         timeline: `${formData.duration_weeks} weeks`,
         description: formData.description.trim(),
-        notes: "",
+        notes: bid.notes || "",
       });
 
-      toast.success("Bid created successfully!");
-      const redirectPath =
-        user?.role === "agent" ? `/agent/bids` : `/admin/bids`;
-      navigate(redirectPath);
+      toast.success("Bid updated successfully!");
+      navigate(`/agent/bids`);
     } catch (error: any) {
-      console.error("Failed to create bid:", error);
+      console.error("Failed to update bid:", error);
       const msg =
         error?.response?.data?.message ||
         error?.message ||
-        "Failed to create bid";
+        "Failed to update bid";
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -236,18 +232,13 @@ export default function CreateBid() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              onClick={() =>
-                navigate(user?.role === "agent" ? "/agent/bids" : "/admin/bids")
-              }
-            >
+            <Button variant="ghost" onClick={() => navigate("/agent/bids")}>
               <ArrowLeft className="size-4 mr-2" />
             </Button>
             <div>
-              <h1 className="text-3xl">Create Bid</h1>
+              <h1 className="text-3xl">Edit Bid</h1>
               <p className="text-gray-600 mt-1">
-                Add a new bid for this project
+                Update bid for this project
               </p>
             </div>
           </div>
@@ -284,13 +275,13 @@ export default function CreateBid() {
                   <div>
                     <Label className="text-gray-600">Project Type</Label>
                     <p className="mt-1">
-                      {project.project_type ? project.project_type : "N/A"}
+                      {(project as any).project_type ? (project as any).project_type : "N/A"}
                     </p>
                   </div>
                   <div>
                     <Label className="text-gray-600">Priority</Label>
                     <p className="mt-1 capitalize">
-                      {project.priority || "Normal"}
+                      {(project as any).priority || "Normal"}
                     </p>
                   </div>
                   <div>
@@ -309,12 +300,12 @@ export default function CreateBid() {
                   </div>
                 </div>
 
-                {project.skills_required &&
-                  project.skills_required.length > 0 && (
+                {(project as any).skills_required &&
+                  (project as any).skills_required.length > 0 && (
                     <div className="pt-4 border-t">
                       <Label className="text-gray-600">Required Skills</Label>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {project.skills_required.map((skill, idx) => (
+                        {(project as any).skills_required.map((skill: string, idx: number) => (
                           <Badge key={idx} variant="outline">
                             {skill}
                           </Badge>
@@ -332,7 +323,7 @@ export default function CreateBid() {
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Client Name</p>
-                        <p className="font-medium">{project.client_name}</p>
+                        <p className="font-medium">{(project as any).client_name}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -342,7 +333,7 @@ export default function CreateBid() {
                       <div>
                         <p className="text-sm text-gray-600">Email</p>
                         <p className="font-medium">
-                          {project.client_email || "N/A"}
+                          {(project as any).client_email || "N/A"}
                         </p>
                       </div>
                     </div>
@@ -353,7 +344,7 @@ export default function CreateBid() {
                       <div>
                         <p className="text-sm text-gray-600">Phone</p>
                         <p className="font-medium">
-                          {project.client_phone || "N/A"}
+                          {(project as any).client_phone || "N/A"}
                         </p>
                       </div>
                     </div>
@@ -363,7 +354,7 @@ export default function CreateBid() {
             </Card>
           </div>
 
-          {/* Right Side - Create Bid Form */}
+          {/* Right Side - Edit Bid Form */}
           <div>
             <Card className="p-6">
               <h2 className="text-xl mb-6">Bid Information</h2>
@@ -409,7 +400,7 @@ export default function CreateBid() {
                     <p className="mt-2 text-gray-900">
                       {formData.project_type
                         ? formData.project_type
-                        : project.project_type}
+                        : (project as any).project_type}
                     </p>
                   </div>
                 </div>
@@ -473,11 +464,7 @@ export default function CreateBid() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() =>
-                      navigate(
-                        user?.role === "agent" ? "/agent/bids" : "/admin/bids"
-                      )
-                    }
+                    onClick={() => navigate("/agent/bids")}
                     className="flex-1"
                   >
                     Cancel
@@ -488,7 +475,7 @@ export default function CreateBid() {
                     disabled={submitting}
                   >
                     <CheckCircle className="size-4 mr-2" />
-                    {submitting ? "Creating..." : "Create Bid"}
+                    {submitting ? "Updating..." : "Update Bid"}
                   </Button>
                 </div>
               </form>

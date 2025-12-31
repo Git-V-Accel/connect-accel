@@ -19,7 +19,8 @@ import {
   XCircle,
   Clock,
   AlertCircle,
-  Plus
+  Plus,
+  Edit
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { RichTextViewer } from '../../components/common';
@@ -70,6 +71,12 @@ export default function AgentBidManagement() {
               countsMap.set(bid.id, biddings.length);
             }
           } catch (error) {
+            const status = (error as any)?.response?.status;
+            // If forbidden, treat as 0 proposals (agent is not authorized for this bid)
+            if (status === 403) {
+              countsMap.set(bid.id, 0);
+              return;
+            }
             console.error(`Failed to load biddings for bid ${bid.id}:`, error);
             countsMap.set(bid.id, 0);
           }
@@ -434,6 +441,19 @@ export default function AgentBidManagement() {
                           </Link>
                         </Button>
                       )}
+                      
+                      {/* Edit Button - Show only when project is in_bidding */}
+                      {bidProject?.status === 'in_bidding' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => navigate(`/agent/bids/${bid.id}/edit`)}
+                        >
+                          <Edit className="size-4 mr-2" />
+                          Edit Bid
+                        </Button>
+                      )}
+                      
                       {canManageBid(bid) && (
                         <>
                           {bid.status === 'pending' || bid.status === 'under_review' ? (

@@ -355,11 +355,7 @@ export default function ProjectDetail() {
             <Badge className={(statusColors as any)[project?.status]}>
               {(statusLabels as any)[project?.status]}
             </Badge>
-            {project?.status === 'draft' && (
-              <Button size="sm" onClick={handlePostProject} disabled={isUpdatingStatus}>
-                Post Project
-              </Button>
-            )}
+           
           </div>
         </div>
 

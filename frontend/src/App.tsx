@@ -59,6 +59,7 @@ import AdminBidManagement from "./pages/admin/AdminBidManagement";
 import AdminBidDetail from "./pages/admin/AdminBidDetail";
 import ViewProposal from "./pages/admin/ViewProposal";
 import CreateBid from "./pages/admin/CreateBid";
+import EditBid from "./pages/admin/EditBid";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AgentManagement from "./pages/admin/AgentManagement";
 import ClientsManagement from "./pages/admin/ClientsManagement";
@@ -77,6 +78,7 @@ import AgentFreelancerDetail from "./pages/agent/AgentFreelancerDetail";
 import AgentClientDetail from "./pages/agent/AgentClientDetail";
 import AgentReports from "./pages/agent/AgentReports";
 import AgentSettings from "./pages/agent/AgentSettings";
+import AgentEditBid from "./pages/agent/EditBid";
 
 // Super Admin portal
 import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
@@ -169,6 +171,7 @@ function AppRoutes() {
       <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminReports /></ProtectedRoute>} />
       <Route path="/admin/bids" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminBidManagement /></ProtectedRoute>} />
       <Route path="/admin/bids/create" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><CreateBid /></ProtectedRoute>} />
+      <Route path="/admin/bids/:bidId/edit" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><EditBid /></ProtectedRoute>} />
       <Route path="/admin/bids/:bidId/proposal" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'freelancer', 'agent']}><ViewProposal /></ProtectedRoute>} />
       <Route path="/admin/bids/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin', 'agent']}><AdminBidDetail /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminSettings /></ProtectedRoute>} />
@@ -193,6 +196,7 @@ function AppRoutes() {
       <Route path="/agent/consultations" element={<ProtectedRoute allowedRoles={['agent']}><AgentConsultations /></ProtectedRoute>} />
       <Route path="/agent/bids" element={<ProtectedRoute allowedRoles={['agent']}><AgentBidManagement /></ProtectedRoute>} />
       <Route path="/agent/bids/create" element={<ProtectedRoute allowedRoles={['agent']}><CreateBid /></ProtectedRoute>} />
+      <Route path="/agent/bids/:bidId/edit" element={<ProtectedRoute allowedRoles={['agent']}><AgentEditBid /></ProtectedRoute>} />
       <Route path="/agent/reports" element={<ProtectedRoute allowedRoles={['agent']}><AgentReports /></ProtectedRoute>} />
       <Route path="/agent/settings" element={<ProtectedRoute allowedRoles={['agent']}><AgentSettings /></ProtectedRoute>} />
 

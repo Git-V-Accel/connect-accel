@@ -44,6 +44,7 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [consultationLoading, setConsultationLoading] = useState(false);
   const [loading, setLoading] = useState(mode === 'edit');
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -395,6 +396,7 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
       }
     }
 
+    setSubmitting(true);
     try {
       const budget = parseInt(formData.client_budget);
       
@@ -445,6 +447,8 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
       navigate('/client/projects');
     } catch (error: any) {
       console.error('Failed to submit project:', error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1024,14 +1028,16 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
                 onClick={() => handleSubmit('draft')}
                 variant="outline"
                 className="flex-1"
+                disabled={submitting}
               >
-                Save as Draft
+                {submitting ? 'Saving...' : 'Save as Draft'}
               </Button>
               <Button
                 onClick={() => handleSubmit('active')}
                 className="flex-1"
+                disabled={submitting}
               >
-                {mode === 'edit' ? 'Update Project' : 'Submit Project'}
+                {submitting ? (mode === 'edit' ? 'Updating...' : 'Submitting...') : (mode === 'edit' ? 'Update Project' : 'Submit Project')}
               </Button>
             </div>
           )}
