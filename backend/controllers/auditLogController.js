@@ -1,6 +1,86 @@
 const AuditLog = require('../models/AuditLog');
 const { STATUS_CODES, MESSAGES, USER_ROLES } = require('../constants');
 
+// @desc    Get audit logs relevant to the current user
+// @route   GET /api/audit-logs/me
+// @access  Private (Any authenticated user)
+const getMyAuditLogs = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 50,
+      action,
+      severity,
+      startDate,
+      endDate,
+      search
+    } = req.query;
+
+    const userId = req.user?.id || req.user?._id;
+    if (!userId) {
+      return res.status(STATUS_CODES.UNAUTHORIZED).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
+    // Base query: logs where current user is performer or target
+    const query = {
+      $or: [{ performedBy: userId }, { targetUser: userId }]
+    };
+
+    if (action) query.action = action;
+    if (severity) query.severity = severity;
+
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { description: searchRegex },
+          { performedByName: searchRegex },
+          { targetUserName: searchRegex },
+          { performedByEmail: searchRegex },
+          { targetUserEmail: searchRegex }
+        ]
+      });
+    }
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const total = await AuditLog.countDocuments(query);
+    const auditLogs = await AuditLog.find(query)
+      .populate('performedBy', 'name email role userID')
+      .populate('targetUser', 'name email role userID')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    res.status(STATUS_CODES.OK).json({
+      success: true,
+      count: auditLogs.length,
+      total,
+      page: pageNum,
+      pages: Math.ceil(total / limitNum),
+      auditLogs
+    });
+  } catch (error) {
+    console.error('Get my audit logs error:', error);
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MESSAGES.SERVER_ERROR
+    });
+  }
+};
+
 // @desc    Get all audit logs (Superadmin and Admin only)
 // @route   GET /api/audit-logs
 // @access  Private (Superadmin + Admin)
@@ -273,6 +353,7 @@ const getAuditLogById = async (req, res) => {
 };
 
 module.exports = {
+  getMyAuditLogs,
   getAllAuditLogs,
   getUserAuditLogs,
   getAuditLogStats,

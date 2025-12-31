@@ -66,6 +66,39 @@ export interface AuditLogFilters {
 }
 
 /**
+ * Get audit logs relevant to the current user
+ */
+export const getMyAuditLogs = async (filters?: Omit<AuditLogFilters, 'performedBy' | 'targetUser'>): Promise<{
+    success: boolean;
+    count: number;
+    total: number;
+    page: number;
+    pages: number;
+    auditLogs: AuditLogResponse[];
+}> => {
+    const queryParams = new URLSearchParams();
+
+    if (filters?.page) queryParams.append('page', filters.page.toString());
+    if (filters?.limit) queryParams.append('limit', filters.limit.toString());
+    if (filters?.action) queryParams.append('action', filters.action);
+    if (filters?.severity) queryParams.append('severity', filters.severity);
+    if (filters?.startDate) queryParams.append('startDate', filters.startDate);
+    if (filters?.endDate) queryParams.append('endDate', filters.endDate);
+    if (filters?.search) queryParams.append('search', filters.search);
+
+    const res = await apiClient.get<{
+        success: boolean;
+        count: number;
+        total: number;
+        page: number;
+        pages: number;
+        auditLogs: AuditLogResponse[];
+    }>(`${API_CONFIG.API_URL}/audit-logs/me${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+
+    return res.data;
+};
+
+/**
  * Get all audit logs with filters
  */
 export const getAllAuditLogs = async (filters?: AuditLogFilters): Promise<{

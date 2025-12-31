@@ -1,19 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { PasswordInput, PasswordField, RichTextEditor, RichTextViewer } from '../../components/common';
+import { PasswordInput, PasswordField } from '../../components/common';
 import {
   User,
-  Mail,
   Bell,
   Shield,
   Monitor,
   Save,
-  Edit,
-  X,
-  Plus,
 } from 'lucide-react';
 import { Badge } from '../../components/ui/badge';
 import { toast } from '../../utils/toast';
@@ -31,12 +27,16 @@ import * as settingsService from '../../services/settingsService';
 import * as userService from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
 import { validateFirstName, validateLastName, validatePhone, validatePassword, validateRequired, VALIDATION_MESSAGES } from '../../constants/validationConstants';
+import { getMyAuditLogs, AuditLogResponse } from '../../services/auditLogService';
 
 export default function ClientSettings() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'appearance' | 'security'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'appearance' | 'security' | 'audit'>('profile');
   const [loading, setLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
+
+  const [auditLogs, setAuditLogs] = useState<AuditLogResponse[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const [profileData, setProfileData] = useState({
     firstName: '',
@@ -48,9 +48,7 @@ export default function ClientSettings() {
     bio: '',
   });
 
-  const [isEditing, setIsEditing] = useState(false);
   const [bioEditValue, setBioEditValue] = useState('');
-  const [skillInput, setSkillInput] = useState('');
 
   const [notificationSettings, setNotificationSettings] = useState({
     email_updates: true,
@@ -74,6 +72,8 @@ export default function ClientSettings() {
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpResendLoading, setOtpResendLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const hasErrors = Object.keys(errors).length > 0;
 
   // Load settings and user profile data on component mount
   useEffect(() => {
@@ -150,6 +150,19 @@ export default function ClientSettings() {
     }
   }, [user]);
 
+  const loadMyAuditLogs = async () => {
+    setAuditLoading(true);
+    try {
+      const res = await getMyAuditLogs({ page: 1, limit: 30 });
+      setAuditLogs(res.auditLogs || []);
+    } catch (err: any) {
+      console.error('Failed to load audit logs:', err);
+      toast.error('Failed to load audit logs');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     const newErrors: Record<string, string> = {};
 
@@ -202,7 +215,6 @@ export default function ClientSettings() {
       });
       toast.success('Profile updated successfully!');
       setProfileData({ ...profileData, bio: bioEditValue });
-      setIsEditing(false);
       setErrors({});
     } catch (error: any) {
       const message = error?.response?.data?.message || error.message || 'Failed to update profile';
@@ -326,7 +338,6 @@ export default function ClientSettings() {
     }
     setOtpResendLoading(true);
     try {
-      // Validate current password again when resending OTP
       await authService.sendPasswordChangeOTP(passwordData.current_password);
       toast.success('OTP resent to your email');
     } catch (err: any) {
@@ -338,11 +349,22 @@ export default function ClientSettings() {
   };
 
   const tabs = [
-    { id: 'profile', label: 'Profile Settings', icon: <User className="size-4" /> },
+    { id: 'profile', label: 'Profile', icon: <User className="size-4" /> },
     { id: 'notifications', label: 'Notifications', icon: <Bell className="size-4" /> },
     { id: 'appearance', label: 'Appearance', icon: <Monitor className="size-4" /> },
     { id: 'security', label: 'Security', icon: <Shield className="size-4" /> },
+    { id: 'audit', label: 'Audit Logs', icon: <Shield className="size-4" /> },
   ];
+
+  if (settingsLoading) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <p className="text-gray-600">Loading settings...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -358,10 +380,11 @@ export default function ClientSettings() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                className={`flex items-center gap-2 px-4 py-3 border-b-2 whitespace-nowrap transition-colors cursor-pointer ${activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
-                  }`}
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 whitespace-nowrap transition-colors cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -370,27 +393,11 @@ export default function ClientSettings() {
           </div>
         </div>
 
-        {/* Profile */}
         {activeTab === 'profile' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl mb-1">Profile Settings</h2>
-                <p className="text-sm text-gray-600">Update your basic information</p>
-              </div>
-              {!isEditing && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setBioEditValue(profileData.bio);
-                    setIsEditing(true);
-                  }}
-                >
-                  <Edit className="size-4 mr-2" />
-                  Edit
-                </Button>
-              )}
+            <div>
+              <h2 className="text-xl mb-1">Profile</h2>
+              <p className="text-sm text-gray-600">Update your basic information</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -399,172 +406,80 @@ export default function ClientSettings() {
                 <Input
                   id="firstName"
                   value={profileData.firstName}
-                  onChange={(e) => {
-                    setProfileData({ ...profileData, firstName: e.target.value });
-                    if (errors.firstName) setErrors({ ...errors, firstName: '' });
-                  }}
-                  className={`mt-1 ${errors.firstName ? 'border-red-500' : ''}`}
-                  placeholder="Jane"
-                  disabled={!isEditing || loading || settingsLoading}
+                  onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })}
+                  className="mt-1"
                 />
-                {errors.firstName && <p className="text-sm text-red-600 mt-1">{errors.firstName}</p>}
               </div>
-
               <div>
                 <Label htmlFor="lastName">Last Name</Label>
                 <Input
                   id="lastName"
                   value={profileData.lastName}
-                  onChange={(e) => {
-                    setProfileData({ ...profileData, lastName: e.target.value });
-                    if (errors.lastName) setErrors({ ...errors, lastName: '' });
-                  }}
-                  className={`mt-1 ${errors.lastName ? 'border-red-500' : ''}`}
-                  placeholder="Doe"
-                  disabled={!isEditing || loading || settingsLoading}
-                />
-                {errors.lastName && <p className="text-sm text-red-600 mt-1">{errors.lastName}</p>}
-              </div>
-
-              <div>
-                <Label htmlFor="role">Role</Label>
-                <Input
-                  id="role"
-                  value={profileData.role}
-                  className="mt-1 bg-gray-50"
-                  disabled={true}
-                  readOnly
+                  onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })}
+                  className="mt-1"
                 />
               </div>
-
-              <div>
-                <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={profileData.email}
-                  className="mt-1 bg-gray-50"
-                  disabled={true}
-                  readOnly
-                />
+              <div className="md:col-span-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" value={profileData.email} className="mt-1" disabled />
               </div>
-
-              <div>
+              <div className="md:col-span-2">
                 <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
                   value={profileData.phone}
                   onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                   className="mt-1"
-                  placeholder="9876543210"
-                  disabled={!isEditing || loading || settingsLoading}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="company">Company Name</Label>
-                <Input
-                  id="company"
-                  value={profileData.company}
-                  onChange={(e) => setProfileData({ ...profileData, company: e.target.value })}
-                  className="mt-1"
-                  placeholder="Company Name"
-                  disabled={!isEditing || loading || settingsLoading}
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="bio">Bio</Label>
-              {isEditing ? (
-                <div className="space-y-2 mt-1">
-                  <RichTextEditor
-                    value={bioEditValue}
-                    onChange={setBioEditValue}
-                    placeholder="Tell others about your business needs..."
-                    className="mt-1"
-                    minHeight="150px"
-                  />
-                </div>
-              ) : (
-                <div className="mt-1 p-4 border border-gray-200 rounded-lg bg-gray-50 min-h-[150px]">
-                  {profileData.bio ? (
-                    <RichTextViewer content={profileData.bio} />
-                  ) : (
-                    <p className="text-gray-400 italic">No bio added yet. Click Edit to add one.</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-
-            <Button onClick={handleSaveProfile} disabled={loading || settingsLoading}>
+            <Button onClick={handleSaveProfile} disabled={loading || hasErrors}>
               <Save className="size-4 mr-2" />
-              {loading ? 'Saving...' : 'Save Changes'}
+              Save Changes
             </Button>
           </div>
         )}
 
-        {/* Notifications */}
         {activeTab === 'notifications' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <div>
-              <h2 className="text-xl mb-1">Notification Settings</h2>
+              <h2 className="text-xl mb-1">Notifications</h2>
               <p className="text-sm text-gray-600">Choose how you want to be notified</p>
             </div>
 
             <div className="space-y-4">
-              <div className="space-y-3">
-                <h3 className="text-lg">Email Notifications</h3>
-                {[
-                  { key: 'email_updates', label: 'Project updates & status changes' },
-                  { key: 'email_promotions', label: 'Product news and promotions' },
-                ].map((item) => (
-                  <label key={item.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
-                    <span className="text-sm font-medium">{item.label}</span>
-                    <Switch
-                      checked={notificationSettings[item.key as keyof typeof notificationSettings]}
-                      onCheckedChange={(checked) =>
-                        setNotificationSettings({
-                          ...notificationSettings,
-                          [item.key]: checked,
-                        })
-                      }
-                    />
-                  </label>
-                ))}
-              </div>
+              {[
+                { key: 'email_updates', label: 'Email updates' },
+                { key: 'email_promotions', label: 'Email promotions' },
+                { key: 'push_updates', label: 'Push updates' },
+                { key: 'push_reminders', label: 'Push reminders' },
+              ].map((item) => (
+                <label
+                  key={item.key}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <span className="text-sm font-medium">{item.label}</span>
+                  <Switch
+                    checked={notificationSettings[item.key as keyof typeof notificationSettings]}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings({
+                        ...notificationSettings,
+                        [item.key]: checked,
+                      })
+                    }
+                  />
+                </label>
+              ))}
 
-              <div className="space-y-3">
-                <h3 className="text-lg">Push Notifications</h3>
-                {[
-                  { key: 'push_updates', label: 'Real-time updates on projects' },
-                  { key: 'push_reminders', label: 'Reminders for deadlines and calls' },
-                ].map((item) => (
-                  <label key={item.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
-                    <span className="text-sm font-medium">{item.label}</span>
-                    <Switch
-                      checked={notificationSettings[item.key as keyof typeof notificationSettings]}
-                      onCheckedChange={(checked) =>
-                        setNotificationSettings({
-                          ...notificationSettings,
-                          [item.key]: checked,
-                        })
-                      }
-                    />
-                  </label>
-                ))}
-              </div>
-
-              <Button onClick={handleSaveNotifications} disabled={loading || settingsLoading}>
+              <Button onClick={handleSaveNotifications} disabled={loading}>
                 <Save className="size-4 mr-2" />
-                {loading ? 'Saving...' : 'Save Preferences'}
+                Save Preferences
               </Button>
             </div>
           </div>
         )}
 
-        {/* Appearance */}
         {activeTab === 'appearance' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <div>
@@ -575,10 +490,7 @@ export default function ClientSettings() {
             <div className="max-w-md space-y-4">
               <div>
                 <Label>Theme</Label>
-                <Select
-                  value={appearanceSettings.theme}
-                  onValueChange={(value) => setAppearanceSettings({ theme: value })}
-                >
+                <Select value={appearanceSettings.theme} onValueChange={(v) => setAppearanceSettings({ theme: v })}>
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Select theme" />
                   </SelectTrigger>
@@ -590,66 +502,49 @@ export default function ClientSettings() {
                 </Select>
               </div>
 
-              <Button onClick={handleSaveAppearance} disabled={loading || settingsLoading}>
+              <Button onClick={handleSaveAppearance} disabled={loading}>
                 <Save className="size-4 mr-2" />
-                {loading ? 'Saving...' : 'Save Appearance'}
+                Save Appearance
               </Button>
             </div>
           </div>
         )}
 
-        {/* Security */}
         {activeTab === 'security' && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <div>
-              <h2 className="text-xl mb-1">Change Password</h2>
-              <p className="text-sm text-gray-600">Keep your account secure</p>
+              <h2 className="text-xl mb-1">Security</h2>
+              <p className="text-sm text-gray-600">Change password using OTP verification</p>
             </div>
 
             <div className="space-y-4 max-w-md">
               <div>
-                <Label htmlFor="current_password">Current Password *</Label>
+                <Label htmlFor="current_password">Current Password</Label>
                 <PasswordInput
                   id="current_password"
                   value={passwordData.current_password}
-                  onChange={(e) => {
-                    setPasswordData({ ...passwordData, current_password: e.target.value });
-                    if (errors.current_password) setErrors({ ...errors, current_password: '' });
-                  }}
-                  className={`mt-1 ${errors.current_password ? 'border-red-500' : ''}`}
+                  onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                  className="mt-1"
                 />
-                {errors.current_password && <p className="text-sm text-red-600 mt-1">{errors.current_password}</p>}
               </div>
 
-              <div>
-                <PasswordField
-                  id="new_password"
-                  label="New Password *"
-                  value={passwordData.new_password}
-                  onChange={(e) => {
-                    setPasswordData({ ...passwordData, new_password: e.target.value });
-                    if (errors.new_password) setErrors({ ...errors, new_password: '' });
-                  }}
-                  onValidationChange={setIsPasswordValid}
-                  className={`mt-1 ${errors.new_password ? 'border-red-500' : ''}`}
-                />
-                {errors.new_password && <p className="text-sm text-red-600 mt-1">{errors.new_password}</p>}
-              </div>
+              <PasswordField
+                id="new_password"
+                label="New Password"
+                value={passwordData.new_password}
+                onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                onValidationChange={setIsPasswordValid}
+                className="mt-1"
+              />
 
-              <div>
-                <PasswordField
-                  id="confirm_password"
-                  label="Confirm New Password *"
-                  value={passwordData.confirm_password}
-                  onChange={(e) => {
-                    setPasswordData({ ...passwordData, confirm_password: e.target.value });
-                    if (errors.confirm_password) setErrors({ ...errors, confirm_password: '' });
-                  }}
-                  showValidation={false}
-                  className={`mt-1 ${errors.confirm_password ? 'border-red-500' : ''}`}
-                />
-                {errors.confirm_password && <p className="text-sm text-red-600 mt-1">{errors.confirm_password}</p>}
-              </div>
+              <PasswordField
+                id="confirm_password"
+                label="Confirm New Password"
+                value={passwordData.confirm_password}
+                onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
+                showValidation={false}
+                className="mt-1"
+              />
 
               <Button onClick={handleSendOtp} disabled={otpLoading}>
                 <Shield className="size-4 mr-2" />
@@ -658,18 +553,66 @@ export default function ClientSettings() {
             </div>
           </div>
         )}
+
+        {activeTab === 'audit' && (
+          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl mb-1">Audit Logs</h2>
+                <p className="text-sm text-gray-600">Activity relevant to your account</p>
+              </div>
+              <Button variant="outline" onClick={loadMyAuditLogs} disabled={auditLoading}>
+                Refresh
+              </Button>
+            </div>
+
+            {auditLoading ? (
+              <div className="text-center py-8 text-gray-600">Loading audit logs...</div>
+            ) : auditLogs.length === 0 ? (
+              <div className="text-center py-8 text-gray-600">No audit logs found</div>
+            ) : (
+              <div className="space-y-3">
+                {auditLogs.slice(0, 15).map((log) => (
+                  <div key={log._id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-gray-900">{log.action}</p>
+                        <p className="text-sm text-gray-600 mt-1">{log.description}</p>
+                        <p className="text-xs text-gray-500 mt-2">{new Date(log.createdAt).toLocaleString()}</p>
+                      </div>
+                      <Badge
+                        className={
+                          log.severity === 'critical'
+                            ? 'bg-red-100 text-red-700'
+                            : log.severity === 'high'
+                            ? 'bg-orange-100 text-orange-700'
+                            : log.severity === 'medium'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-green-100 text-green-700'
+                        }
+                      >
+                        {log.severity}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <OtpDialog
+          open={otpOpen}
+          onOpenChange={setOtpOpen}
+          title="Verify Your Email"
+          description="Enter the 6-digit verification code sent to your email to change your password."
+          otpLength={6}
+          loading={otpLoading}
+          resendLoading={otpResendLoading}
+          onVerify={handleVerifyChangePassword}
+          onResend={handleResendOtp}
+        />
       </div>
-      <OtpDialog
-        open={otpOpen}
-        onOpenChange={setOtpOpen}
-        title="Verify Your Email"
-        description="Enter the 6-digit verification code sent to your email to change your password."
-        otpLength={6}
-        loading={otpLoading}
-        resendLoading={otpResendLoading}
-        onVerify={handleVerifyChangePassword}
-        onResend={handleResendOtp}
-      />
     </DashboardLayout>
   );
 }

@@ -11,7 +11,6 @@ const {
   getUserById,
   updateUserRole,
   updateUserStatus,
-  updateUser,
   createUser,
   deleteUser
 } = require('../controllers/userController');
@@ -91,7 +90,7 @@ router.put('/:id/status', protect, isSuperadmin, updateUserStatus);
 // @desc    Update user
 // @route   PUT /api/users/:id
 // @access  Private/Superadmin
-router.put('/:id', protect, isSuperadmin, updateUser);
+
 
 // @desc    Delete user
 // @route   DELETE /api/users/:id

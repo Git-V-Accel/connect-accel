@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { ArrowLeft, User, Mail, Phone, Building, Calendar, IndianRupee, Briefcase, TrendingUp, CheckCircle, Clock, XCircle, Globe, MapPin, BriefcaseIcon, Award, Shield, CheckCircle2, XCircle as XCircleIcon } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Building, Calendar, IndianRupee, Briefcase, TrendingUp, CheckCircle, Clock, Globe, MapPin, BriefcaseIcon, Award, Shield } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import * as userService from '../../services/userService';
+import { getUserAuditLogs, AuditLogResponse } from '../../services/auditLogService';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { toast } from '../../utils/toast';
 
@@ -42,11 +43,14 @@ interface UnifiedUser {
 export default function UserDetail() {
   const { id, type } = useParams<{ id: string; type: string }>();
   const navigate = useNavigate();
-  const { projects, bids, getProjectsByUser, getBidsByFreelancer, getMilestonesByProject, payments } = useData();
+  const { projects, getProjectsByUser, getBidsByFreelancer, getMilestonesByProject } = useData();
   const { user: currentUser } = useAuth();
   const [user, setUser] = useState<UnifiedUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [auditLogs, setAuditLogs] = useState<AuditLogResponse[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -69,12 +73,76 @@ export default function UserDetail() {
     loadUser();
   }, [id]);
 
+  useEffect(() => {
+    const loadAuditLogs = async () => {
+      if (!id) return;
+      if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'superadmin')) return;
+
+      setAuditLoading(true);
+      try {
+        const res = await getUserAuditLogs(id, { page: 1, limit: 20 });
+        setAuditLogs(res.auditLogs || []);
+      } catch (err: any) {
+        console.error('Failed to load user audit logs:', err);
+      } finally {
+        setAuditLoading(false);
+      }
+    };
+
+    loadAuditLogs();
+  }, [id, currentUser]);
+
   if (loading) {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
           <p className="text-gray-600">Loading user...</p>
         </div>
+
+        {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && (
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Audit Logs</h2>
+              <Badge variant="secondary">{auditLogs.length}</Badge>
+            </div>
+
+            {auditLoading ? (
+              <div className="text-center py-8 text-gray-600">Loading audit logs...</div>
+            ) : auditLogs.length === 0 ? (
+              <div className="text-center py-8 text-gray-600">No audit logs found</div>
+            ) : (
+              <div className="space-y-3">
+                {auditLogs.slice(0, 10).map((log) => (
+                  <div key={log._id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-gray-900">{log.action}</p>
+                        <p className="text-sm text-gray-600 mt-1">{log.description}</p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          {new Date(log.createdAt).toLocaleString()} 
+                          {log.performedByName ? ` • By ${log.performedByName}` : ''}
+                        </p>
+                      </div>
+                      <Badge
+                        className={
+                          log.severity === 'critical'
+                            ? 'bg-red-100 text-red-700'
+                            : log.severity === 'high'
+                            ? 'bg-orange-100 text-orange-700'
+                            : log.severity === 'medium'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-green-100 text-green-700'
+                        }
+                      >
+                        {log.severity}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
       </DashboardLayout>
     );
   }

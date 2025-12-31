@@ -9,8 +9,15 @@ const {
 const { protect, authorize } = require('../middleware/auth');
 const { USER_ROLES } = require('../constants');
 
-// All routes require authentication and admin/superadmin privileges
+// All routes require authentication
 router.use(protect);
+
+// @route   GET /api/audit-logs/me
+// @desc    Get audit logs relevant to the current user
+// @access  Private (Any authenticated user)
+router.get('/me', require('../controllers/auditLogController').getMyAuditLogs);
+
+// Admin-only audit log access
 router.use(authorize(USER_ROLES.ADMIN, USER_ROLES.SUPERADMIN));
 
 // @route   GET /api/audit-logs

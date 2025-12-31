@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -14,6 +14,7 @@ import { Badge } from '../../components/ui/badge';
 import { toast } from '../../utils/toast';
 import { User, Bell, Monitor, Shield, Save, Edit, X, Plus } from 'lucide-react';
 import { commonSkills } from '../../constants/projectConstants';
+import { getMyAuditLogs, AuditLogResponse } from '../../services/auditLogService';
 import {
   Select,
   SelectContent,
@@ -22,7 +23,7 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 
-type TabId = 'profile' | 'notifications' | 'appearance' | 'security';
+type TabId = 'profile' | 'notifications' | 'appearance' | 'security' | 'audit';
 
 export default function AdminSettings() {
   const { user } = useAuth();
@@ -65,6 +66,9 @@ export default function AdminSettings() {
   const [otpOpen, setOtpOpen] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpResendLoading, setOtpResendLoading] = useState(false);
+
+  const [auditLogs, setAuditLogs] = useState<AuditLogResponse[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   // Load settings and user profile data on component mount
   useEffect(() => {
@@ -159,6 +163,19 @@ export default function AdminSettings() {
 
   const handleSaveNotifications = () => toast.success('Notification settings saved');
   const handleSaveAppearance = () => toast.success('Appearance saved');
+
+  const loadMyAuditLogs = async () => {
+    setAuditLoading(true);
+    try {
+      const res = await getMyAuditLogs({ page: 1, limit: 30 });
+      setAuditLogs(res.auditLogs || []);
+    } catch (err: any) {
+      console.error('Failed to load audit logs:', err);
+      toast.error('Failed to load audit logs');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
   const handleSendOtp = async () => {
     if (!passwordData.current_password || !passwordData.new_password || !passwordData.confirm_password) {
       toast.error('Please fill all password fields');
@@ -232,6 +249,7 @@ export default function AdminSettings() {
     { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
     { id: 'appearance', label: 'Appearance', icon: <Monitor className="w-4 h-4" /> },
     { id: 'security', label: 'Security', icon: <Shield className="w-4 h-4" /> },
+    { id: 'audit', label: 'Audit Logs', icon: <Shield className="w-4 h-4" /> },
   ];
 
   return (
@@ -657,6 +675,53 @@ export default function AdminSettings() {
           </div>
         )}
 
+        {activeTab === 'audit' && (
+          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl mb-1">Audit Logs</h2>
+                <p className="text-sm text-gray-600">Security and account activity relevant to you</p>
+              </div>
+              <Button variant="outline" onClick={loadMyAuditLogs} disabled={auditLoading}>
+                Refresh
+              </Button>
+            </div>
+
+            {auditLoading ? (
+              <div className="text-center py-8 text-gray-600">Loading audit logs...</div>
+            ) : auditLogs.length === 0 ? (
+              <div className="text-center py-8 text-gray-600">No audit logs found</div>
+            ) : (
+              <div className="space-y-3">
+                {auditLogs.slice(0, 15).map((log) => (
+                  <div key={log._id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-gray-900">{log.action}</p>
+                        <p className="text-sm text-gray-600 mt-1">{log.description}</p>
+                        <p className="text-xs text-gray-500 mt-2">{new Date(log.createdAt).toLocaleString()}</p>
+                      </div>
+                      <Badge
+                        className={
+                          log.severity === 'critical'
+                            ? 'bg-red-100 text-red-700'
+                            : log.severity === 'high'
+                            ? 'bg-orange-100 text-orange-700'
+                            : log.severity === 'medium'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-green-100 text-green-700'
+                        }
+                      >
+                        {log.severity}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <OtpDialog
           open={otpOpen}
           onOpenChange={setOtpOpen}
@@ -672,4 +737,3 @@ export default function AdminSettings() {
     </DashboardLayout>
   );
 }
-

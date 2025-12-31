@@ -419,40 +419,45 @@ class NotificationService {
   }
 
   // User management notifications
-  static async notifyUserCreated(userId, createdBy, role) {
+  static async notifyUserCreated(userId, createdBy, role, auditLogId) {
     return this.createNotification('USER_CREATED', {
       userId,
       createdBy,
-      role
+      role,
+      auditLogId
     });
   }
 
-  static async notifyUserUpdated(userId, updatedBy) {
+  static async notifyUserUpdated(userId, updatedBy, auditLogId) {
     return this.createNotification('USER_UPDATED', {
       userId,
-      updatedBy
+      updatedBy,
+      auditLogId
     });
   }
 
-  static async notifyUserVerificationChanged(userId, verificationStatus, changedBy) {
+  static async notifyUserVerificationChanged(userId, verificationStatus, changedBy, auditLogId) {
     return this.createNotification('USER_VERIFICATION_CHANGED', {
       userId,
       verificationStatus,
-      changedBy
+      changedBy,
+      auditLogId
     });
   }
 
-  static async notifyUserDeleted(userId, deletedBy) {
+  static async notifyUserDeleted(userId, deletedBy, auditLogId) {
     return this.createNotification('USER_DELETED', {
       userId,
-      deletedBy
+      deletedBy,
+      auditLogId
     });
   }
 
-  static async notifyUserSuspended(userId, suspendedBy) {
+  static async notifyUserSuspended(userId, suspendedBy, auditLogId) {
     return this.createNotification('USER_SUSPENDED', {
       userId,
-      suspendedBy
+      suspendedBy,
+      auditLogId
     });
   }
 

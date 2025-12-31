@@ -565,7 +565,7 @@ const createUser = async (req, res) => {
 
     // Create audit log for user creation
     const performedByUser = await User.findById(req.user.id).select('-password');
-    await createAuditLog({
+    const auditLog = await createAuditLog({
       performedBy: performedByUser,
       targetUser: user,
       action: AUDIT_ACTIONS.USER_CREATED,
@@ -584,7 +584,8 @@ const createUser = async (req, res) => {
       await NotificationService.notifyUserCreated(
         user._id.toString(),
         req.user.id,
-        user.role
+        user.role,
+        auditLog?._id?.toString?.() || auditLog?._id
       );
     } catch (notificationError) {
       console.error('Failed to create user creation notifications:', notificationError);
@@ -699,7 +700,7 @@ const updateUserStatus = async (req, res) => {
 
     // Create audit log for status update
     const performedByUser = await User.findById(req.user.id).select('-password');
-    await createAuditLog({
+    const auditLog = await createAuditLog({
       performedBy: performedByUser,
       targetUser: user,
       action: AUDIT_ACTIONS.USER_STATUS_UPDATED,
@@ -713,7 +714,11 @@ const updateUserStatus = async (req, res) => {
     try {
       const becameInactive = oldUser.status === 'active' && user.status !== 'active';
       if (becameInactive) {
-        await NotificationService.notifyUserSuspended(user._id.toString(), req.user.id);
+        await NotificationService.notifyUserSuspended(
+          user._id.toString(),
+          req.user.id,
+          auditLog?._id?.toString?.() || auditLog?._id
+        );
       }
     } catch (notificationError) {
       console.error('Failed to create user status notifications:', notificationError);
@@ -744,115 +749,6 @@ const updateUserStatus = async (req, res) => {
   }
 };
 
-// @desc    Update user (Superadmin only)
-// @route   PUT /api/users/:id
-// @access  Private/Superadmin
-const updateUser = async (req, res) => {
-  try {
-    const {
-      name,
-      email,
-      phone,
-      avatar,
-      // Admin specific fields
-      adminRole,
-      // Freelancer specific fields
-      skills,
-      hourlyRate,
-      experience,
-      bio,
-      // Client specific fields
-      company,
-      website,
-      location,
-      title
-    } = req.body;
-
-    // Check if email is being updated and if it already exists
-    if (email) {
-      const existingUser = await User.findOne({ email, _id: { $ne: req.params.id } });
-      if (existingUser) {
-        return res.status(STATUS_CODES.BAD_REQUEST).json({
-          success: false,
-          message: 'User with this email already exists'
-        });
-      }
-    }
-
-    // Prepare update data
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (email) updateData.email = email;
-    if (phone) updateData.phone = phone;
-    if (avatar !== undefined) updateData.avatar = avatar; // Allow null to remove avatar
-
-    // Add role-specific fields
-    if (adminRole) updateData.adminRole = adminRole;
-
-    if (skills) updateData.skills = Array.isArray(skills) ? skills : skills.split(',').map(s => s.trim());
-    if (hourlyRate !== undefined) updateData.hourlyRate = hourlyRate;
-    if (experience) updateData.experience = experience;
-    if (bio) updateData.bio = bio;
-
-    if (company) updateData.company = company;
-    if (website) updateData.website = website;
-    if (location) updateData.location = location;
-    if (title) updateData.title = title;
-
-    // Get old user data for audit log
-    const oldUser = await User.findById(req.params.id).select('-password');
-    
-    if (!oldUser) {
-      return res.status(STATUS_CODES.NOT_FOUND).json({
-        success: false,
-        message: MESSAGES.USER_NOT_FOUND
-      });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    if (!user) {
-      return res.status(STATUS_CODES.NOT_FOUND).json({
-        success: false,
-        message: MESSAGES.USER_NOT_FOUND
-      });
-    }
-
-    // Create audit log for user update
-    const fieldsToCheck = ['name', 'email', 'phone', 'avatar', 'adminRole', 'skills', 'hourlyRate', 'experience', 'bio', 'company', 'website', 'location', 'title'];
-    const { changes, previousValues, newValues } = detectChanges(oldUser.toObject(), user.toObject(), fieldsToCheck);
-    
-    if (Object.keys(changes).length > 0) {
-      const performedByUser = await User.findById(req.user.id).select('-password');
-      await createAuditLog({
-        performedBy: performedByUser,
-        targetUser: user,
-        action: AUDIT_ACTIONS.USER_UPDATED,
-        changes,
-        previousValues,
-        newValues,
-        req
-      });
-    }
-
-    res.status(STATUS_CODES.OK).json({
-      success: true,
-      message: 'User updated successfully',
-      user
-    });
-  } catch (error) {
-    console.error('Update user error:', error);
-    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MESSAGES.SERVER_ERROR
-    });
-  }
-};
-
 // @desc    Delete user (Superadmin only)
 // @route   DELETE /api/users/:id
 // @access  Private/Superadmin
@@ -869,7 +765,7 @@ const deleteUser = async (req, res) => {
 
     // Create audit log before deletion
     const performedByUser = await User.findById(req.user.id).select('-password');
-    await createAuditLog({
+    const auditLog = await createAuditLog({
       performedBy: performedByUser,
       targetUser: user,
       action: AUDIT_ACTIONS.USER_DELETED,
@@ -885,7 +781,11 @@ const deleteUser = async (req, res) => {
 
     // Notifications
     try {
-      await NotificationService.notifyUserDeleted(user._id.toString(), req.user.id);
+      await NotificationService.notifyUserDeleted(
+        user._id.toString(),
+        req.user.id,
+        auditLog?._id?.toString?.() || auditLog?._id
+      );
     } catch (notificationError) {
       console.error('Failed to create user deletion notifications:', notificationError);
     }
@@ -927,7 +827,6 @@ module.exports = {
   getUserById,
   updateUserRole,
   updateUserStatus,
-  updateUser,
   createUser,
   deleteUser
 };
