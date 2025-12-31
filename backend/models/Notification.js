@@ -10,7 +10,6 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: NOTIFICATION_TYPES_ARRAY,
     required: [true, VALIDATION.NOTIFICATION.TYPE_REQUIRED]
   },
   title: {

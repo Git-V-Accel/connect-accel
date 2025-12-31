@@ -225,26 +225,116 @@ class SocketService {
     });
   }
 
-  // Emit notification to all admin users
-  emitToAdminUsers(event, data) {
-    if (this.io) {
-      // Get all connected admin users
-      const allConnectedUsers = Array.from(this.connectedUsers.values());
-      console.log('All connected users:', allConnectedUsers.map(u => ({ id: u.userId, role: u.user?.role })));
+  // Emit notification to specific users based on roles
+  async emitToUsersByRole(event, data, roles = [], excludeUserIds = []) {
+    if (!this.io) return;
+
+    try {
+      const User = require('../models/User');
+      const targetUsers = await User.find({
+        role: { $in: roles },
+        status: 'active',
+        _id: { $nin: excludeUserIds }
+      }).select('_id');
+
+      const userIds = targetUsers.map(user => user._id.toString());
       
-      const adminUsers = allConnectedUsers.filter(socket => 
-        socket.user && (socket.user.role === 'admin' || socket.user.role === 'superadmin')
-      );
-      
-      console.log('Admin users found:', adminUsers.map(u => ({ id: u.userId, role: u.user?.role })));
-      
-      adminUsers.forEach(adminUser => {
-        adminUser.emit(event, data);
+      userIds.forEach(userId => {
+        this.emitToUser(userId, event, data);
       });
+
+      console.log(`Emitted '${event}' to ${userIds.length} users with roles: ${roles.join(', ')}`);
+    } catch (error) {
+      console.error('Error emitting to users by role:', error);
+    }
+  }
+
+  // Emit notification to all admin users
+  async emitToAdminUsers(event, data) {
+    await this.emitToUsersByRole(event, data, ['admin', 'superadmin']);
+  }
+
+  // Emit notification to all client users
+  async emitToClientUsers(event, data) {
+    await this.emitToUsersByRole(event, data, ['client']);
+  }
+
+  // Emit notification to all freelancer users
+  async emitToFreelancerUsers(event, data) {
+    await this.emitToUsersByRole(event, data, ['freelancer']);
+  }
+
+  // Emit notification to all agent users
+  async emitToAgentUsers(event, data) {
+    await this.emitToUsersByRole(event, data, ['agent']);
+  }
+
+  // Emit notification to users assigned to a specific project
+  async emitToProjectUsers(projectId, event, data) {
+    if (!this.io) return;
+
+    try {
+      const Project = require('../models/Project');
+      const project = await Project.findById(projectId)
+        .populate('client', '_id')
+        .populate('assignedFreelancerId', '_id')
+        .populate('assignedAgentId', '_id');
+
+      if (!project) {
+        console.warn(`Project ${projectId} not found for notification`);
+        return;
+      }
+
+      const targetUserIds = [];
       
-      console.log(`Emitted '${event}' to ${adminUsers.length} admin users with data:`, data);
-    } else {
-      console.warn('Socket.IO not initialized. Cannot emit to admin users.');
+      // Add client
+      if (project.client) {
+        targetUserIds.push(project.client._id.toString());
+      }
+      
+      // Add assigned freelancer
+      if (project.assignedFreelancerId) {
+        targetUserIds.push(project.assignedFreelancerId._id.toString());
+      }
+      
+      // Add assigned agent
+      if (project.assignedAgentId) {
+        targetUserIds.push(project.assignedAgentId._id.toString());
+      }
+
+      // Remove duplicates
+      const uniqueUserIds = [...new Set(targetUserIds)];
+      
+      uniqueUserIds.forEach(userId => {
+        this.emitToUser(userId, event, data);
+      });
+
+      console.log(`Emitted '${event}' to ${uniqueUserIds.length} users for project ${projectId}`);
+    } catch (error) {
+      console.error('Error emitting to project users:', error);
+    }
+  }
+
+  // Emit notification to shortlisted freelancers for a project
+  async emitToShortlistedFreelancers(projectId, event, data) {
+    if (!this.io) return;
+
+    try {
+      const Bid = require('../models/Bid');
+      const shortlistedBids = await Bid.find({
+        projectId,
+        status: 'shortlisted'
+      }).select('bidderId');
+
+      const freelancerIds = shortlistedBids.map(bid => bid.bidderId.toString());
+      
+      freelancerIds.forEach(freelancerId => {
+        this.emitToUser(freelancerId, event, data);
+      });
+
+      console.log(`Emitted '${event}' to ${freelancerIds.length} shortlisted freelancers for project ${projectId}`);
+    } catch (error) {
+      console.error('Error emitting to shortlisted freelancers:', error);
     }
   }
 

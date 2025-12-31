@@ -2,6 +2,7 @@ const Project = require('../models/Project');
 const ProjectTimeline = require('../models/ProjectTimeline');
 const ActivityLogger = require('../services/activityLogger');
 const Notification = require('../models/Notification');
+const NotificationService = require('../services/notificationService');
 const ConsultationRequest = require('../models/ConsultationRequest');
 const User = require('../models/User');
 const socketService = require('../services/socketService');
@@ -392,35 +393,21 @@ const createProject = async (req, res) => {
       console.error('Failed to log project creation activity:', activityError);
     }
 
-    // Create notification for admin users
-    await createAdminNotifications({
-      type: 'project_created',
-      title: 'New Project Created',
-      message: `A new project "${title}" has been created by ${req.user.name}`,
-      projectId: project._id.toString(),
-      metadata: {
-        clientId: targetClientId,
-        clientName: actingAsAdmin
-          ? selectedClientUser?.name
-          : req.user.name,
-        projectTitle: title
+    // Create notifications using the new notification service
+    try {
+      // Notify client about project creation
+      await NotificationService.notifyProjectCreated(
+        project._id.toString(),
+        targetClientId.toString()
+      );
+      
+      // If project needs review, notify admins
+      if (project.status === 'pending_review' || project.status === 'pending') {
+        await NotificationService.notifyProjectReviewPending(project._id.toString());
       }
-    });
-
-    // Emit socket event for new project to admin users
-    socketService.emitToAdminUsers('global-notification', {
-      eventType: 'project_created',
-      title: 'New Project Created',
-      message: `A new project "${title}" has been created by ${req.user.name}`,
-      projectId: project._id.toString(),
-      metadata: {
-        clientId: targetClientId,
-        clientName: actingAsAdmin
-          ? selectedClientUser?.name
-          : req.user.name,
-        projectTitle: title
-      }
-    });
+    } catch (notificationError) {
+      console.error('Failed to create project notifications:', notificationError);
+    }
 
     // Trigger dashboard refresh for all connected clients
     try {
@@ -576,6 +563,7 @@ const updateProject = async (req, res) => {
     }
 
     const oldStatus = project.status;
+    const oldAgentId = project.assignedAgentId ? project.assignedAgentId.toString() : null;
     const updatedProject = await Project.findByIdAndUpdate(
       req.params.id,
       updateData,
@@ -583,6 +571,40 @@ const updateProject = async (req, res) => {
     ).populate('client', 'name email userID')
      .populate('assignedFreelancer', 'name email userID')
      .populate('assignedAgentId', 'name email userID');
+
+    // Agent assignment notifications
+    try {
+      const newAgentId = updatedProject.assignedAgentId?._id
+        ? updatedProject.assignedAgentId._id.toString()
+        : (updatedProject.assignedAgentId ? updatedProject.assignedAgentId.toString() : null);
+
+      const agentChanged = oldAgentId !== newAgentId;
+      if (agentChanged) {
+        // Unassigned
+        if (oldAgentId && !newAgentId) {
+          await NotificationService.notifyAgentUnassigned(updatedProject._id.toString(), oldAgentId, req.user.id);
+        }
+
+        // Assigned
+        if (newAgentId) {
+          await NotificationService.notifyAgentAssigned(updatedProject._id.toString(), newAgentId, req.user.id);
+          await NotificationService.notifyProjectAssigned(updatedProject._id.toString(), newAgentId, req.user.id);
+        }
+      }
+    } catch (notificationError) {
+      console.error('Failed to create agent assignment notifications:', notificationError);
+    }
+
+    // Realtime dashboard refresh
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'project',
+        action: 'updated',
+        projectId: updatedProject._id.toString(),
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
 
     // Handle status changes - use logStatusChangeAndEmit for notifications and emails
     if (oldStatus !== updatedProject.status) {
@@ -611,6 +633,18 @@ const updateProject = async (req, res) => {
         action,
         remark
       );
+      
+      // Create notifications for project status change
+      try {
+        await NotificationService.notifyProjectStatusChanged(
+          updatedProject._id.toString(),
+          oldStatus,
+          updatedProject.status,
+          req.user.id
+        );
+      } catch (notificationError) {
+        console.error('Failed to create project status change notifications:', notificationError);
+      }
       
       // Log activity for status changes
       // Log specific approval/rejection activities

@@ -2,6 +2,7 @@ const Bid = require('../models/Bid');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const NotificationService = require('../services/notificationService');
 const socketService = require('../services/socketService');
 const { validationResult } = require('express-validator');
 const { processAttachments } = require('../utils/attachmentStorage');
@@ -69,6 +70,26 @@ const submitBid = async (req, res) => {
     });
 
     await bid.save();
+
+    // Create notifications for bid submission
+    try {
+      await NotificationService.notifyBidCreated(
+        projectId,
+        bid._id.toString(),
+        bidderId,
+        bidAmount
+      );
+
+      // Notify stakeholders that a bid was received (client/admin/superadmin/assigned agent)
+      await NotificationService.notifyBidReceived(
+        projectId,
+        bid._id.toString(),
+        bidderId,
+        bidAmount
+      );
+    } catch (notificationError) {
+      console.error('Failed to create bid notifications:', notificationError);
+    }
 
     // Trigger dashboard refresh for all connected clients
     try {

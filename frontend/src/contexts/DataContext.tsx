@@ -4,6 +4,7 @@ import { socketService } from '../services/socketService';
 import { SocketEvents } from '../constants/socketConstants';
 import * as projectService from '../services/projectService';
 import * as bidService from '../services/bidService';
+import apiClient from '../services/apiService';
 import { toast } from '../utils/toast';
 
 // Types
@@ -318,6 +319,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: ReactNode }) {
     const { user } = useAuth();
     const isLoadingProjectsRef = useRef(false);
+    const [refreshTick, setRefreshTick] = useState(0);
     const [data, setData] = useState(() => {
         const stored = sessionStorage.getItem('connect_accel_data');
         if (stored) {
@@ -343,6 +345,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
             clients: [],
         };
     });
+
+    // Listen for dashboard refresh and trigger reload
+    useEffect(() => {
+        if (!user) return;
+
+        const unsubscribe = socketService.on(SocketEvents.DASHBOARD_REFRESH, () => {
+            // Force next fetch to run (bypass 30s cache)
+            sessionStorage.removeItem('projects_last_load_time');
+            setRefreshTick((t) => t + 1);
+        });
+
+        return unsubscribe;
+    }, [user]);
 
     // Load projects from backend when user is available
     useEffect(() => {
@@ -447,7 +462,56 @@ export function DataProvider({ children }: { children: ReactNode }) {
         };
 
         loadProjects();
-    }, [user]);
+    }, [user, refreshTick]);
+
+    // Load notifications from backend when user is available
+    useEffect(() => {
+        const loadNotifications = async () => {
+            if (!user) return;
+
+            try {
+                const response = await apiClient.get('/notifications', { params: { limit: 50 } });
+                const rows = response.data?.data || [];
+
+                const normalizeType = (raw: any): Notification['type'] => {
+                    const t = String(raw || '').toLowerCase();
+                    if (t.includes('milestone')) return 'milestone';
+                    if (t.includes('payment')) return 'payment';
+                    if (t.includes('message')) return 'message';
+                    if (t.includes('bid') || t.includes('bidding')) return 'bid';
+                    if (t.includes('dispute')) return 'dispute';
+                    return 'project';
+                };
+
+                const normalized: Notification[] = rows.map((n: any) => {
+                    const projectId = n.projectId?._id || n.projectId;
+                    return {
+                        id: n._id || n.id,
+                        user_id: (typeof n.user === 'string' ? n.user : n.user?._id) || n.user_id,
+                        type: normalizeType(n.type),
+                        title: n.title,
+                        description: n.message || n.description,
+                        link: projectId ? `/projects/${projectId}` : n.link,
+                        read: Boolean(n.isRead ?? n.read),
+                        created_at: n.createdAt || n.created_at,
+                    };
+                });
+
+                setData((prev: any) => {
+                    const existingById = new Map((prev.notifications || []).map((x: Notification) => [x.id, x]));
+                    normalized.forEach((x) => existingById.set(x.id, x));
+                    return {
+                        ...prev,
+                        notifications: Array.from(existingById.values()),
+                    };
+                });
+            } catch (error) {
+                console.error('Failed to load notifications:', error);
+            }
+        };
+
+        loadNotifications();
+    }, [user, refreshTick]);
 
     useEffect(() => {
         if (user) {

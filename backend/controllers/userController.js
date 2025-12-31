@@ -6,6 +6,8 @@ const { generateTemporaryPassword } = require('../utils/passwordGenerator');
 const { generateUserId } = require('../utils/userIdGenerator');
 const { createAuditLog, detectChanges } = require('../utils/auditLogger');
 const { AUDIT_ACTIONS } = require('../constants/auditMessages');
+const NotificationService = require('../services/notificationService');
+const socketService = require('../services/socketService');
 
 // @desc    Get current user
 // @route   GET /api/users/me
@@ -577,6 +579,17 @@ const createUser = async (req, res) => {
       req
     });
 
+    // Notifications: Admin/Superadmin dashboard notification
+    try {
+      await NotificationService.notifyUserCreated(
+        user._id.toString(),
+        req.user.id,
+        user.role
+      );
+    } catch (notificationError) {
+      console.error('Failed to create user creation notifications:', notificationError);
+    }
+
     // Send welcome email with credentials
     let emailSent = false;
     try {
@@ -695,6 +708,27 @@ const updateUserStatus = async (req, res) => {
       newValues: { status: user.status },
       req
     });
+
+    // Notifications: treat non-active status as suspension for notification purposes
+    try {
+      const becameInactive = oldUser.status === 'active' && user.status !== 'active';
+      if (becameInactive) {
+        await NotificationService.notifyUserSuspended(user._id.toString(), req.user.id);
+      }
+    } catch (notificationError) {
+      console.error('Failed to create user status notifications:', notificationError);
+    }
+
+    // Realtime dashboard refresh
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'user',
+        action: 'status_updated',
+        userId: user._id.toString(),
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
 
     res.status(STATUS_CODES.OK).json({
       success: true,
@@ -849,7 +883,25 @@ const deleteUser = async (req, res) => {
       req
     });
 
+    // Notifications
+    try {
+      await NotificationService.notifyUserDeleted(user._id.toString(), req.user.id);
+    } catch (notificationError) {
+      console.error('Failed to create user deletion notifications:', notificationError);
+    }
+
     await User.findByIdAndDelete(req.params.id);
+
+    // Realtime dashboard refresh
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'user',
+        action: 'deleted',
+        userId: req.params.id,
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
 
     res.status(STATUS_CODES.OK).json({
       success: true,
