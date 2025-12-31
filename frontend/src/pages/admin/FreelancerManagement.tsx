@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -152,7 +153,7 @@ export default function FreelancerManagement() {
     const totalProjects = freelancerProjects.length;
     const activeProjects = freelancerProjects.filter(p => ['in_progress', 'assigned'].includes(p.status)).length;
     const completedProjects = freelancerProjects.filter(p => p.status === 'completed').length;
-    
+
     return { totalProjects, activeProjects, completedProjects };
   };
 
@@ -272,7 +273,7 @@ export default function FreelancerManagement() {
                 setSelectedFreelancer(freelancer);
                 setShowDeleteDialog(true);
               }}
-              className="text-red-600 hover:text-red-700"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
               title="Delete Freelancer"
             >
               <Trash2 className="size-4" />
@@ -282,6 +283,10 @@ export default function FreelancerManagement() {
       ),
     },
   ];
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   return (
     <DashboardLayout>

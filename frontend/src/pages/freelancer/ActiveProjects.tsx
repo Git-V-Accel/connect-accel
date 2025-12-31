@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
@@ -9,15 +10,14 @@ import { Progress } from '../../components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { 
-  Briefcase, 
-  Calendar, 
-  IndianRupee, 
-  Clock, 
+import {
+  Briefcase,
+  Calendar,
+  IndianRupee,
+  Clock,
   Search,
   ArrowRight,
   CheckCircle,
-  AlertTriangle,
   TrendingUp
 } from 'lucide-react';
 
@@ -25,6 +25,18 @@ export default function ActiveProjects() {
   const { user } = useAuth();
   const { getProjectsByUser, getMilestonesByProject, getPaymentsByUser } = useData();
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   if (!user) return null;
 
@@ -34,12 +46,12 @@ export default function ActiveProjects() {
   const completedProjects = myProjects.filter(p => p.status === 'completed');
   const payments = getPaymentsByUser(user.id);
 
-  const filteredActive = activeProjects.filter(p => 
+  const filteredActive = activeProjects.filter(p =>
     p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.client_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredCompleted = completedProjects.filter(p => 
+  const filteredCompleted = completedProjects.filter(p =>
     p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.client_name.toLowerCase().includes(searchQuery.toLowerCase())
   );

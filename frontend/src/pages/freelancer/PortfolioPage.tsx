@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
@@ -8,16 +9,13 @@ import { Textarea } from '../../components/ui/textarea';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { 
+import {
   Plus,
-  Edit,
   Trash2,
   ExternalLink,
-  Image as ImageIcon,
   Award,
   Briefcase,
-  Code,
-  Star
+  Code
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
@@ -85,7 +83,15 @@ export default function PortfolioPage() {
   const [showPortfolioDialog, setShowPortfolioDialog] = useState(false);
   const [showSkillDialog, setShowSkillDialog] = useState(false);
   const [showCertDialog, setShowCertDialog] = useState(false);
-  const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
 
   // Portfolio form state
   const [portfolioForm, setPortfolioForm] = useState({
@@ -110,6 +116,10 @@ export default function PortfolioPage() {
     date: '',
     credential_id: ''
   });
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   const handleAddPortfolio = () => {
     if (!portfolioForm.title || !portfolioForm.description || !portfolioForm.category) {
@@ -229,8 +239,8 @@ export default function PortfolioPage() {
             {portfolioItems.map(item => (
               <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="aspect-video bg-gray-200 overflow-hidden">
-                  <img 
-                    src={item.image} 
+                  <img
+                    src={item.image}
                     alt={item.title}
                     className="w-full h-full object-cover"
                   />
@@ -307,8 +317,8 @@ export default function PortfolioPage() {
                       <Badge className={getSkillLevelColor(skill.level)}>
                         {skill.level}
                       </Badge>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteSkill(skill.id)}
                       >
@@ -317,7 +327,7 @@ export default function PortfolioPage() {
                     </div>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                    <div 
+                    <div
                       className={`h-full ${getSkillLevelColor(skill.level)} transition-all`}
                       style={{ width: getSkillLevelWidth(skill.level) }}
                     />
@@ -374,8 +384,8 @@ export default function PortfolioPage() {
                       )}
                     </div>
                   </div>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={() => handleDeleteCert(cert.id)}
                   >
@@ -419,8 +429,8 @@ export default function PortfolioPage() {
               </div>
               <div>
                 <Label>Category *</Label>
-                <Select 
-                  value={portfolioForm.category} 
+                <Select
+                  value={portfolioForm.category}
                   onValueChange={(value) => setPortfolioForm({ ...portfolioForm, category: value })}
                 >
                   <SelectTrigger>
@@ -493,8 +503,8 @@ export default function PortfolioPage() {
               </div>
               <div>
                 <Label>Proficiency Level *</Label>
-                <Select 
-                  value={skillForm.level} 
+                <Select
+                  value={skillForm.level}
                   onValueChange={(value: any) => setSkillForm({ ...skillForm, level: value })}
                 >
                   <SelectTrigger>

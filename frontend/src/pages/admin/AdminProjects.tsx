@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from "../../components/shared/DashboardLayout";
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -22,28 +24,36 @@ import { useData } from "../../contexts/DataContext";
 import { statusColors, statusLabels } from "../../constants/projectConstants";
 import {
   Search,
-  Filter,
   Clock,
   IndianRupee,
   Eye,
-  ArrowUpDown,
-  FileText,
-  AlertCircle,
   CheckCircle,
   XCircle,
-  MoreVertical,
   Calendar,
   User,
   TrendingUp,
+  AlertCircle,
+  FileText,
 } from "lucide-react";
 import { RichTextViewer } from "../../components/common";
 
 export default function AdminProjects() {
   const { projects, getBidsByProject } = useData();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date_desc");
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   // Filter out draft projects for admin/superadmin view
   const nonDraftProjects = projects.filter(p => p.status !== 'draft');

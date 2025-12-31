@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import DashboardSkeleton from '../../components/shared/DashboardSkeleton';
 import { StatCard } from '../../components/shared/StatCard';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { Button } from '../../components/ui/button';
@@ -12,6 +14,18 @@ import { Briefcase, Clock, IndianRupee, Star, TrendingUp, ArrowRight, Search } f
 export default function FreelancerDashboard() {
   const { user } = useAuth();
   const { getProjectsByUser, getBidsByFreelancer, getPaymentsByUser, projects } = useData();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [projects]);
+
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
 
   if (!user) return null;
 

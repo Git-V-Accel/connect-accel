@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { useData } from '../../contexts/DataContext';
@@ -191,6 +192,10 @@ export default function AdminBidManagement() {
     },
   ];
 
+  if (loading) {
+    return <PageSkeleton />;
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -280,12 +285,7 @@ export default function AdminBidManagement() {
 
         {/* Bids List */}
         <div className="space-y-4">
-          {loading ? (
-            <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading bids...</p>
-            </div>
-          ) : filteredBids.length === 0 ? (
+          {filteredBids.length === 0 ? (
             <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
               <FileText className="size-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg mb-2">No bids found</h3>
@@ -299,7 +299,7 @@ export default function AdminBidManagement() {
             filteredBids
               .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
               .map((bid) => {
-                const project = getProject(bid.projectId);
+                getProject(bid.projectId);
                 const projectTitle = bid.projectTitle || bid.project?.title || 'Unknown Project';
                 const bidderName = bid.bidderName || bid.bidder?.name || 'Unknown';
                 const bidderRating = bid.bidder?.rating;
@@ -444,7 +444,7 @@ export default function AdminBidManagement() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-red-600 hover:text-red-700"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         onClick={() => handleDeleteBid(bid.id)}
                       >
                         <Trash2 className="size-4 mr-2" />

@@ -451,7 +451,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         if (user) {
-            sessionStorage.setItem('connect_accel_data', JSON.stringify(data));
+            const timeoutId = setTimeout(() => {
+                sessionStorage.setItem('connect_accel_data', JSON.stringify(data));
+            }, 1000);
+            return () => clearTimeout(timeoutId);
         }
     }, [data, user]);
 
@@ -700,7 +703,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
 
     const getProjectsByAgent = (agentId: string) => {
-        return data.projects.filter((p: Project) => p.admin_id === agentId);
+        return data.projects.filter((p: Project) => p.assigned_agent_id === agentId);
     };
 
     const deleteProject = async (id: string) => {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { cn } from '../ui/utils';
 
 export interface RichTextViewerProps {
@@ -32,9 +31,9 @@ export function RichTextViewer({ content, className }: RichTextViewerProps) {
         className
       )}
       style={{ 
-        maxWidth: '100%', 
+        maxWidth: 'min(100%, 100ch)',
         wordWrap: 'break-word', 
-        overflowWrap: 'break-word',
+        overflowWrap: 'anywhere',
         width: '100%'
       }}
       dangerouslySetInnerHTML={{ __html: content }}

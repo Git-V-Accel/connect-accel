@@ -255,6 +255,7 @@ export const RichTextEditor = React.forwardRef<HTMLDivElement, RichTextEditorPro
           className={cn(
             'w-full px-4 py-3 outline-none',
             'prose prose-sm max-w-none',
+            '[overflow-wrap:anywhere]',
             'focus:ring-2 focus:ring-blue-500 focus:ring-offset-0',
             !value && !isFocused && 'text-gray-400',
             disabled && 'bg-gray-50 cursor-not-allowed'
@@ -270,6 +271,27 @@ export const RichTextEditor = React.forwardRef<HTMLDivElement, RichTextEditorPro
             content: attr(data-placeholder);
             color: #9ca3af;
             pointer-events: none;
+          }
+
+          /* Auto-wrap long words/URLs and keep content within container */
+          [contenteditable] {
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+          }
+          [contenteditable] pre {
+            max-width: 100%;
+            white-space: pre-wrap;
+          }
+          [contenteditable] code {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+          }
+          [contenteditable] img,
+          [contenteditable] video,
+          [contenteditable] iframe,
+          [contenteditable] table {
+            max-width: 100%;
           }
 
           /* headings */

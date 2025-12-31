@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -73,7 +74,7 @@ export default function AgentManagement() {
     setError(null);
     try {
       const users = await userService.listUsers();
-      const agents = users.filter((u) => u.role === 'agent') as Agent[];
+      const agents = users.filter((u: any) => u.role === 'agent') as Agent[];
       setAllAgents(agents);
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to load agents';
@@ -121,7 +122,7 @@ export default function AgentManagement() {
     setLoading(true);
     try {
       await userService.updateUserStatus(agent.id, newStatus as any);
-    toast.success(`Agent status updated to ${newStatus}`);
+      toast.success(`Agent status updated to ${newStatus}`);
       await loadAgents();
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to update status';
@@ -137,9 +138,9 @@ export default function AgentManagement() {
     setLoading(true);
     try {
       await userService.deleteUser(selectedAgent.id);
-    toast.success('Agent deleted successfully');
-    setShowDeleteDialog(false);
-    setSelectedAgent(null);
+      toast.success('Agent deleted successfully');
+      setShowDeleteDialog(false);
+      setSelectedAgent(null);
       await loadAgents();
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to delete agent';
@@ -236,7 +237,7 @@ export default function AgentManagement() {
                 setSelectedAgent(agent);
                 setShowDeleteDialog(true);
               }}
-              className="text-red-600 hover:text-red-700"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
               title="Delete Agent"
             >
               <Trash2 className="size-4" />
@@ -246,6 +247,10 @@ export default function AgentManagement() {
       ),
     },
   ];
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   return (
     <DashboardLayout>
@@ -293,7 +298,7 @@ export default function AgentManagement() {
               <Ban className="size-8 text-yellow-500" />
             </div>
           </Card>
-          
+
         </div>
 
         {/* Filters */}

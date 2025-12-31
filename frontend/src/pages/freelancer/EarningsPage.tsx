@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
@@ -18,10 +19,9 @@ import {
 } from '../../components/ui/table';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { 
-  IndianRupee, 
-  TrendingUp, 
-  Download, 
+import {
+  IndianRupee,
+  Download,
   Calendar,
   ArrowUpRight,
   ArrowDownRight,
@@ -40,6 +40,18 @@ export default function EarningsPage() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawMethod, setWithdrawMethod] = useState('');
   const [filterPeriod, setFilterPeriod] = useState('all');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   if (!user) return null;
 
@@ -47,16 +59,16 @@ export default function EarningsPage() {
   const projects = getProjectsByUser(user.id, user.role);
 
   // Calculate earnings
-  const completedPayments = payments.filter(p => 
+  const completedPayments = payments.filter(p =>
     p.to_user_id === user.id && p.status === 'completed'
   );
-  const pendingPayments = payments.filter(p => 
+  const pendingPayments = payments.filter(p =>
     p.to_user_id === user.id && p.status === 'pending'
   );
-  
+
   const totalEarnings = completedPayments.reduce((sum, p) => sum + p.amount, 0);
   const pendingEarnings = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
-  const withdrawals = payments.filter(p => 
+  const withdrawals = payments.filter(p =>
     p.from_user_id === user.id && p.type === 'withdrawal'
   );
   const totalWithdrawn = withdrawals.reduce((sum, p) => sum + p.amount, 0);
@@ -65,10 +77,10 @@ export default function EarningsPage() {
   // Filter by period
   const filterByPeriod = (payment: any) => {
     if (filterPeriod === 'all') return true;
-    
+
     const paymentDate = new Date(payment.created_at);
     const now = new Date();
-    
+
     switch (filterPeriod) {
       case 'week':
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -91,9 +103,9 @@ export default function EarningsPage() {
   const getMonthlyEarnings = () => {
     const monthlyData: { [key: string]: number } = {};
     completedPayments.forEach(payment => {
-      const month = new Date(payment.created_at).toLocaleDateString('en-US', { 
-        month: 'short', 
-        year: 'numeric' 
+      const month = new Date(payment.created_at).toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric'
       });
       monthlyData[month] = (monthlyData[month] || 0) + payment.amount;
     });
@@ -104,7 +116,7 @@ export default function EarningsPage() {
 
   const handleWithdraw = () => {
     const amount = parseFloat(withdrawAmount);
-    
+
     if (!withdrawAmount || !withdrawMethod) {
       toast.error('Please fill in all fields');
       return;
@@ -149,7 +161,7 @@ export default function EarningsPage() {
             <h1 className="text-3xl mb-2">Earnings & Payments</h1>
             <p className="text-gray-600">Track your income and manage withdrawals</p>
           </div>
-          <Button 
+          <Button
             size="lg"
             onClick={() => setShowWithdrawDialog(true)}
             disabled={availableBalance <= 0}
@@ -224,7 +236,7 @@ export default function EarningsPage() {
               </SelectContent>
             </Select>
           </div>
-          
+
           {monthlyEarnings.length > 0 ? (
             <div className="space-y-4">
               {monthlyEarnings.slice(-6).map((item, index) => (
@@ -233,7 +245,7 @@ export default function EarningsPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
                       <div className="flex-1 bg-gray-200 rounded-full h-8 overflow-hidden">
-                        <div 
+                        <div
                           className="bg-gradient-to-r from-green-500 to-green-600 h-full flex items-center justify-end px-3 text-white text-sm font-medium"
                           style={{ width: `${(item.amount / Math.max(...monthlyEarnings.map(m => m.amount))) * 100}%` }}
                         >
@@ -409,7 +421,7 @@ export default function EarningsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-gray-600">
-                            {payment.completed_at 
+                            {payment.completed_at
                               ? new Date(payment.completed_at).toLocaleDateString()
                               : '-'
                             }
@@ -468,7 +480,7 @@ export default function EarningsPage() {
                 </Select>
               </div>
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-gray-700">
-                <strong>Note:</strong> Withdrawals are processed in 2-3 business days. 
+                <strong>Note:</strong> Withdrawals are processed in 2-3 business days.
                 A 2% processing fee will be deducted.
               </div>
             </div>

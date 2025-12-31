@@ -1,20 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { useData } from '../../contexts/DataContext';
-import { 
-  Search, 
-  Filter, 
+import {
+  Search,
   Star,
   Briefcase,
   IndianRupee,
   Award,
   Eye,
   UserPlus,
-  TrendingUp,
-  CheckCircle2
+  CheckCircle2,
+  FileText
 } from 'lucide-react';
 
 export default function AgentFreelancers() {
@@ -22,18 +22,31 @@ export default function AgentFreelancers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [skillFilter, setSkillFilter] = useState<string>('all');
   const [ratingFilter, setRatingFilter] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate initial loading
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   // Get all unique skills
   const allSkills = Array.from(new Set(freelancers.flatMap(f => f.skills)));
 
   const filteredFreelancers = freelancers.filter(freelancer => {
     const matchesSearch = freelancer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         freelancer.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         freelancer.skills.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
+      freelancer.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      freelancer.skills.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesSkill = skillFilter === 'all' || freelancer.skills.includes(skillFilter);
-    const matchesRating = ratingFilter === 'all' || 
-                         (ratingFilter === '4+' && freelancer.rating >= 4) ||
-                         (ratingFilter === '3+' && freelancer.rating >= 3);
+    const matchesRating = ratingFilter === 'all' ||
+      (ratingFilter === '4+' && freelancer.rating >= 4) ||
+      (ratingFilter === '3+' && freelancer.rating >= 3);
     return matchesSearch && matchesSkill && matchesRating;
   });
 
@@ -152,9 +165,8 @@ export default function AgentFreelancers() {
             </div>
           ) : (
             filteredFreelancers.map((freelancer) => {
-              const freelancerBids = getFreelancerBids(freelancer.id);
               const completedProjects = getFreelancerProjects(freelancer.id).filter(p => p.status === 'completed');
-              
+
               return (
                 <div key={freelancer.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow">
                   <div className="flex items-start justify-between mb-4">

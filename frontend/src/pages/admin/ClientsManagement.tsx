@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -27,7 +28,6 @@ import { useData } from '../../contexts/DataContext';
 import * as userService from '../../services/userService';
 import {
   Search,
-  Filter,
   User,
   Phone,
   Calendar,
@@ -35,9 +35,9 @@ import {
   CheckCircle,
   Trash2,
   Building,
-  Shield,
   IndianRupee,
   Briefcase,
+  Filter,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
@@ -56,7 +56,7 @@ interface Client {
 export default function ClientsManagement() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  const { projects, getProjectsByUser } = useData();
+  const { getProjectsByUser } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -64,21 +64,18 @@ export default function ClientsManagement() {
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const isAdmin = currentUser?.role === 'admin';
 
   const loadClients = async () => {
     setLoading(true);
-    setError(null);
     try {
-      const clients = await userService.listClients();
-      setAllClients(clients as Client[]);
+      const response = await userService.listUsers();
+      setAllClients(response as Client[]);
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to load clients';
-      setError(message);
       toast.error(message);
     } finally {
       setLoading(false);
@@ -118,7 +115,7 @@ export default function ClientsManagement() {
     setLoading(true);
     try {
       await userService.updateUserStatus(client.id, newStatus as any);
-    toast.success(`Client status updated to ${newStatus}`);
+      toast.success(`Client status updated to ${newStatus}`);
       await loadClients();
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to update status';
@@ -134,9 +131,9 @@ export default function ClientsManagement() {
     setLoading(true);
     try {
       await userService.deleteUser(selectedClient.id);
-    toast.success('Client deleted successfully');
-    setShowDeleteDialog(false);
-    setSelectedClient(null);
+      toast.success('Client deleted successfully');
+      setShowDeleteDialog(false);
+      setSelectedClient(null);
       await loadClients();
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Failed to delete client';
@@ -154,7 +151,7 @@ export default function ClientsManagement() {
     const totalSpent = clientProjects
       .filter(p => ['in_progress', 'completed'].includes(p.status))
       .reduce((sum, p) => sum + (p.budget || p.client_budget || 0), 0);
-    
+
     return { totalProjects, activeProjects, totalSpent };
   };
 
@@ -271,7 +268,7 @@ export default function ClientsManagement() {
                 setSelectedClient(client);
                 setShowDeleteDialog(true);
               }}
-              className="text-red-600 hover:text-red-700"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
               title="Delete Client"
             >
               <Trash2 className="size-4" />
@@ -281,6 +278,10 @@ export default function ClientsManagement() {
       ),
     },
   ];
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   return (
     <DashboardLayout>

@@ -46,7 +46,9 @@ export const commonSkills = [
     "iOS",
 ];
 
-export const statusColors = {
+export type ProjectStatus = 'draft' | 'active' | 'in_bidding' | 'bidding' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'rejected' | 'disputed' | 'pending_review' | 'hold' | 'open' | 'closed';
+
+export const statusColors: Record<string, string> = {
     draft: 'bg-gray-100 text-gray-700',
     active: 'bg-yellow-100 text-yellow-700',
     in_bidding: 'bg-blue-100 text-blue-700',

@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import PageSkeleton from '../../components/shared/PageSkeleton';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
@@ -10,10 +12,22 @@ import { Button } from '../../components/ui/button';
 export default function ClientPayments() {
   const { user } = useAuth();
   const { getPaymentsByUser, getProjectsByUser } = useData();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   if (!user) return null;
 
-  const payments = getPaymentsByUser(user.id).sort((a, b) => 
+  const payments = getPaymentsByUser(user.id).sort((a, b) =>
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
   const projects = getProjectsByUser(user.id, user.role);
@@ -83,9 +97,8 @@ export default function ClientPayments() {
                   return (
                     <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
                       <div className="flex items-center gap-4">
-                        <div className={`size-10 rounded-full flex items-center justify-center ${
-                          payment.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
-                        }`}>
+                        <div className={`size-10 rounded-full flex items-center justify-center ${payment.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
+                          }`}>
                           <IndianRupee className="size-5" />
                         </div>
                         <div>
@@ -100,7 +113,7 @@ export default function ClientPayments() {
                           {payment.status.toUpperCase()}
                         </Badge>
                         <p className="text-sm text-gray-600 mt-1">
-                          {payment.completed_at 
+                          {payment.completed_at
                             ? new Date(payment.completed_at).toLocaleDateString()
                             : new Date(payment.created_at).toLocaleDateString()
                           }
