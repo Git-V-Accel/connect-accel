@@ -10,7 +10,6 @@ import {
 // Socket service class
 class SocketService {
   private socket: Socket | null = null;
-  private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   private isConnecting = false;
@@ -20,6 +19,7 @@ class SocketService {
   // Event handlers
   private notificationHandlers: Map<string, Set<(data: any) => void>> = new Map();
   private messageHandlers: Map<string, Set<(data: any) => void>> = new Map();
+  private genericHandlers: Map<string, Set<(data: any) => void>> = new Map();
   private connectionHandlers: Set<(connected: boolean) => void> = new Set();
 
   /**
@@ -89,7 +89,6 @@ class SocketService {
       this.isConnecting = false;
       this.userId = null;
       this.token = null;
-      this.reconnectAttempts = 0;
     }
   }
 
@@ -109,7 +108,6 @@ class SocketService {
     // Connection events
     this.socket.on(SocketEvents.CONNECT, () => {
       console.log('Socket connected:', this.socket?.id);
-      this.reconnectAttempts = 0;
       this.isConnecting = false;
       this.notifyConnectionHandlers(true);
 
@@ -136,13 +134,11 @@ class SocketService {
 
     this.socket.on(SocketEvents.RECONNECT, (attemptNumber) => {
       console.log('Socket reconnected after', attemptNumber, 'attempts');
-      this.reconnectAttempts = 0;
       this.notifyConnectionHandlers(true);
     });
 
     this.socket.on(SocketEvents.RECONNECT_ATTEMPT, (attemptNumber) => {
       console.log('Reconnection attempt:', attemptNumber);
-      this.reconnectAttempts = attemptNumber;
       // Update auth token before reconnection attempt
       const token = sessionStorage.getItem('auth_token');
       if (token && this.socket) {
@@ -463,7 +459,11 @@ class SocketService {
    * Get handlers for specific event
    */
   private getHandlersForEvent(event: SocketEvents): Set<(data: any) => void> {
-    if (!this.notificationHandlers.has(event) && !this.messageHandlers.has(event)) {
+    if (
+      !this.notificationHandlers.has(event) &&
+      !this.messageHandlers.has(event) &&
+      !this.genericHandlers.has(event)
+    ) {
       if (
         event.startsWith('notification:') ||
         event.startsWith('message:') ||
@@ -475,9 +475,16 @@ class SocketService {
         } else {
           this.messageHandlers.set(event, new Set());
         }
+      } else {
+        this.genericHandlers.set(event, new Set());
       }
     }
-    return this.notificationHandlers.get(event) || this.messageHandlers.get(event) || new Set();
+    return (
+      this.notificationHandlers.get(event) ||
+      this.messageHandlers.get(event) ||
+      this.genericHandlers.get(event) ||
+      new Set()
+    );
   }
 
   /**

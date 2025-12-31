@@ -96,6 +96,7 @@ app.use("/api/settings", require("./routes/settings"));
 app.use("/api/projects", require("./routes/projects"));
 app.use("/api/bids", require("./routes/bids"));
 app.use("/api/bidding", require("./routes/bidding"));
+app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/activity-logs", require("./routes/activityLogs"));
 app.use("/api/audit-logs", require("./routes/auditLogRoutes"));

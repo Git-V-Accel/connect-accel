@@ -422,6 +422,17 @@ const createProject = async (req, res) => {
       }
     });
 
+    // Trigger dashboard refresh for all connected clients
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'project',
+        action: 'created',
+        projectId: project._id.toString(),
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
+
     // If this project came from a consultation request, mark it completed
     if (consultationId) {
       try {
@@ -697,6 +708,17 @@ const updateProject = async (req, res) => {
       updatedBy: req.user.id
     });
 
+    // Trigger dashboard refresh for all connected clients
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'project',
+        action: 'updated',
+        projectId: updatedProject?._id?.toString?.() || req.params.id,
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
+
     res.status(STATUS_CODES.OK).json({
       success: true,
       message: 'Project updated successfully',
@@ -766,6 +788,17 @@ const deleteProject = async (req, res) => {
         projectTitle: project.title
       }
     });
+
+    // Trigger dashboard refresh for all connected clients
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'project',
+        action: 'deleted',
+        projectId: project._id.toString(),
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
 
     res.status(STATUS_CODES.OK).json({
       success: true,

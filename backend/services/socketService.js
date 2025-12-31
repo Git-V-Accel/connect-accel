@@ -8,6 +8,10 @@ class SocketService {
     this.connectedUsers = new Map();
   }
 
+  emitDashboardRefresh(data = {}) {
+    this.emitToAll('dashboard:refresh', data);
+  }
+
   initialize(server) {
     const { Server } = require('socket.io');
     

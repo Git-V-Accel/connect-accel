@@ -70,6 +70,18 @@ const submitBid = async (req, res) => {
 
     await bid.save();
 
+    // Trigger dashboard refresh for all connected clients
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'bid',
+        action: 'created',
+        bidId: bid._id?.toString?.() || bid.id,
+        projectId: bid.projectId?.toString?.() || bid.projectId,
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
+
     // Notify client
     // Implementation of notification logic here (omitted for brevity but placeholder good practice)
 
@@ -215,6 +227,18 @@ const updateBidStatus = async (req, res) => {
 
     await bid.save();
 
+    // Trigger dashboard refresh for all connected clients
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'bid',
+        action: 'status_updated',
+        bidId: bid._id?.toString?.() || bidId,
+        projectId: bid.projectId?.toString?.() || bid.projectId,
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
+
     sendResponse(res, true, bid, 'Bid status updated successfully');
   } catch (error) {
     handleError(res, error, 'Failed to update bid status');
@@ -261,6 +285,18 @@ const updateBid = async (req, res) => {
     }
 
     const updatedBid = await Bid.findByIdAndUpdate(bidId, actualUpdates, { new: true });
+
+    // Trigger dashboard refresh for all connected clients
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'bid',
+        action: 'updated',
+        bidId: updatedBid?._id?.toString?.() || bidId,
+        projectId: updatedBid?.projectId?.toString?.() || updatedBid?.projectId,
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
     
     sendResponse(res, true, updatedBid, 'Bid updated successfully');
   } catch (error) {
@@ -289,6 +325,17 @@ const deleteBid = async (req, res) => {
     }
 
     await Bid.findByIdAndDelete(bidId);
+
+    // Trigger dashboard refresh for all connected clients
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'bid',
+        action: 'deleted',
+        bidId,
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
 
     sendResponse(res, true, null, 'Bid deleted successfully');
   } catch (error) {
@@ -321,6 +368,18 @@ const updateShortlistStatus = async (req, res) => {
       return sendResponse(res, false, null, 'Bid not found', 404);
     }
 
+    // Trigger dashboard refresh for all connected clients
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'bid',
+        action: 'shortlist_updated',
+        bidId: bid._id?.toString?.() || id,
+        projectId: bid.projectId?.toString?.() || bid.projectId,
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
+
     sendResponse(res, true, bid, 'Bid shortlist status updated');
   } catch (error) {
     handleError(res, error, 'Failed to update shortlist status');
@@ -340,6 +399,18 @@ const updateAcceptanceStatus = async (req, res) => {
       return sendResponse(res, false, null, 'Bid not found', 404);
     }
 
+    // Trigger dashboard refresh for all connected clients
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'bid',
+        action: 'acceptance_updated',
+        bidId: bid._id?.toString?.() || id,
+        projectId: bid.projectId?.toString?.() || bid.projectId,
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
+
     sendResponse(res, true, bid, 'Bid acceptance status updated');
   } catch (error) {
     handleError(res, error, 'Failed to update acceptance status');
@@ -357,6 +428,18 @@ const updateDeclineStatus = async (req, res) => {
     const bid = await Bid.findByIdAndUpdate(id, { isDeclined }, { new: true });
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
+    }
+
+    // Trigger dashboard refresh for all connected clients
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'bid',
+        action: 'decline_updated',
+        bidId: bid._id?.toString?.() || id,
+        projectId: bid.projectId?.toString?.() || bid.projectId,
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
     }
 
     sendResponse(res, true, bid, 'Bid decline status updated');

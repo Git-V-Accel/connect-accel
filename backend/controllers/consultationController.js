@@ -133,6 +133,17 @@ const assignConsultation = async (req, res) => {
       consultation: updatedConsultation
     });
 
+    // Trigger dashboard refresh for all connected clients
+    try {
+      socketService.emitDashboardRefresh({
+        entity: 'consultation',
+        action: 'updated',
+        consultationId: updatedConsultation?._id?.toString?.() || id,
+      });
+    } catch (emitError) {
+      console.error('Failed to emit dashboard refresh:', emitError);
+    }
+
     return res.status(STATUS_CODES.OK).json({
       success: true,
       data: updatedConsultation,

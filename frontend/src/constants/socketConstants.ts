@@ -70,6 +70,9 @@ export enum SocketEvents {
 
   // Project status events
   PROJECT_STATUS_UPDATED = 'project_status_updated',
+
+  // Dashboard events
+  DASHBOARD_REFRESH = 'dashboard:refresh',
 }
 
 // Socket room types

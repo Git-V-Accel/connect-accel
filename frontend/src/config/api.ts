@@ -79,6 +79,13 @@ export const API_CONFIG = {
     GET_SHORTLISTED: (projectId: string) => `/bidding/project/${projectId}/shortlisted`,
     STATS: '/bidding/stats',
   },
+  DASHBOARD: {
+    SUPERADMIN: '/dashboard/superadmin',
+    ADMIN: '/dashboard/admin',
+    AGENT: '/dashboard/agent',
+    CLIENT: '/dashboard/client',
+    FREELANCER: '/dashboard/freelancer',
+  },
 };
 
 export default API_CONFIG;
