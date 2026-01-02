@@ -1,40 +1,95 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Bell, X, Check, CheckCheck, Filter, Trash2, Settings } from 'lucide-react';
+
+
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Bell, X, Check, CheckCheck, Filter, Trash2, Settings, Wifi, WifiOff } from 'lucide-react';
+import { useData } from '../../contexts/DataContext';
 import { socketService } from '../../services/socketService';
 import { SocketEvents } from '../../constants/socketConstants';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 
+// Notification type definition
 interface Notification {
   id: string;
   user_id: string;
   type: string;
   title: string;
   message: string;
+  description?: string;
   projectId?: string;
   priority: 'low' | 'medium' | 'high';
   read: boolean;
   created_at: string;
-  metadata?: Record<string, any>;
+  metadata?: any;
 }
+
+// Helper function to get role-based events
+const getRoleBasedEvents = (userRole?: string): string[] => {
+  if (!userRole) return [];
+  
+  const role = userRole.toLowerCase();
+  const baseEvents = [
+    'notification:created',
+    'notification:updated',
+    'notification:read',
+    'notification:deleted'
+  ];
+  
+  // Role-specific events
+  const roleEvents: Record<string, string[]> = {
+    admin: [
+      'user_created', 'user_updated', 'user_deleted', 'user_suspended',
+      'project_created', 'project_updated', 'project_deleted',
+      'system_announcement'
+    ],
+    client: [
+      'bid_received', 'project_assigned', 'milestone_completed',
+      'project_status_changed', 'payment_received'
+    ],
+    freelancer: [
+      'bid_accepted', 'bid_rejected', 'project_assigned',
+      'milestone_created', 'milestone_updated', 'payment_processing'
+    ],
+    agent: [
+      'project_assigned', 'project_status_changed',
+      'consultation_scheduled', 'consultation_completed'
+    ]
+  };
+  
+  const specificEvents = roleEvents[role] || [];
+  return [...baseEvents, ...specificEvents.map(event => `notification:${event}`)];
+};
+
+
 
 interface NotificationPanelProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+
 const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread' | 'high'>('all');
+  const [isConnected, setIsConnected] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const connectionCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
 
   // Fetch notifications from API
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (showLoader = true) => {
     if (!user) return;
-    
-    setLoading(true);
+
     try {
+      if (showLoader) setLoading(true);
+      setError(null);
+      console.log('Fetching notifications...', isConnected ? 'via socket' : 'via polling');
+      
       const response = await fetch('/api/notifications', {
         headers: {
           'Authorization': `Bearer ${sessionStorage.getItem('auth_token')}`
@@ -43,78 +98,192 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
       
       if (response.ok) {
         const data = await response.json();
-        setNotifications(data.data || []);
+        const newNotifications = data.data || [];
+        
+        // Only update if data has changed to avoid unnecessary re-renders
+        const currentIds = notifications.map(n => n.id).sort();
+        const newIds = newNotifications.map((n: Notification) => n.id).sort();
+        
+        const hasChanges = JSON.stringify(currentIds) !== JSON.stringify(newIds);
+        
+        if (hasChanges) {
+          setNotifications(newNotifications);
+          console.log(`Updated ${newNotifications.length} notifications`);
+        }
+        
+        setLastFetchTime(new Date());
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
+      setError('Failed to load notifications');
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
-  }, [user]);
+  }, [user, notifications, isConnected]);
 
-  // Setup socket listeners
+
+  // Set up socket connection and event listeners for real-time updates
   useEffect(() => {
-    if (!user || !isOpen) return;
+    if (!user) return;
 
-    const unsubscribeFunctions: (() => void)[] = [];
-
-    // Role-specific notification listeners
-    const roleBasedEvents = getRoleBasedEvents(user.role);
+    console.log('Setting up socket event listeners for user:', user.id);
     
-    roleBasedEvents.forEach(event => {
-      const unsubscribe = socketService.on(event, (data: Notification) => {
-        if (data.user_id === user.id) {
-          setNotifications(prev => [data, ...prev]);
-          
-          // Show toast for high priority notifications
-          if (data.priority === 'high') {
-            toast.success(data.title, {
-              description: data.message,
-              duration: 5000,
-            });
-          }
+
+    const token = sessionStorage.getItem('auth_token');
+    if (token && user.id) {
+      // Connect socket if not already connected
+      if (!socketService.isConnected()) {
+        console.log('Connecting socket...');
+        socketService.connect(user.id, token);
+      }
+      
+      // Set up connection status monitoring
+      const connectionUnsub = socketService.onConnectionChange((connected) => {
+        console.log('Socket connection status:', connected);
+        setIsConnected(connected);
+        if (connected) {
+          setError(null);
+          // Fetch notifications immediately when socket connects
+          fetchNotifications(false);
         }
       });
-      unsubscribeFunctions.push(unsubscribe);
-    });
 
-    // General notification listener
-    const unsubscribeGeneral = socketService.on(SocketEvents.NOTIFICATION_CREATED, (data: Notification) => {
-      if (data.user_id === user.id) {
-        setNotifications(prev => [data, ...prev]);
-        
-        if (data.priority === 'high') {
-          toast.success(data.title, {
-            description: data.message,
-            duration: 5000,
-          });
-        }
-      }
-    });
-    unsubscribeFunctions.push(unsubscribeGeneral);
+      // Set up notification event handlers
+      const handleNotificationCreated = (notification: Notification) => {
+        console.log('New notification received:', notification);
+        setNotifications(prev => {
+          // Check if notification already exists to avoid duplicates
+          const exists = prev.find(n => n.id === notification.id);
+          if (!exists) {
+            return [notification, ...prev];
+          }
+          return prev;
+        });
+      };
 
-    // Notification read listener
-    const unsubscribeRead = socketService.on(SocketEvents.NOTIFICATION_READ, (data: { id: string; user_id: string }) => {
-      if (data.user_id === user.id) {
+      const handleNotificationUpdated = (updatedNotification: Notification) => {
+        console.log('Notification updated:', updatedNotification);
+        setNotifications(prev => 
+          prev.map(n => n.id === updatedNotification.id ? { ...n, ...updatedNotification } : n)
+        );
+      };
+
+      const handleNotificationRead = (data: { id: string; user_id: string }) => {
+        console.log('Notification marked as read:', data);
         setNotifications(prev => 
           prev.map(n => n.id === data.id ? { ...n, read: true } : n)
         );
-      }
-    });
-    unsubscribeFunctions.push(unsubscribeRead);
+      };
 
-    // Notification deleted listener
-    const unsubscribeDeleted = socketService.on(SocketEvents.NOTIFICATION_DELETED, (data: { id: string; user_id: string }) => {
-      if (data.user_id === user.id) {
+      const handleNotificationDeleted = (data: { id: string; user_id: string }) => {
+        console.log('Notification deleted:', data);
         setNotifications(prev => prev.filter(n => n.id !== data.id));
+      };
+
+
+      // Subscribe to core notification events and store cleanup functions
+      const coreUnsubscribeFunctions: (() => void)[] = [];
+      
+      coreUnsubscribeFunctions.push(
+        socketService.on(SocketEvents.NOTIFICATION_CREATED, handleNotificationCreated)
+      );
+      coreUnsubscribeFunctions.push(
+        socketService.on(SocketEvents.NOTIFICATION_UPDATED, handleNotificationUpdated)
+      );
+      coreUnsubscribeFunctions.push(
+        socketService.on(SocketEvents.NOTIFICATION_READ, handleNotificationRead)
+      );
+
+      coreUnsubscribeFunctions.push(
+        socketService.on(SocketEvents.NOTIFICATION_READ_ALL, (data: { user_id: string }) => {
+          if (data.user_id === user.id) {
+            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+          }
+        })
+      );
+      coreUnsubscribeFunctions.push(
+        socketService.on(SocketEvents.NOTIFICATION_DELETED, handleNotificationDeleted)
+      );
+
+
+      // Subscribe to role-specific notification events
+      const roleEvents = getRoleBasedEvents(user.role);
+      const roleUnsubscribeFunctions: (() => void)[] = [];
+      
+      roleEvents.forEach(event => {
+        const unsubscribe = socketService.on(event, (data: Notification) => {
+          if (data.user_id === user.id) {
+            handleNotificationCreated(data);
+          }
+        });
+        roleUnsubscribeFunctions.push(unsubscribe);
+      });
+
+
+
+
+
+
+
+      // Return cleanup function
+      return () => {
+        connectionUnsub(); // Use the cleanup function returned by onConnectionChange
+        coreUnsubscribeFunctions.forEach(unsubscribe => unsubscribe());
+        roleUnsubscribeFunctions.forEach(unsubscribe => unsubscribe()); // Use the cleanup functions returned by on()
+      };
+    }
+
+  }, [user, fetchNotifications]);
+
+  // Setup automatic polling for notifications
+  useEffect(() => {
+    if (!user) return;
+
+    // Clear any existing polling intervals
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+
+    // Set up polling interval (every 30 seconds)
+    pollingIntervalRef.current = setInterval(() => {
+      console.log('Polling for notifications...');
+      fetchNotifications(false); // Don't show loader for background polling
+    }, 30000);
+
+    // Clean up on unmount
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
       }
-    });
-    unsubscribeFunctions.push(unsubscribeDeleted);
+    };
+  }, [user, fetchNotifications]);
+
+  // Setup connection monitoring
+  useEffect(() => {
+    if (!user) return;
+
+    // Check connection status periodically
+    connectionCheckIntervalRef.current = setInterval(() => {
+      const connected = socketService.isConnected();
+      if (connected !== isConnected) {
+        setIsConnected(connected);
+        if (connected) {
+          setError(null);
+          // Fetch immediately when socket connects
+          fetchNotifications(false);
+        }
+      }
+    }, 5000); // Check every 5 seconds
 
     return () => {
-      unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
+      if (connectionCheckIntervalRef.current) {
+        clearInterval(connectionCheckIntervalRef.current);
+      }
     };
-  }, [user, isOpen]);
+
+  }, [user, isConnected, fetchNotifications]);
 
   // Fetch notifications when panel opens
   useEffect(() => {
@@ -204,12 +373,34 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
   });
 
   // Mark notification as read
+  const { markNotificationAsRead } = useData();
+
   const markAsRead = async (notificationId: string) => {
     try {
-      socketService.markNotificationAsRead(notificationId);
+      console.log('Marking notification as read:', notificationId);
+      // First update the backend via REST API to ensure it's marked as read
+      const response = await fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${sessionStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to mark notification as read');
+      }
+
+      // Then update the local state
       setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+        prev.map(n => 
+          n.id === notificationId ? { ...n, read: true } : n
+        )
       );
+      
+      // Also update the global data context
+      markNotificationAsRead(notificationId);
+      
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
     }
@@ -218,22 +409,48 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
   // Mark all notifications as read
   const markAllAsRead = async () => {
     try {
-      socketService.markAllNotificationsAsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      console.log('Marking all notifications as read');
+      // First update the backend via REST API
+      const response = await fetch('/api/notifications/read-all', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${sessionStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to mark all notifications as read');
+      }
+
+      // Then update the local state
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, read: true }))
+      );
+      
+      // Also update the global data context
+      notifications.forEach(notification => {
+        if (!notification.read) {
+          markNotificationAsRead(notification.id);
+        }
+      });
+      
       toast.success('All notifications marked as read');
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error);
+      toast.error('Failed to mark all notifications as read');
     }
   };
 
   // Delete notification
   const deleteNotification = async (notificationId: string) => {
     try {
-      socketService.deleteNotification(notificationId);
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      await socketService.deleteNotification(notificationId);
+      // The socket event handler will update the local state
       toast.success('Notification deleted');
     } catch (error) {
       console.error('Failed to delete notification:', error);
+      toast.error('Failed to delete notification');
     }
   };
 
@@ -267,6 +484,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
       
       {/* Notification Panel */}
       <div className="relative ml-auto w-full max-w-md h-full bg-white shadow-xl flex flex-col">
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-2">
@@ -277,6 +495,17 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
                 {filteredNotifications.filter(n => !n.read).length}
               </span>
             )}
+            {/* Connection Status Indicator */}
+            <div className="flex items-center space-x-1 ml-2">
+              {isConnected ? (
+                <Wifi className="w-4 h-4 text-green-500" title="Connected - Real-time updates active" />
+              ) : (
+                <WifiOff className="w-4 h-4 text-red-500" title="Disconnected - Using polling fallback" />
+              )}
+              <span className={`text-xs ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                {isConnected ? 'Live' : 'Polling'}
+              </span>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <button
