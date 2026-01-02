@@ -4,7 +4,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { Button } from "../ui/button";
 import { ThemeSwitch } from "../common/ThemeSwitch";
-import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "../../components/ui/alert-dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "../../components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { useTheme } from "next-themes";
 import { NotificationsDrawer } from "./NotificationsDrawer";
 import { useSocket } from "../../hooks/useSocket";
@@ -19,20 +20,17 @@ import {
   Menu,
   User,
   Briefcase,
-  Wallet,
   UserCircle,
   FileText,
   Users,
   IndianRupee,
-  AlertCircle,
   BarChart,
   Shield,
   Database,
   Activity,
-  Gavel,
-  Mail,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -53,6 +51,7 @@ export default function DashboardLayout({
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { onNotification } = useSocket();
@@ -356,12 +355,12 @@ export default function DashboardLayout({
             </div>
 
             <div className="flex items-center gap-4">
-              {mounted && (
+              {/* {mounted && (
                 <ThemeSwitch
                   checked={theme === "dark"}
                   onChange={(e, checked) => setTheme(checked ? "dark" : "light")}
                 />
-              )}
+              )} */}
               <Button
                 variant="ghost"
                 size="sm"
@@ -375,31 +374,52 @@ export default function DashboardLayout({
                   </span>
                 )}
               </Button>
-              <div className="flex items-center gap-3">
-                <div className="hidden sm:block text-right">
-                  <div className="text-sm">{user.name}</div>
-                  <div className="text-xs text-gray-500 capitalize">{user.role}</div>
-                </div>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <LogOut className="w-5 h-5" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to logout?
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <div
+                    className="flex items-center gap-2 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-transparent hover:text-black cursor-pointer"
+                  >
+                    <UserCircle className="w-6 h-6 text-gray-600" />
+                    <div className="hidden sm:block text-right">
+                      <div className="text-sm">{user.name}</div>
+                      <div className="text-xs text-gray-500 capitalize">{user.role}</div>
+                    </div>
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-36">
+                  <DropdownMenuItem
+                    onClick={() => navigate(`/${user.role}/settings`)}
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={(e: Event) => {
+                      e.preventDefault();
+                      setLogoutDialogOpen(true);
+                    }}
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to logout?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </div>
@@ -472,7 +492,7 @@ export default function DashboardLayout({
             </nav>
 
             {/* Footer actions inside sidebar */}
-            <div className="p-3">
+            {/* <div className="p-3">
               <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/${user.role}/settings`)}>
                 <div className="flex-shrink-0">
                   <UserCircle className="w-6 h-6 text-gray-500" />
@@ -489,7 +509,7 @@ export default function DashboardLayout({
                   <div className="text-xs text-gray-500 capitalize">{user.role}</div>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
         </aside>
 

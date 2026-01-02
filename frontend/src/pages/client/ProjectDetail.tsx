@@ -245,7 +245,7 @@ export default function ProjectDetail() {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <Button onClick={() => navigate("/client/projects")}>
+          <Button onClick={() => navigate(-1)}>
             <ArrowLeft className="size-4 mr-2" />
           </Button>
           <h2 className="text-2xl font-medium mb-2">Project not found</h2>
@@ -342,7 +342,7 @@ export default function ProjectDetail() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/client/projects")}
+              onClick={() => navigate(-1)}
               className="mb-4"
             >
               <ArrowLeft className="size-4 mr-2" />

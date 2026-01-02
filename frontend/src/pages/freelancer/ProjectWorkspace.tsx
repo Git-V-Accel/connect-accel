@@ -58,7 +58,7 @@ export default function ProjectWorkspace() {
       <DashboardLayout>
         <div className="text-center py-12">
           <h2 className="text-2xl mb-4">Project Not Found</h2>
-          <Button onClick={() => navigate('/freelancer/active-projects')}>
+          <Button onClick={() => navigate(-1)}>
             Back to Projects
           </Button>
         </div>
@@ -116,7 +116,7 @@ export default function ProjectWorkspace() {
       <div className="space-y-6 max-w-7xl">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate('/freelancer/active-projects')}>
+          <Button variant="ghost" onClick={() => navigate(-1)}>
             <ArrowLeft className="size-4 mr-2" />
           </Button>
         </div>
@@ -461,7 +461,7 @@ export default function ProjectWorkspace() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowSubmitDialog(false)}>
+              <Button variant="outline" onClick={() => navigate(-1)}>
                 Cancel
               </Button>
               <Button onClick={handleSubmitMilestone}>

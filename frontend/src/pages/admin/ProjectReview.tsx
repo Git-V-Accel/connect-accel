@@ -2,6 +2,12 @@ import React, { useState, useEffect } from "react";
 import { getProjectActivityLogs, ActivityLog } from "../../services/activityLogService";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import DashboardLayout from "../../components/shared/DashboardLayout";
+import ApproveProjectDialog from "../../components/shared/ApproveProjectDialog";
+import RejectProjectDialog from "../../components/shared/RejectProjectDialog";
+import AssignAgentDialog from "../../components/shared/AssignAgentDialog";
+import AddMilestoneDialog from "../../components/shared/AddMilestoneDialog";
+import EditMilestoneDialog from "../../components/shared/EditMilestoneDialog";
+import DeleteMilestoneDialog from "../../components/shared/DeleteMilestoneDialog";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -2116,94 +2122,35 @@ export default function ProjectReview() {
         </div>
 
         {/* Approve Dialog */}
-        <Dialog
-          open={isApproveDialogOpen}
+        <ApproveProjectDialog
+          isOpen={isApproveDialogOpen}
           onOpenChange={setIsApproveDialogOpen}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Approve Project</DialogTitle>
-              <DialogDescription>
-                This will approve the project and change its status to In Progress.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsApproveDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleApproveProject}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <CheckCircle className="size-4 mr-2" />
-                Approve Project
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          onApprove={handleApproveProject}
+        />
 
         {/* Reject Dialog */}
-        <Dialog open={isRejectDialogOpen} onOpenChange={(open) => {
-          setIsRejectDialogOpen(open);
-          if (!open) {
-            setRejectionReason("");
-            setFieldError("rejectionReason", "");
-          }
-        }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Reject Project</DialogTitle>
-              <DialogDescription>
-                Please provide a reason for rejecting this project.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Rejection Reason *</Label>
-                <RichTextEditor
-                  value={rejectionReason}
-                  onChange={(value) => {
-                    setRejectionReason(value);
-                    setFieldError("rejectionReason", validateRejectionReason(value));
-                  }}
-                  placeholder="Explain why this project is being rejected..."
-                  className={`mt-1 ${validationErrors.rejectionReason ? "border-red-500" : ""}`}
-                  minHeight="150px"
-                />
-                {validationErrors.rejectionReason && (
-                  <p className="text-sm text-red-500 mt-1">{validationErrors.rejectionReason}</p>
-                )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsRejectDialogOpen(false);
-                  setRejectionReason("");
-                  setFieldError("rejectionReason", "");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleRejectProject}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                <XCircle className="size-4 mr-2" />
-                Reject Project
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <RejectProjectDialog
+          isOpen={isRejectDialogOpen}
+          onOpenChange={(open) => {
+            setIsRejectDialogOpen(open);
+            if (!open) {
+              setRejectionReason("");
+              setFieldError("rejectionReason", "");
+            }
+          }}
+          onReject={handleRejectProject}
+          rejectionReason={rejectionReason}
+          onReasonChange={(value) => {
+            setRejectionReason(value);
+            setFieldError("rejectionReason", validateRejectionReason(value));
+          }}
+          validationError={validationErrors.rejectionReason}
+        />
 
 
         {/* Add Milestone Dialog */}
-        <Dialog
-          open={isAddMilestoneDialogOpen}
+        <AddMilestoneDialog
+          isOpen={isAddMilestoneDialogOpen}
           onOpenChange={(open) => {
             setIsAddMilestoneDialogOpen(open);
             if (!open) {
@@ -2223,223 +2170,75 @@ export default function ProjectReview() {
               });
             }
           }}
-        >
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add Milestone</DialogTitle>
-              <DialogDescription>
-                Create a new milestone for this project
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="milestone-title">Milestone Title *</Label>
-                <Input
-                  id="milestone-title"
-                  placeholder="e.g., Design Phase, Development Phase, Testing"
-                  value={milestoneTitle}
-                  onChange={(e) => {
-                    setMilestoneTitle(e.target.value);
-                    setFieldError("milestoneTitle", validateMilestoneTitle(e.target.value));
-                  }}
-                  className={validationErrors.milestoneTitle ? "border-red-500" : ""}
-                />
-                {validationErrors.milestoneTitle && (
-                  <p className="text-sm text-red-500 mt-1">{validationErrors.milestoneTitle}</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="milestone-start-date">Start Date *</Label>
-                  <Input
-                    id="milestone-start-date"
-                    type="date"
-                    value={milestoneStartDate}
-                    onChange={(e) => {
-                      setMilestoneStartDate(e.target.value);
-                      setFieldError("milestoneStartDate", validateDate(e.target.value, "Start date"));
-                      if (milestoneEndDate) {
-                        setFieldError("milestoneEndDate", validateDateRange(e.target.value, milestoneEndDate));
-                      }
-                    }}
-                    className={validationErrors.milestoneStartDate ? "border-red-500" : ""}
-                  />
-                  {validationErrors.milestoneStartDate && (
-                    <p className="text-sm text-red-500 mt-1">{validationErrors.milestoneStartDate}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="milestone-end-date">End Date *</Label>
-                  <Input
-                    id="milestone-end-date"
-                    type="date"
-                    value={milestoneEndDate}
-                    onChange={(e) => {
-                      setMilestoneEndDate(e.target.value);
-                      setFieldError("milestoneEndDate", validateDate(e.target.value, "End date"));
-                      if (milestoneStartDate) {
-                        setFieldError("milestoneEndDate", validateDateRange(milestoneStartDate, e.target.value));
-                      }
-                    }}
-                    min={milestoneStartDate}
-                    className={validationErrors.milestoneEndDate ? "border-red-500" : ""}
-                  />
-                  {validationErrors.milestoneEndDate && (
-                    <p className="text-sm text-red-500 mt-1">{validationErrors.milestoneEndDate}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="milestone-amount-percent">
-                    Amount Percentage (%)
-                  </Label>
-                  <Input
-                    id="milestone-amount-percent"
-                    type="number"
-                    placeholder="e.g., 25"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={milestoneAmountPercent}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (
-                        value === "" ||
-                        (parseFloat(value) >= 0 && parseFloat(value) <= 100)
-                      ) {
-                        setMilestoneAmountPercent(value);
-                        if (value && project) {
-                          setMilestoneAmount("");
-                          setFieldError("milestoneAmount", "");
-                        }
-                        setFieldError("milestoneAmountPercent", validateMilestoneAmountPercent(value));
-                        if (!value && !milestoneAmount) {
-                          setFieldError("milestoneAmountPercent", validateMilestoneAmountFields(value, milestoneAmount));
-                        }
-                      }
-                    }}
-                    className={validationErrors.milestoneAmountPercent ? "border-red-500" : ""}
-                  />
-                  {validationErrors.milestoneAmountPercent && (
-                    <p className="text-sm text-red-500 mt-1">{validationErrors.milestoneAmountPercent}</p>
-                  )}
-                  {milestoneAmountPercent && project && !validationErrors.milestoneAmountPercent && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Amount: ₹
-                      {(
-                        ((project.client_budget || 0) *
-                          parseFloat(milestoneAmountPercent)) /
-                        100
-                      ).toLocaleString()}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-400 mt-1">Range: 0% - 100%</p>
-                </div>
-                <div>
-                  <Label htmlFor="milestone-amount">Amount (₹)</Label>
-                  <Input
-                    id="milestone-amount"
-                    type="number"
-                    placeholder="e.g., 50000"
-                    min="0"
-                    max={project?.client_budget || 0}
-                    step="0.01"
-                    value={milestoneAmount}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (
-                        value === "" ||
-                        (parseFloat(value) >= 0 &&
-                          (!project ||
-                            parseFloat(value) <= project.client_budget))
-                      ) {
-                        setMilestoneAmount(value);
-                        if (value) {
-                          setMilestoneAmountPercent("");
-                          setFieldError("milestoneAmountPercent", "");
-                        }
-                        setFieldError("milestoneAmount", validateMilestoneAmount(value, project?.client_budget));
-                        if (!value && !milestoneAmountPercent) {
-                          setFieldError("milestoneAmount", validateMilestoneAmountFields(milestoneAmountPercent, value));
-                        }
-                      }
-                    }}
-                    className={validationErrors.milestoneAmount ? "border-red-500" : ""}
-                  />
-                  {validationErrors.milestoneAmount && (
-                    <p className="text-sm text-red-500 mt-1">{validationErrors.milestoneAmount}</p>
-                  )}
-                  {milestoneAmount && project && !validationErrors.milestoneAmount && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      {(
-                        (parseFloat(milestoneAmount) / project.client_budget) *
-                        100
-                      ).toFixed(1)}
-                      % of budget
-                    </p>
-                  )}
-                  {project && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      Max: ₹{(project.client_budget || 0).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="milestone-description">Description *</Label>
-                <RichTextEditor
-                  value={milestoneDescription}
-                  onChange={(value) => {
-                    setMilestoneDescription(value);
-                    setFieldError("milestoneDescription", validateMilestoneDescription(value));
-                  }}
-                  placeholder="Describe what needs to be completed in this milestone..."
-                  className={`mt-1 ${validationErrors.milestoneDescription ? "border-red-500" : ""}`}
-                  minHeight="150px"
-                />
-                {validationErrors.milestoneDescription && (
-                  <p className="text-sm text-red-500 mt-1">{validationErrors.milestoneDescription}</p>
-                )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsAddMilestoneDialogOpen(false);
-                  setMilestoneTitle("");
-                  setMilestoneStartDate("");
-                  setMilestoneEndDate("");
-                  setMilestoneAmountPercent("");
-                  setMilestoneAmount("");
-                  setMilestoneDescription("");
-                  setValidationErrors({
-                    milestoneTitle: "",
-                    milestoneStartDate: "",
-                    milestoneEndDate: "",
-                    milestoneDescription: "",
-                    milestoneAmountPercent: "",
-                    milestoneAmount: "",
-                  });
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleAddMilestone}>
-                <Target className="size-4 mr-2" />
-                Add Milestone
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          onAdd={handleAddMilestone}
+          project={project}
+          title={milestoneTitle}
+          onTitleChange={(value) => {
+            setMilestoneTitle(value);
+            setFieldError("milestoneTitle", validateMilestoneTitle(value));
+          }}
+          startDate={milestoneStartDate}
+          onStartDateChange={(value) => {
+            setMilestoneStartDate(value);
+            setFieldError("milestoneStartDate", validateDate(value, "Start date"));
+            if (milestoneEndDate) {
+              setFieldError("milestoneEndDate", validateDateRange(value, milestoneEndDate));
+            }
+          }}
+          endDate={milestoneEndDate}
+          onEndDateChange={(value) => {
+            setMilestoneEndDate(value);
+            setFieldError("milestoneEndDate", validateDate(value, "End date"));
+            if (milestoneStartDate) {
+              setFieldError("milestoneEndDate", validateDateRange(milestoneStartDate, value));
+            }
+          }}
+          amountPercent={milestoneAmountPercent}
+          onAmountPercentChange={(value) => {
+            if (value === "" || (parseFloat(value) >= 0 && parseFloat(value) <= 100)) {
+              setMilestoneAmountPercent(value);
+              if (value && project) {
+                setMilestoneAmount("");
+                setFieldError("milestoneAmount", "");
+              }
+              setFieldError("milestoneAmountPercent", validateMilestoneAmountPercent(value));
+              if (!value && !milestoneAmount) {
+                setFieldError("milestoneAmountPercent", validateMilestoneAmountFields(value, milestoneAmount));
+              }
+            }
+          }}
+          amount={milestoneAmount}
+          onAmountChange={(value) => {
+            if (value === "" || (parseFloat(value) >= 0 && (!project || parseFloat(value) <= project.client_budget))) {
+              setMilestoneAmount(value);
+              if (value) {
+                setMilestoneAmountPercent("");
+                setFieldError("milestoneAmountPercent", "");
+              }
+              setFieldError("milestoneAmount", validateMilestoneAmount(value, project?.client_budget));
+              if (!value && !milestoneAmountPercent) {
+                setFieldError("milestoneAmount", validateMilestoneAmountFields(milestoneAmountPercent, value));
+              }
+            }
+          }}
+          description={milestoneDescription}
+          onDescriptionChange={(value) => {
+            setMilestoneDescription(value);
+            setFieldError("milestoneDescription", validateMilestoneDescription(value));
+          }}
+          validationErrors={{
+            milestoneTitle: validationErrors.milestoneTitle,
+            milestoneStartDate: validationErrors.milestoneStartDate,
+            milestoneEndDate: validationErrors.milestoneEndDate,
+            milestoneAmountPercent: validationErrors.milestoneAmountPercent,
+            milestoneAmount: validationErrors.milestoneAmount,
+            milestoneDescription: validationErrors.milestoneDescription,
+          }}
+        />
 
         {/* Edit Milestone Dialog */}
-        <Dialog
-          open={isEditMilestoneDialogOpen}
+        <EditMilestoneDialog
+          isOpen={isEditMilestoneDialogOpen}
           onOpenChange={(open) => {
             setIsEditMilestoneDialogOpen(open);
             if (!open) {
@@ -2460,268 +2259,82 @@ export default function ProjectReview() {
               });
             }
           }}
-        >
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Edit Milestone</DialogTitle>
-              <DialogDescription>Update milestone details</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="edit-milestone-title">Milestone Title *</Label>
-                <Input
-                  id="edit-milestone-title"
-                  placeholder="e.g., Design Phase, Development Phase, Testing"
-                  value={editMilestoneTitle}
-                  onChange={(e) => {
-                    setEditMilestoneTitle(e.target.value);
-                    setFieldError("editMilestoneTitle", validateMilestoneTitle(e.target.value));
-                  }}
-                  className={validationErrors.editMilestoneTitle ? "border-red-500" : ""}
-                />
-                {validationErrors.editMilestoneTitle && (
-                  <p className="text-sm text-red-500 mt-1">{validationErrors.editMilestoneTitle}</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-milestone-start-date">Start Date</Label>
-                  <Input
-                    id="edit-milestone-start-date"
-                    type="date"
-                    value={editMilestoneStartDate}
-                    onChange={(e) => {
-                      setEditMilestoneStartDate(e.target.value);
-                      if (editMilestoneEndDate) {
-                        setFieldError("editMilestoneEndDate", validateDateRange(e.target.value, editMilestoneEndDate));
-                      }
-                    }}
-                    className={validationErrors.editMilestoneStartDate ? "border-red-500" : ""}
-                  />
-                  {validationErrors.editMilestoneStartDate && (
-                    <p className="text-sm text-red-500 mt-1">{validationErrors.editMilestoneStartDate}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="edit-milestone-end-date">End Date *</Label>
-                  <Input
-                    id="edit-milestone-end-date"
-                    type="date"
-                    value={editMilestoneEndDate}
-                    onChange={(e) => {
-                      setEditMilestoneEndDate(e.target.value);
-                      setFieldError("editMilestoneEndDate", validateDate(e.target.value, "End date"));
-                      if (editMilestoneStartDate) {
-                        setFieldError("editMilestoneEndDate", validateDateRange(editMilestoneStartDate, e.target.value));
-                      }
-                    }}
-                    min={editMilestoneStartDate}
-                    className={validationErrors.editMilestoneEndDate ? "border-red-500" : ""}
-                  />
-                  {validationErrors.editMilestoneEndDate && (
-                    <p className="text-sm text-red-500 mt-1">{validationErrors.editMilestoneEndDate}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-milestone-amount-percent">
-                    Amount Percentage (%)
-                  </Label>
-                  <Input
-                    id="edit-milestone-amount-percent"
-                    type="number"
-                    placeholder="e.g., 25"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={editMilestoneAmountPercent}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (
-                        value === "" ||
-                        (parseFloat(value) >= 0 && parseFloat(value) <= 100)
-                      ) {
-                        setEditMilestoneAmountPercent(value);
-                        if (value && project) {
-                          setEditMilestoneAmount("");
-                          setFieldError("editMilestoneAmount", "");
-                        }
-                        setFieldError("editMilestoneAmountPercent", validateMilestoneAmountPercent(value));
-                        if (!value && !editMilestoneAmount) {
-                          setFieldError("editMilestoneAmountPercent", validateMilestoneAmountFields(value, editMilestoneAmount));
-                        }
-                      }
-                    }}
-                    className={validationErrors.editMilestoneAmountPercent ? "border-red-500" : ""}
-                  />
-                  {validationErrors.editMilestoneAmountPercent && (
-                    <p className="text-sm text-red-500 mt-1">{validationErrors.editMilestoneAmountPercent}</p>
-                  )}
-                  {editMilestoneAmountPercent && project && !validationErrors.editMilestoneAmountPercent && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Amount: ₹
-                      {(
-                        ((project.client_budget || 0) *
-                          parseFloat(editMilestoneAmountPercent)) /
-                        100
-                      ).toLocaleString()}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-400 mt-1">Range: 0% - 100%</p>
-                </div>
-                <div>
-                  <Label htmlFor="edit-milestone-amount">Amount (₹)</Label>
-                  <Input
-                    id="edit-milestone-amount"
-                    type="number"
-                    placeholder="e.g., 50000"
-                    min="0"
-                    max={project?.client_budget || 0}
-                    step="0.01"
-                    value={editMilestoneAmount}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (
-                        value === "" ||
-                        (parseFloat(value) >= 0 &&
-                          (!project ||
-                            parseFloat(value) <= project.client_budget))
-                      ) {
-                        setEditMilestoneAmount(value);
-                        if (value) {
-                          setEditMilestoneAmountPercent("");
-                          setFieldError("editMilestoneAmountPercent", "");
-                        }
-                        setFieldError("editMilestoneAmount", validateMilestoneAmount(value, project?.client_budget));
-                        if (!value && !editMilestoneAmountPercent) {
-                          setFieldError("editMilestoneAmount", validateMilestoneAmountFields(editMilestoneAmountPercent, value));
-                        }
-                      }
-                    }}
-                    className={validationErrors.editMilestoneAmount ? "border-red-500" : ""}
-                  />
-                  {validationErrors.editMilestoneAmount && (
-                    <p className="text-sm text-red-500 mt-1">{validationErrors.editMilestoneAmount}</p>
-                  )}
-                  {editMilestoneAmount && project && !validationErrors.editMilestoneAmount && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      {(
-                        (parseFloat(editMilestoneAmount) /
-                          project.client_budget) *
-                        100
-                      ).toFixed(1)}
-                      % of budget
-                    </p>
-                  )}
-                  {project && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      Max: ₹{(project.client_budget || 0).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="edit-milestone-description">
-                  Description *
-                </Label>
-                <RichTextEditor
-                  value={editMilestoneDescription}
-                  onChange={(value) => {
-                    setEditMilestoneDescription(value);
-                    setFieldError("editMilestoneDescription", validateMilestoneDescription(value));
-                  }}
-                  placeholder="Describe what needs to be completed in this milestone..."
-                  className={`mt-1 ${validationErrors.editMilestoneDescription ? "border-red-500" : ""}`}
-                  minHeight="150px"
-                />
-                {validationErrors.editMilestoneDescription && (
-                  <p className="text-sm text-red-500 mt-1">{validationErrors.editMilestoneDescription}</p>
-                )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsEditMilestoneDialogOpen(false);
-                  setEditMilestoneTitle("");
-                  setEditMilestoneStartDate("");
-                  setEditMilestoneEndDate("");
-                  setEditMilestoneAmountPercent("");
-                  setEditMilestoneAmount("");
-                  setEditMilestoneDescription("");
-                  setEditingMilestone(null);
-                  setValidationErrors({
-                    editMilestoneTitle: "",
-                    editMilestoneStartDate: "",
-                    editMilestoneEndDate: "",
-                    editMilestoneDescription: "",
-                    editMilestoneAmountPercent: "",
-                    editMilestoneAmount: "",
-                  });
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleUpdateMilestone}>
-                <CheckCircle className="size-4 mr-2" />
-                Update Milestone
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          onUpdate={handleUpdateMilestone}
+          project={project}
+          title={editMilestoneTitle}
+          onTitleChange={(value) => {
+            setEditMilestoneTitle(value);
+            setFieldError("editMilestoneTitle", validateMilestoneTitle(value));
+          }}
+          startDate={editMilestoneStartDate}
+          onStartDateChange={(value) => {
+            setEditMilestoneStartDate(value);
+            if (editMilestoneEndDate) {
+              setFieldError("editMilestoneEndDate", validateDateRange(value, editMilestoneEndDate));
+            }
+          }}
+          endDate={editMilestoneEndDate}
+          onEndDateChange={(value) => {
+            setEditMilestoneEndDate(value);
+            setFieldError("editMilestoneEndDate", validateDate(value, "End date"));
+            if (editMilestoneStartDate) {
+              setFieldError("editMilestoneEndDate", validateDateRange(editMilestoneStartDate, value));
+            }
+          }}
+          amountPercent={editMilestoneAmountPercent}
+          onAmountPercentChange={(value) => {
+            if (value === "" || (parseFloat(value) >= 0 && parseFloat(value) <= 100)) {
+              setEditMilestoneAmountPercent(value);
+              if (value && project) {
+                setEditMilestoneAmount("");
+                setFieldError("editMilestoneAmount", "");
+              }
+              setFieldError("editMilestoneAmountPercent", validateMilestoneAmountPercent(value));
+              if (!value && !editMilestoneAmount) {
+                setFieldError("editMilestoneAmountPercent", validateMilestoneAmountFields(value, editMilestoneAmount));
+              }
+            }
+          }}
+          amount={editMilestoneAmount}
+          onAmountChange={(value) => {
+            if (value === "" || (parseFloat(value) >= 0 && (!project || parseFloat(value) <= project.client_budget))) {
+              setEditMilestoneAmount(value);
+              if (value) {
+                setEditMilestoneAmountPercent("");
+                setFieldError("editMilestoneAmountPercent", "");
+              }
+              setFieldError("editMilestoneAmount", validateMilestoneAmount(value, project?.client_budget));
+              if (!value && !editMilestoneAmountPercent) {
+                setFieldError("editMilestoneAmount", validateMilestoneAmountFields(editMilestoneAmountPercent, value));
+              }
+            }
+          }}
+          description={editMilestoneDescription}
+          onDescriptionChange={(value) => {
+            setEditMilestoneDescription(value);
+            setFieldError("editMilestoneDescription", validateMilestoneDescription(value));
+          }}
+          validationErrors={{
+            editMilestoneTitle: validationErrors.editMilestoneTitle,
+            editMilestoneStartDate: validationErrors.editMilestoneStartDate,
+            editMilestoneEndDate: validationErrors.editMilestoneEndDate,
+            editMilestoneAmountPercent: validationErrors.editMilestoneAmountPercent,
+            editMilestoneAmount: validationErrors.editMilestoneAmount,
+            editMilestoneDescription: validationErrors.editMilestoneDescription,
+          }}
+        />
 
         {/* Delete Milestone Dialog */}
-        <Dialog
-          open={isDeleteMilestoneDialogOpen}
+        <DeleteMilestoneDialog
+          isOpen={isDeleteMilestoneDialogOpen}
           onOpenChange={setIsDeleteMilestoneDialogOpen}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Milestone</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete this milestone? This action
-                cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            {editingMilestone && (
-              <div className="py-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="font-medium text-gray-900">
-                    {editingMilestone.title}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Amount: ₹{editingMilestone.amount?.toLocaleString() || "0"}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Due:{" "}
-                    {new Date(editingMilestone.due_date).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            )}
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsDeleteMilestoneDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={handleDeleteMilestone}>
-                <Trash2 className="size-4 mr-2" />
-                Delete Milestone
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          onDelete={handleDeleteMilestone}
+          milestone={editingMilestone}
+        />
 
         {/* Assign Agent Dialog */}
-        <Dialog
-          open={isAssignAgentDialogOpen}
+        <AssignAgentDialog
+          isOpen={isAssignAgentDialogOpen}
           onOpenChange={(open) => {
             setIsAssignAgentDialogOpen(open);
             if (!open) {
@@ -2730,69 +2343,16 @@ export default function ProjectReview() {
               setFieldError("selectedAgentId", "");
             }
           }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {isEditingAgent ? 'Re-assign Agent' : 'Assign to Agent'}
-              </DialogTitle>
-              <DialogDescription>
-                {isEditingAgent
-                  ? 'Select a new agent to assign to this project'
-                  : 'Select an agent to assign to this project'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="agent-select">Select Agent *</Label>
-                <Select
-                  value={selectedAgentId}
-                  onValueChange={(value) => {
-                    setSelectedAgentId(value);
-                    setFieldError("selectedAgentId", validateAgentSelection(value));
-                  }}
-                >
-                  <SelectTrigger
-                    id="agent-select"
-                    className={`mt-2 ${validationErrors.selectedAgentId ? "border-red-500" : ""}`}
-                  >
-                    <SelectValue placeholder="Choose an agent..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {agents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.name} ({agent.userID || 'N/A'})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {validationErrors.selectedAgentId && (
-                  <p className="text-sm text-red-500 mt-1">{validationErrors.selectedAgentId}</p>
-                )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsAssignAgentDialogOpen(false);
-                  setSelectedAgentId("");
-                  setIsEditingAgent(false);
-                  setFieldError("selectedAgentId", "");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAssignAgent}
-                disabled={!selectedAgentId}
-              >
-                <CheckCircle className="size-4 mr-2" />
-                {isEditingAgent ? 'Re-assign Agent' : 'Assign Agent'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          onAssign={handleAssignAgent}
+          agents={agents}
+          selectedAgentId={selectedAgentId}
+          onAgentSelect={(value) => {
+            setSelectedAgentId(value);
+            setFieldError("selectedAgentId", validateAgentSelection(value));
+          }}
+          isEditingAgent={isEditingAgent}
+          validationError={validationErrors.selectedAgentId}
+        />
 
         {/* Withdraw Bid Dialog */}
         <DeleteWithReasonDialog

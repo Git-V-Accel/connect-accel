@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import DashboardSkeleton from '../../components/shared/DashboardSkeleton';
 import { StatCard } from '../../components/shared/StatCard';
@@ -8,43 +7,58 @@ import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { useAuth } from '../../contexts/AuthContext';
-import { useData } from '../../contexts/DataContext';
+import { useDashboard } from '../../hooks/useDashboard';
+import { formatCurrency } from '../../utils/format';
 import { Briefcase, Clock, IndianRupee, Star, TrendingUp, ArrowRight, Search } from 'lucide-react';
 
 export default function FreelancerDashboard() {
   const { user } = useAuth();
-  const { getProjectsByUser, getBidsByFreelancer, getPaymentsByUser, projects } = useData();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [projects]);
+  const { loading, error, dashboard } = useDashboard();
 
   if (loading) {
     return <DashboardSkeleton />;
   }
 
+  if (error || !dashboard || dashboard.role !== 'freelancer') {
+    return (
+      <DashboardLayout>
+        <div className="p-8 text-center">
+          <p className="text-red-600">{error || 'Failed to load dashboard data'}</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (!user) return null;
 
-  const myProjects = getProjectsByUser(user.id, user.role);
-  const myBids = getBidsByFreelancer(user.id);
-  const payments = getPaymentsByUser(user.id);
+  const { stats, activeProjects, recentBids } = dashboard.data;
 
-  // Include both 'assigned' and 'in_progress' statuses for active projects
-  const activeProjects = myProjects.filter(p => p.status === 'in_progress' || p.status === 'assigned');
-  const activeBids = myBids.filter(b => b.status === 'pending' || b.status === 'shortlisted');
-  const earnings = payments.filter(p => p.to_user_id === user.id && p.status === 'completed').reduce((sum, p) => sum + p.amount, 0);
-  const availableProjects = projects.filter(p => p.status === 'in_bidding').length;
-
-  const stats = [
-    { label: 'Active Projects', value: activeProjects.length.toString(), icon: Briefcase, color: 'text-blue-600', bgColor: 'bg-blue-50' },
-    { label: 'Pending Bids', value: activeBids.length.toString(), icon: Clock, color: 'text-orange-600', bgColor: 'bg-orange-50' },
-    { label: 'Total Earnings', value: `₹${earnings.toLocaleString()}`, icon: IndianRupee, color: 'text-green-600', bgColor: 'bg-green-50' },
-    { label: 'Available Projects', value: availableProjects.toString(), icon: TrendingUp, color: 'text-purple-600', bgColor: 'bg-purple-50' },
+  const statsConfig = [
+    { label: 'Active Projects', value: stats.activeProjects.toString(), icon: Briefcase, color: 'text-blue-600', bgColor: 'bg-blue-50' },
+    { label: 'Pending Bids', value: stats.pendingBids.toString(), icon: Clock, color: 'text-orange-600', bgColor: 'bg-orange-50' },
+    { label: 'Total Earnings', value: formatCurrency(stats.earnings), icon: IndianRupee, color: 'text-green-600', bgColor: 'bg-green-50' },
+    { label: 'Available Projects', value: stats.availableProjects.toString(), icon: TrendingUp, color: 'text-purple-600', bgColor: 'bg-purple-50' },
   ];
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'in_progress':
+      case 'in-progress':
+        return 'bg-blue-100 text-blue-700';
+      case 'assigned':
+        return 'bg-green-100 text-green-700';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'shortlisted':
+        return 'bg-purple-100 text-purple-700';
+      case 'accepted':
+        return 'bg-green-100 text-green-700';
+      case 'rejected':
+        return 'bg-red-100 text-red-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -58,7 +72,7 @@ export default function FreelancerDashboard() {
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat, index) => (
+          {statsConfig.map((stat, index) => (
             <StatCard
               key={index}
               label={stat.label}
@@ -86,8 +100,10 @@ export default function FreelancerDashboard() {
                   <h4 className="font-medium mb-1">{project.title}</h4>
                   <p className="text-sm text-gray-600">Client: {project.client_name}</p>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-sm text-gray-600">₹{project.freelancer_budget?.toLocaleString()}</span>
-                    <Badge variant="secondary">{project.status.replace('_', ' ')}</Badge>
+                    <span className="text-sm text-gray-600">{project.freelancer_budget ? formatCurrency(project.freelancer_budget) : 'Budget not specified'}</span>
+                    <Badge variant="secondary" className={getStatusColor(project.status)}>
+                      {project.status.replace('_', ' ')}
+                    </Badge>
                   </div>
                 </div>
               ))}
@@ -107,22 +123,22 @@ export default function FreelancerDashboard() {
               </Link>
             </div>
             <div className="space-y-3">
-              {myBids.slice(0, 3).map(bid => {
-                const project = projects.find(p => p.id === bid.project_id);
+              {recentBids.slice(0, 3).map(bid => {
+                const project = bid.project_title ? { title: bid.project_title } : null;
                 return (
                   <div key={bid.id} className="p-4 border rounded-lg">
-                    <h4 className="font-medium mb-1">{project?.title || 'Unknown Project'}</h4>
-                    <p className="text-sm text-gray-600">Your bid: ₹{bid.amount.toLocaleString()}</p>
+                    <h4 className="font-medium mb-1">{project?.title || bid.project_title || 'Unknown Project'}</h4>
+                    <p className="text-sm text-gray-600">Your bid: {formatCurrency(bid.amount)}</p>
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-sm text-gray-600">{new Date(bid.created_at).toLocaleDateString()}</span>
-                      <Badge variant={bid.status === 'shortlisted' ? 'default' : 'secondary'}>
+                      <Badge variant={bid.status === 'shortlisted' ? 'default' : 'secondary'} className={getStatusColor(bid.status)}>
                         {bid.status.toUpperCase()}
                       </Badge>
                     </div>
                   </div>
                 );
               })}
-              {myBids.length === 0 && (
+              {recentBids.length === 0 && (
                 <p className="text-center text-gray-600 py-8">No bids yet</p>
               )}
             </div>
@@ -134,7 +150,7 @@ export default function FreelancerDashboard() {
             <div>
               <h3 className="text-lg font-medium mb-2">New Projects Available</h3>
               <p className="text-gray-600 mb-4">
-                {availableProjects} projects are currently open for bidding. Browse and submit your proposals now!
+                {stats.availableProjects} projects are currently open for bidding. Browse and submit your proposals now!
               </p>
               <Link to="/freelancer/projects">
                 <Button>

@@ -106,7 +106,7 @@ export default function EditBid() {
           <div className="text-center">
             <AlertCircle className="size-12 text-gray-400 mx-auto mb-4" />
             <h2 className="text-2xl mb-2">Bid Not Found</h2>
-            <Button onClick={() => navigate("/agent/bids")}>
+            <Button onClick={() => navigate(-1)}>
               Back to Bid Management
             </Button>
           </div>
@@ -124,7 +124,7 @@ export default function EditBid() {
           <div className="text-center">
             <AlertCircle className="size-12 text-gray-400 mx-auto mb-4" />
             <h2 className="text-2xl mb-2">Project Not Found</h2>
-            <Button onClick={() => navigate("/agent/bids")}>
+            <Button onClick={() => navigate(-1)}>
               Back to Bid Management
             </Button>
           </div>
@@ -145,7 +145,7 @@ export default function EditBid() {
               Bids can only be edited when the project status is "In Bidding". 
               Current status: {statusLabels[project.status] || project.status}
             </p>
-            <Button onClick={() => navigate("/agent/bids")}>
+            <Button onClick={() => navigate(-1)}>
               Back to Bid Management
             </Button>
           </div>
@@ -232,7 +232,7 @@ export default function EditBid() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate("/agent/bids")}>
+            <Button variant="ghost" onClick={() => navigate(-1)}>
               <ArrowLeft className="size-4 mr-2" />
             </Button>
             <div>
@@ -464,7 +464,7 @@ export default function EditBid() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => navigate("/agent/bids")}
+                    onClick={() => navigate(-1)}
                     className="flex-1"
                   >
                     Cancel

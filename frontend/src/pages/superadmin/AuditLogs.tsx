@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
-import PageSkeleton from '../../components/shared/PageSkeleton';
+import { StatCard } from '../../components/shared/StatCard';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -21,38 +21,44 @@ import {
 } from '../../components/ui/dialog';
 import {
   getAllAuditLogs,
+  getAuditLogStats,
   AuditLogResponse,
+  AuditLogStats,
 } from '../../services/auditLogService';
 import {
-  Shield,
-  Search,
-  Filter,
-  User,
+  Database,
   Activity,
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
+  AlertTriangle,
+  Search,
   Download,
+  Eye,
+  Info,
+  User,
+  CreditCard,
+  FolderKanban,
+  Lock,
   Clock,
   MapPin,
   Monitor,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 export default function AuditLogs() {
   const [auditLogs, setAuditLogs] = useState<AuditLogResponse[]>([]);
+  const [stats, setStats] = useState<AuditLogStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedLog, setSelectedLog] = useState<AuditLogResponse | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [actionFilter, setActionFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [dateFilter, setDateFilter] = useState('7days');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -62,21 +68,49 @@ export default function AuditLogs() {
 
   useEffect(() => {
     fetchAuditLogs();
-  }, [currentPage, actionFilter, severityFilter, startDate, endDate]);
+    fetchStats();
+  }, [currentPage, categoryFilter, severityFilter, dateFilter]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm !== '') {
+        setCurrentPage(1);
+        fetchAuditLogs();
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const fetchAuditLogs = async () => {
     try {
       setLoading(true);
-      const response = await getAllAuditLogs({
+      let searchQuery = searchTerm || undefined;
+
+      // If category filter is applied, modify the search to include action patterns
+      if (categoryFilter !== 'all') {
+        const actionPatterns = {
+          'user': 'USER',
+          'bid': 'BID',
+          'payment': 'PAYMENT',
+          'security': 'LOGIN,AUTH',
+          'project': 'PROJECT',
+        };
+        const categorySearch = actionPatterns[categoryFilter as keyof typeof actionPatterns];
+        if (categorySearch) {
+          searchQuery = searchQuery ? `${searchQuery} ${categorySearch}` : categorySearch;
+        }
+      }
+
+      const filters = {
         page: currentPage,
         limit: itemsPerPage,
-        action: actionFilter === 'all' ? undefined : actionFilter,
         severity: severityFilter === 'all' ? undefined : severityFilter,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        search: searchTerm || undefined,
-      });
+        search: searchQuery,
+        startDate: getDateRange(dateFilter).startDate,
+        endDate: getDateRange(dateFilter).endDate,
+      };
 
+      const response = await getAllAuditLogs(filters);
       setAuditLogs(response.auditLogs);
       setTotalPages(response.pages);
       setTotalLogs(response.total);
@@ -88,9 +122,132 @@ export default function AuditLogs() {
     }
   };
 
-  const handleSearch = () => {
-    setCurrentPage(1);
-    fetchAuditLogs();
+  const fetchStats = async () => {
+    try {
+      const dateRange = getDateRange(dateFilter);
+      const response = await getAuditLogStats({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+      });
+      setStats(response.stats);
+    } catch (error: any) {
+      console.error('Error fetching audit stats:', error);
+    }
+  };
+
+  const getDateRange = (filter: string) => {
+    const now = new Date();
+    let startDate: string | undefined;
+    let endDate: string | undefined;
+
+    switch (filter) {
+      case 'today':
+        startDate = format(now, 'yyyy-MM-dd');
+        endDate = format(now, 'yyyy-MM-dd');
+        break;
+      case '7days':
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        startDate = format(sevenDaysAgo, 'yyyy-MM-dd');
+        endDate = format(now, 'yyyy-MM-dd');
+        break;
+      case '30days':
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        startDate = format(thirtyDaysAgo, 'yyyy-MM-dd');
+        endDate = format(now, 'yyyy-MM-dd');
+        break;
+      case '90days':
+        const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        startDate = format(ninetyDaysAgo, 'yyyy-MM-dd');
+        endDate = format(now, 'yyyy-MM-dd');
+        break;
+      default:
+        break;
+    }
+
+    return { startDate, endDate };
+  };
+
+  // Stats data from API
+  const statsData = [
+    { 
+      label: 'Total Logs', 
+      value: stats?.totalLogs?.toLocaleString() || '0', 
+      icon: Database, 
+      color: 'text-blue-600', 
+      bgColor: 'bg-blue-50' 
+    },
+    { 
+      label: "Today's Activity", 
+      value: stats?.byAction?.reduce((sum, item) => sum + item.count, 0)?.toLocaleString() || '0', 
+      icon: Activity, 
+      color: 'text-green-600', 
+      bgColor: 'bg-green-50' 
+    },
+    { 
+      label: 'Critical Events', 
+      value: stats?.bySeverity?.find(s => s._id === 'critical')?.count?.toString() || '0', 
+      icon: AlertCircle, 
+      color: 'text-red-600', 
+      bgColor: 'bg-red-50' 
+    },
+    { 
+      label: 'Warnings', 
+      value: stats?.bySeverity?.find(s => s._id === 'high')?.count?.toString() || '0', 
+      icon: AlertTriangle, 
+      color: 'text-yellow-600', 
+      bgColor: 'bg-yellow-50' 
+    },
+  ];
+
+  const getCategoryFromAction = (action: string) => {
+    if (action.includes('USER')) return 'user';
+    if (action.includes('BID')) return 'bid';
+    if (action.includes('PAYMENT')) return 'payment';
+    if (action.includes('LOGIN') || action.includes('AUTH')) return 'security';
+    if (action.includes('PROJECT')) return 'project';
+    return 'system';
+  };
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'user': return 'bg-purple-100 text-purple-700';
+      case 'bid': return 'bg-orange-100 text-orange-700';
+      case 'payment': return 'bg-green-100 text-green-700';
+      case 'security': return 'bg-red-100 text-red-700';
+      case 'project': return 'bg-blue-100 text-blue-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical': return 'bg-red-100 text-red-700';
+      case 'high': return 'bg-orange-100 text-orange-700';
+      case 'medium': return 'bg-yellow-100 text-yellow-700';
+      case 'low': return 'bg-green-100 text-green-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getSeverityIcon = (severity: string) => {
+    switch (severity) {
+      case 'critical': return <AlertCircle className="size-3" />;
+      case 'high': return <AlertTriangle className="size-3" />;
+      case 'medium': return <AlertTriangle className="size-3" />;
+      case 'low': return <Info className="size-3" />;
+      default: return null;
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'user': return <User className="size-3" />;
+      case 'bid': return <FolderKanban className="size-3" />;
+      case 'payment': return <CreditCard className="size-3" />;
+      case 'security': return <Lock className="size-3" />;
+      case 'project': return <FolderKanban className="size-3" />;
+      default: return null;
+    }
   };
 
   const handleViewDetails = (log: AuditLogResponse) => {
@@ -98,35 +255,14 @@ export default function AuditLogs() {
     setDetailsOpen(true);
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical':
-        return 'bg-red-100 text-red-700';
-      case 'high':
-        return 'bg-orange-100 text-orange-700';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'low':
-        return 'bg-green-100 text-green-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  const getActionIcon = (action: string) => {
-    if (action.includes('CREATED')) return <User className="size-4" />;
-    if (action.includes('UPDATED')) return <Activity className="size-4" />;
-    if (action.includes('DELETED')) return <AlertCircle className="size-4" />;
-    return <Shield className="size-4" />;
+  const handleExport = () => {
+    // Export functionality
+    console.log('Exporting logs...');
   };
 
   const formatActionName = (action: string) => {
     return action.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
   };
-
-  if (loading) {
-    return <PageSkeleton showStats={false} />;
-  }
 
   return (
     <DashboardLayout>
@@ -134,99 +270,87 @@ export default function AuditLogs() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl mb-2">Audit Logs</h1>
-            <p className="text-gray-600">
-              Track all user management activities and changes
-            </p>
+            <h1 className="text-3xl font-bold mb-2">Audit Logs</h1>
+            <p className="text-gray-600">Complete audit trail of all system activities.</p>
           </div>
-          <Button>
+          <Button onClick={handleExport} className="bg-blue-600 hover:bg-blue-700">
             <Download className="size-4 mr-2" />
             Export Logs
           </Button>
         </div>
 
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statsData.map((stat, index) => (
+            <StatCard
+              key={index}
+              label={stat.label}
+              value={stat.value}
+              icon={stat.icon}
+              color={stat.color}
+              bgColor={stat.bgColor}
+            />
+          ))}
+        </div>
+
         {/* Filters */}
         <Card className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-            {/* <div className="md:col-span-2"> */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
               <Input
-                placeholder="Search by name, email, or description..."
+                placeholder="Search logs..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 className="pl-10"
               />
             </div>
-            {/* </div> */}
-
-            <Select value={actionFilter} onValueChange={setActionFilter}>
+            
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="All Actions" />
+                <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Actions</SelectItem>
-                <SelectItem value="USER_CREATED">User Created</SelectItem>
-                <SelectItem value="USER_UPDATED">User Updated</SelectItem>
-                <SelectItem value="USER_DELETED">User Deleted</SelectItem>
-                <SelectItem value="USER_ROLE_UPDATED">Role Updated</SelectItem>
-                <SelectItem value="USER_STATUS_UPDATED">Status Updated</SelectItem>
-                <SelectItem value="USER_PROFILE_UPDATED">Profile Updated</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="bid">Bid</SelectItem>
+                <SelectItem value="payment">Payment</SelectItem>
+                <SelectItem value="security">Security</SelectItem>
+                <SelectItem value="project">Project</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={severityFilter} onValueChange={setSeverityFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="All Severities" />
+                <SelectValue placeholder="All Severity" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Severities</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="all">All Severity</SelectItem>
                 <SelectItem value="critical">Critical</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex items-end">
 
-              <Button onClick={handleSearch} className="w-full">
-                <Filter className="size-4 mr-2" />
-                Apply Filters
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-2">
-            <div>
-              <label className="text-sm text-gray-600 mb-1 block">Start Date</label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm text-gray-600 mb-1 block">End Date</label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Last 7 Days" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="7days">Last 7 Days</SelectItem>
+                <SelectItem value="30days">Last 30 Days</SelectItem>
+                <SelectItem value="90days">Last 90 Days</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </Card>
 
-        {/* Audit Logs Table */}
+        {/* Recent Activity Table */}
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium">Audit Trail</h2>
-            <p className="text-sm text-gray-600">
-              Showing {auditLogs.length} of {totalLogs} logs
-            </p>
-          </div>
-
+          <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
+          
           {loading ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -234,66 +358,59 @@ export default function AuditLogs() {
             </div>
           ) : auditLogs.length === 0 ? (
             <div className="text-center py-12">
-              <Shield className="size-12 text-gray-400 mx-auto mb-4" />
+              <Database className="size-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">No audit logs found</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {auditLogs.map((log) => (
-                <div
-                  key={log._id}
-                  className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="bg-gray-100 p-2 rounded-lg">
-                        {getActionIcon(log.action)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium">{log.description}</span>
-                          <Badge className={getSeverityColor(log.severity)}>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Timestamp</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">User</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Action</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Category</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Severity</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Description</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLogs.map((log) => {
+                    const category = getCategoryFromAction(log.action);
+                    return (
+                      <tr key={log._id} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm">{format(new Date(log.createdAt), 'dd MMM yyyy, h:mm a')}</td>
+                        <td className="py-3 px-4 text-sm">{log.performedByName} ({log.performedByRole})</td>
+                        <td className="py-3 px-4 text-sm font-mono">{log.action}</td>
+                        <td className="py-3 px-4">
+                          <Badge className={`${getCategoryColor(category)} flex items-center gap-1 w-fit`}>
+                            {getCategoryIcon(category)}
+                            {category}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge className={`${getSeverityColor(log.severity)} flex items-center gap-1 w-fit`}>
+                            {getSeverityIcon(log.severity)}
                             {log.severity}
                           </Badge>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <User className="size-3" />
-                            <span>{log.performedByName}</span>
-                            <span className="text-gray-400">({log.performedByRole})</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="size-3" />
-                            <span>{format(new Date(log.createdAt), 'MMM dd, yyyy HH:mm')}</span>
-                          </div>
-                          {log.ipAddress && (
-                            <div className="flex items-center gap-1">
-                              <MapPin className="size-3" />
-                              <span>{log.ipAddress}</span>
-                            </div>
-                          )}
-                        </div>
-                        {log.changes && Object.keys(log.changes).length > 0 && (
-                          <div className="mt-2 text-sm">
-                            <span className="text-gray-600">Changes: </span>
-                            <span className="text-gray-800">
-                              {Object.keys(log.changes).join(', ')}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewDetails(log)}
-                    >
-                      <Eye className="size-4 mr-1" />
-                      Details
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                        </td>
+                        <td className="py-3 px-4 text-sm">{log.description}</td>
+                        <td className="py-3 px-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewDetails(log)}
+                            className="p-2"
+                          >
+                            <Eye className="size-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -301,7 +418,7 @@ export default function AuditLogs() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-6 pt-6 border-t">
               <p className="text-sm text-gray-600">
-                Page {currentPage} of {totalPages}
+                Page {currentPage} of {totalPages} ({totalLogs} total logs)
               </p>
               <div className="flex gap-2">
                 <Button
@@ -329,7 +446,7 @@ export default function AuditLogs() {
 
         {/* Details Modal */}
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Audit Log Details</DialogTitle>
               <DialogDescription>
@@ -338,31 +455,37 @@ export default function AuditLogs() {
             </DialogHeader>
 
             {selectedLog && (
-              <div className="space-y-6">
-                {/* Action Info */}
-                <div>
-                  <h3 className="font-medium mb-3">Action Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600">Action Type</p>
-                      <p className="font-medium">{formatActionName(selectedLog.action)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Severity</p>
-                      <Badge className={getSeverityColor(selectedLog.severity)}>
-                        {selectedLog.severity}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Timestamp</p>
-                      <p className="font-medium">
-                        {format(new Date(selectedLog.createdAt), 'PPpp')}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Log ID</p>
-                      <p className="font-mono text-sm">{selectedLog._id}</p>
-                    </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Timestamp</p>
+                    <p className="font-medium">{format(new Date(selectedLog.createdAt), 'PPpp')}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">User</p>
+                    <p className="font-medium">{selectedLog.performedByName} ({selectedLog.performedByRole})</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Action</p>
+                    <p className="font-mono text-sm">{formatActionName(selectedLog.action)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Category</p>
+                    <Badge className={`${getCategoryColor(getCategoryFromAction(selectedLog.action))} flex items-center gap-1 w-fit`}>
+                      {getCategoryIcon(getCategoryFromAction(selectedLog.action))}
+                      {getCategoryFromAction(selectedLog.action)}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Severity</p>
+                    <Badge className={`${getSeverityColor(selectedLog.severity)} flex items-center gap-1 w-fit`}>
+                      {getSeverityIcon(selectedLog.severity)}
+                      {selectedLog.severity}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Description</p>
+                    <p className="font-medium">{selectedLog.description}</p>
                   </div>
                 </div>
 
@@ -383,7 +506,7 @@ export default function AuditLogs() {
                         <p className="text-sm text-gray-600">Role</p>
                         <Badge>{selectedLog.performedByRole}</Badge>
                       </div>
-                      {selectedLog.performedBy.userID && (
+                      {selectedLog.performedBy?.userID && (
                         <div>
                           <p className="text-sm text-gray-600">User ID</p>
                           <p className="font-mono text-sm">{selectedLog.performedBy.userID}</p>
@@ -410,7 +533,7 @@ export default function AuditLogs() {
                         <p className="text-sm text-gray-600">Role</p>
                         <Badge>{selectedLog.targetUserRole}</Badge>
                       </div>
-                      {selectedLog.targetUser && selectedLog.targetUser.userID && (
+                      {selectedLog.targetUser?.userID && (
                         <div>
                           <p className="text-sm text-gray-600">User ID</p>
                           <p className="font-mono text-sm">{selectedLog.targetUser.userID}</p>
@@ -475,13 +598,17 @@ export default function AuditLogs() {
                   </div>
                 </div>
 
-                {/* Description */}
-                <div>
-                  <h3 className="font-medium mb-3">Description</h3>
-                  <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">
-                    {selectedLog.description}
-                  </p>
-                </div>
+                {/* Metadata */}
+                {selectedLog.metadata && Object.keys(selectedLog.metadata).length > 0 && (
+                  <div>
+                    <h3 className="font-medium mb-3">Additional Metadata</h3>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <pre className="text-sm whitespace-pre-wrap">
+                        {JSON.stringify(selectedLog.metadata, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>

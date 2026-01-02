@@ -163,10 +163,8 @@ export default function AdminBidDetail() {
       <DashboardLayout>
         <div className="text-center py-12">
           <h2 className="text-2xl mb-4">Bid not found</h2>
-          <Button asChild>
-            <Link to="/admin/bids">
-              <ArrowLeft className="size-4 mr-2" />
-            </Link>
+          <Button onClick={() => navigate(-1)}>
+            <ArrowLeft className="size-4 mr-2" />
           </Button>
         </div>
       </DashboardLayout>

@@ -53,7 +53,7 @@ export default function BiddingManagement() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <h2 className="text-2xl mb-4">Project Not Found</h2>
-            <Button onClick={() => navigate('/admin/projects')}>
+            <Button variant="outline" onClick={() => navigate(-1)}>
               Back to Projects
             </Button>
           </div>
@@ -268,7 +268,7 @@ export default function BiddingManagement() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/admin/projects')}>
+            <Button variant="ghost" onClick={() => navigate(-1)}>
               <ArrowLeft className="size-4 mr-2" />
             </Button>
             <div>

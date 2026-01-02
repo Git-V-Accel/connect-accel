@@ -935,7 +935,7 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
       <div className="max-w-8xl mx-auto p-6">
                {/* Header */}
         <div className="flex items-center gap-4 mb-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/client/projects')}>
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
             <ArrowLeft className="size-4 mr-2" />
           </Button>
           <div className="flex-1">

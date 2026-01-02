@@ -1,12 +1,13 @@
-import React, { ReactNode, isValidElement } from 'react';
+import React, { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../ui/card';
 import { LucideIcon } from 'lucide-react';
+import { Icon } from '@iconify/react';
 
 interface StatCardProps {
   label: string;
   value: string | number;
-  icon: LucideIcon | ReactNode;
+  icon: LucideIcon | ReactNode| Icon;
   color?: string;
   bgColor?: string;
   link?: string;
@@ -22,19 +23,6 @@ export function StatCard({
   link,
   onClick
 }: StatCardProps) {
-  // Render icon: if it's already a React element, use it directly
-  // Otherwise, if it's a component function, instantiate it
-  const renderIcon = () => {
-    if (isValidElement(Icon)) {
-      return Icon;
-    }
-    if (typeof Icon === 'function') {
-      const IconComponent = Icon as LucideIcon;
-      return <IconComponent className="size-5" />;
-    }
-    return null;
-  };
-
   const content = (
     <Card className={`p-6 ${link || onClick ? 'hover:shadow-lg transition-shadow cursor-pointer' : ''}`}>
       <div className="flex items-center justify-between">
@@ -42,8 +30,8 @@ export function StatCard({
           <p className="text-sm text-gray-600">{label}</p>
           <p className="text-3xl mt-2">{value}</p>
         </div>
-        <div className={`${bgColor} ${color} p-3 rounded-lg`}>
-          {renderIcon()}
+        <div className={`${bgColor} p-3 rounded-lg flex items-center justify-center`}>
+          <Icon className={`size-6 ${color}`} />
         </div>
       </div>
     </Card>
