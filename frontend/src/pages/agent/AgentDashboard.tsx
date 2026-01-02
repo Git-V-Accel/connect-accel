@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
 import DashboardSkeleton from '../../components/shared/DashboardSkeleton';
-import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useDashboard } from '../../hooks/useDashboard';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import { StatCard } from '../../components/shared/StatCard';
+import { formatCurrency } from '../../utils/format';
 import {
   Users, Briefcase, TrendingUp, IndianRupee,
   Clock, CheckCircle, AlertTriangle, UserPlus,
@@ -13,48 +14,57 @@ import {
 export default function AgentDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const { loading, error, dashboard } = useDashboard();
 
   if (loading) {
     return <DashboardSkeleton />;
   }
-  const { projects, bids, consultations, getProjectsByAgent, getBidsByAgent } = useData();
 
-  const agentProjects = getProjectsByAgent(user?.id || '');
-  const agentBids = getBidsByAgent(user?.id || '');
+  if (error || !dashboard || dashboard.role !== 'agent') {
+    return (
+      <DashboardLayout>
+        <div className="p-8 text-center">
+          <p className="text-red-600">{error || 'Failed to load dashboard data'}</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-  // Calculate metrics
-  const activeProjects = agentProjects.filter(p => p.status === 'in_progress').length;
-  const pendingReview = projects.filter(p => p.status === 'pending_review').length;
-  const inBidding = agentProjects.filter(p => p.status === 'in_bidding').length;
-  const completedProjects = agentProjects.filter(p => p.status === 'completed').length;
+  const { stats, recentProjects, activeBids } = dashboard.data;
 
-  const totalRevenue = agentProjects
-    .filter(p => p.status === 'completed')
-    .reduce((sum, p) => sum + (p.margin || 0), 0);
+  const mainStatsConfig = [
+    { label: 'Active Projects', value: stats.activeProjects.toString(), icon: Briefcase, color: 'text-blue-600', bgColor: 'bg-blue-50', link: '/agent/projects' },
+    { label: 'Pending Review', value: stats.pendingBids.toString(), icon: Clock, color: 'text-yellow-600', bgColor: 'bg-yellow-50', link: '/agent/projects?status=pending' },
+    { label: 'In Bidding', value: stats.shortlistedBids.toString(), icon: Target, color: 'text-purple-600', bgColor: 'bg-purple-50', link: '/agent/bids' },
+    { label: 'Revenue Generated', value: formatCurrency(stats.totalRevenue), icon: IndianRupee, color: 'text-green-600', bgColor: 'bg-green-50' },
+  ];
 
-  const pendingBids = agentBids.filter(b => b.status === 'pending').length;
-  const shortlistedBids = agentBids.filter(b => b.status === 'shortlisted').length;
+  const secondaryStatsConfig = [
+    { label: 'Active Clients', value: stats.activeClients.toString(), icon: Users, color: 'text-blue-600', bgColor: 'bg-blue-50' },
+    { label: 'Freelancers Assigned', value: stats.freelancersAssigned.toString(), icon: UserPlus, color: 'text-purple-600', bgColor: 'bg-purple-50' },
+    { label: 'Consultations', value: stats.upcomingConsultations.toString(), icon: Calendar, color: 'text-green-600', bgColor: 'bg-green-50' },
+    { label: 'Success Rate', value: `${stats.successRate}%`, icon: Award, color: 'text-orange-600', bgColor: 'bg-orange-50' },
+  ];
 
-  const upcomingConsultations = consultations.filter(
-    c => c.admin_id === user?.id && c.status === 'scheduled'
-  ).length;
-
-  // Recent activities
-  const recentProjects = agentProjects
-    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-    .slice(0, 5);
-
-  const activeBids = agentBids
-    .filter(b => b.status === 'pending' || b.status === 'shortlisted')
-    .slice(0, 5);
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'in_progress':
+      case 'in-progress':
+        return 'bg-blue-100 text-blue-700';
+      case 'pending_review':
+      case 'pending-review':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'completed':
+        return 'bg-green-100 text-green-700';
+      case 'assigned':
+        return 'bg-purple-100 text-purple-700';
+      case 'in_bidding':
+      case 'in-bidding':
+        return 'bg-orange-100 text-orange-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -66,80 +76,32 @@ export default function AgentDashboard() {
 
         {/* Main Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white rounded-lg border p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/agent/projects')}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Active Projects</span>
-              <Briefcase className="w-5 h-5 text-blue-600" />
-            </div>
-            <p className="text-3xl mb-1">{activeProjects}</p>
-            <p className="text-sm text-blue-600">Managing now</p>
-          </div>
-
-          <div className="bg-white rounded-lg border p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/agent/projects')}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Pending Review</span>
-              <Clock className="w-5 h-5 text-yellow-600" />
-            </div>
-            <p className="text-3xl mb-1">{pendingReview}</p>
-            <p className="text-sm text-yellow-600">Need attention</p>
-          </div>
-
-          <div className="bg-white rounded-lg border p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/agent/bids')}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">In Bidding</span>
-              <Target className="w-5 h-5 text-purple-600" />
-            </div>
-            <p className="text-3xl mb-1">{inBidding}</p>
-            <p className="text-sm text-purple-600">{pendingBids + shortlistedBids} active bids</p>
-          </div>
-
-          <div className="bg-white rounded-lg border p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Revenue Generated</span>
-              <IndianRupee className="w-5 h-5 text-green-600" />
-            </div>
-            <p className="text-3xl mb-1">₹{(totalRevenue / 1000).toFixed(0)}K</p>
-            <p className="text-sm text-green-600">{completedProjects} completed</p>
-          </div>
+          {mainStatsConfig.map((stat, index) => (
+            <StatCard
+              key={index}
+              label={stat.label}
+              value={stat.value}
+              icon={stat.icon}
+              color={stat.color}
+              bgColor={stat.bgColor}
+              link={stat.link}
+              onClick={() => stat.link && navigate(stat.link)}
+            />
+          ))}
         </div>
 
         {/* Secondary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Users className="w-5 h-5 text-blue-600" />
-              <span className="text-sm text-blue-900">Active Clients</span>
-            </div>
-            <p className="text-2xl text-blue-900">{new Set(agentProjects.map(p => p.client_id)).size}</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <UserPlus className="w-5 h-5 text-purple-600" />
-              <span className="text-sm text-purple-900">Freelancers Assigned</span>
-            </div>
-            <p className="text-2xl text-purple-900">
-              {new Set(agentProjects.filter(p => p.freelancer_id).map(p => p.freelancer_id)).size}
-            </p>
-          </div>
-
-          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Calendar className="w-5 h-5 text-green-600" />
-              <span className="text-sm text-green-900">Consultations</span>
-            </div>
-            <p className="text-2xl text-green-900">{upcomingConsultations}</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Award className="w-5 h-5 text-orange-600" />
-              <span className="text-sm text-orange-900">Success Rate</span>
-            </div>
-            <p className="text-2xl text-orange-900">
-              {agentProjects.length > 0 ? Math.round((completedProjects / agentProjects.length) * 100) : 0}%
-            </p>
-          </div>
+          {secondaryStatsConfig.map((stat, index) => (
+            <StatCard
+              key={index}
+              label={stat.label}
+              value={stat.value}
+              icon={stat.icon}
+              color={stat.color}
+              bgColor={stat.bgColor}
+            />
+          ))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -172,10 +134,7 @@ export default function AgentDashboard() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium text-sm">₹{project.client_budget.toLocaleString()}</p>
-                        {project.margin && (
-                          <p className="text-xs text-green-600">+₹{project.margin.toLocaleString()}</p>
-                        )}
+                        <p className="font-medium text-sm">{project.client_budget ? formatCurrency(project.client_budget) : 'Budget not specified'}</p>
                       </div>
                     </div>
                     {project.status === 'pending_review' && (
@@ -209,8 +168,7 @@ export default function AgentDashboard() {
             </div>
             <div className="space-y-3">
               {activeBids.length > 0 ? (
-                activeBids.map((bid) => {
-                  const project = projects.find(p => p.id === bid.project_id);
+                activeBids.map((bid: any) => {
                   return (
                     <div
                       key={bid.id}
@@ -219,17 +177,16 @@ export default function AgentDashboard() {
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <h3 className="font-medium text-sm">{project?.title}</h3>
+                          <h3 className="font-medium text-sm">{bid.project_title || 'Unknown Project'}</h3>
                           <p className="text-sm text-gray-600">{bid.freelancer_name}</p>
                         </div>
-                        <span className={`text-xs px-2 py-1 rounded-full ${bid.status === 'shortlisted' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
-                          }`}>
+                        <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(bid.status)}`}>
                           {bid.status}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Bid Amount:</span>
-                        <span className="font-medium">₹{bid.amount.toLocaleString()}</span>
+                        <span className="font-medium">{formatCurrency(bid.amount)}</span>
                       </div>
                     </div>
                   );
@@ -259,7 +216,7 @@ export default function AgentDashboard() {
               >
                 <Clock className="w-6 h-6 text-blue-600 mb-2" />
                 <p className="text-sm font-medium">Review Projects</p>
-                <p className="text-xs text-gray-600">{pendingReview} pending</p>
+                <p className="text-xs text-gray-600">{stats.pendingBids} pending</p>
               </button>
 
               <button
@@ -295,7 +252,7 @@ export default function AgentDashboard() {
               >
                 <Calendar className="w-6 h-6 text-indigo-600 mb-2" />
                 <p className="text-sm font-medium">Consultations</p>
-                <p className="text-xs text-gray-600">{upcomingConsultations} upcoming</p>
+                <p className="text-xs text-gray-600">{stats.upcomingConsultations} upcoming</p>
               </button>
 
               <button
@@ -313,51 +270,35 @@ export default function AgentDashboard() {
           <div className="bg-white rounded-lg border p-6">
             <h2 className="text-xl mb-4">Performance Overview</h2>
             <div className="space-y-4">
-              <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-600">Project Completion Rate</span>
-                  <span className="font-medium">
-                    {agentProjects.length > 0 ? Math.round((completedProjects / agentProjects.length) * 100) : 0}%
-                  </span>
+                  <span className="font-medium">{stats.successRate}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-green-600 h-2 rounded-full transition-all"
-                    style={{
-                      width: `${agentProjects.length > 0 ? Math.round((completedProjects / agentProjects.length) * 100) : 0}%`
-                    }}
+                    style={{ width: `${stats.successRate}%` }}
                   />
                 </div>
-              </div>
 
-              <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-600">Bid Success Rate</span>
-                  <span className="font-medium">
-                    {agentBids.length > 0
-                      ? Math.round((agentBids.filter(b => b.status === 'accepted').length / agentBids.length) * 100)
-                      : 0}%
-                  </span>
+                  <span className="font-medium">{stats.bidSuccessRate}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-blue-600 h-2 rounded-full transition-all"
-                    style={{
-                      width: `${agentBids.length > 0
-                        ? Math.round((agentBids.filter(b => b.status === 'accepted').length / agentBids.length) * 100)
-                        : 0}%`
-                    }}
+                    style={{ width: `${stats.bidSuccessRate}%` }}
                   />
                 </div>
-              </div>
 
               <div className="pt-4 border-t">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-600">Total Revenue Generated</span>
                   <TrendingUp className="w-4 h-4 text-green-600" />
                 </div>
-                <p className="text-2xl font-medium text-green-600">₹{totalRevenue.toLocaleString()}</p>
-                <p className="text-xs text-gray-600 mt-1">From {completedProjects} completed projects</p>
+                <p className="text-2xl font-medium text-green-600">{formatCurrency(stats.totalRevenue)}</p>
+                <p className="text-xs text-gray-600 mt-1">From {stats.completedProjects} completed projects</p>
               </div>
 
               <div className="pt-4 border-t">
@@ -366,7 +307,7 @@ export default function AgentDashboard() {
                   <IndianRupee className="w-4 h-4 text-purple-600" />
                 </div>
                 <p className="text-2xl font-medium text-purple-600">
-                  {completedProjects > 0 ? Math.round((totalRevenue / completedProjects)) : 0}₹
+                  {formatCurrency(stats.avgRevenuePerProject)}
                 </p>
                 <p className="text-xs text-gray-600 mt-1">Per project</p>
               </div>

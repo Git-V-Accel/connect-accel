@@ -57,7 +57,7 @@ export default function ProjectDetailPage() {
       <DashboardLayout>
         <div className="text-center py-12">
           <h2 className="text-2xl mb-4">Project Not Found</h2>
-          <Button onClick={() => navigate('/freelancer/projects')}>
+          <Button onClick={() => navigate(-1)}>
             Browse Projects
           </Button>
         </div>

@@ -119,11 +119,9 @@ export default function SubmitProposal() {
       <DashboardLayout>
         <div className="text-center py-12">
           <h2 className="text-2xl mb-4">Bid not found</h2>
-          <Button asChild>
-            <Link to="/freelancer/projects">
-              <ArrowLeft className="size-4 mr-2" />
-              Back to Browse Projects
-            </Link>
+          <Button onClick={() => navigate(-1)}>
+            <ArrowLeft className="size-4 mr-2" />
+            Back to Browse Projects
           </Button>
         </div>
       </DashboardLayout>
@@ -135,11 +133,8 @@ export default function SubmitProposal() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="outline" asChild>
-            <Link to={`/freelancer/bids/${bid.id}/view`}>
-              <ArrowLeft className="size-4 mr-2" />
-              Back
-            </Link>
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            <ArrowLeft className="size-4 mr-2" />
           </Button>
           <div className="flex-1">
             <h1 className="text-3xl">Submit Proposal</h1>

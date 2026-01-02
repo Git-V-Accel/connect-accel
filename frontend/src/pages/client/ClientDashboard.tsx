@@ -1,4 +1,3 @@
-import React, { useState, useEffect, useMemo } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { StatCard } from '../../components/shared/StatCard';
 import { ActivityItem } from '../../components/shared/ActivityItem';
@@ -12,107 +11,56 @@ import { Badge } from '../../components/ui/badge';
 import { Link } from 'react-router-dom';
 import { Plus, FolderKanban, CheckCircle, Clock, IndianRupee, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useData } from '../../contexts/DataContext';
-import { statusLabels, statusColors } from '../../constants/projectConstants';
+import { useDashboard } from '../../hooks/useDashboard';
+import { formatCurrency } from '../../utils/format';
 
 export default function ClientDashboard() {
   const { user } = useAuth();
-  const { projects, getProjectsByUser, getMilestonesByProject, payments } = useData();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Wait a bit for projects to load from backend
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [projects]);
+  const { loading, error, dashboard } = useDashboard();
 
   if (!user) return null;
 
-
-  const allProjects = useMemo(() => {
-    if (!user) return [];
-    return getProjectsByUser(user.id, user.role);
-  }, [user, projects]); // Including projects in dep array because getProjectsByUser depends on it
-
-  const stats = useMemo(() => {
-    const activeProjectsCount = allProjects.filter(p => p.status === 'in_progress' || p.status === 'assigned').length;
-
-    const pendingApprovals = allProjects.reduce((count, project) => {
-      const milestones = getMilestonesByProject(project.id);
-      const pendingMilestones = milestones.filter(m => m.status === 'submitted').length;
-      return count + pendingMilestones;
-    }, 0);
-
-    // Calculate upcoming deadlines (projects with end_date in next 7 days)
-    const now = new Date();
-    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const upcomingDeadlines = allProjects.filter(p => {
-      if (!p.end_date) return false;
-      const endDate = new Date(p.end_date);
-      return endDate >= now && endDate <= nextWeek;
-    }).length;
-
-    // Calculate total spent from payments
-    const totalSpent = payments
-      .filter(p => p.user_id === user?.id && p.status === 'completed')
-      .reduce((sum, p) => sum + p.amount, 0);
-
-    return [
-      { label: 'Active Projects', value: activeProjectsCount.toString(), icon: <FolderKanban className="size-5" />, color: 'text-blue-600', bgColor: 'bg-blue-50' },
-      { label: 'Pending Approvals', value: pendingApprovals.toString(), icon: <CheckCircle className="size-5" />, color: 'text-green-600', bgColor: 'bg-green-50' },
-      { label: 'Upcoming Deadlines', value: upcomingDeadlines.toString(), icon: <Clock className="size-5" />, color: 'text-orange-600', bgColor: 'bg-orange-50' },
-      { label: 'Total Spent', value: `₹${(totalSpent / 100000).toFixed(1)}L`, icon: <IndianRupee className="size-5" />, color: 'text-purple-600', bgColor: 'bg-purple-50' },
-    ];
-  }, [allProjects, payments, user, getMilestonesByProject]);
-
-  const activeProjects = useMemo(() => {
-    return allProjects
-      .filter(p => p.status === 'in_progress' || p.status === 'assigned' || p.status === 'in_bidding')
-      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-      .slice(0, 5)
-      .map(project => {
-        const milestones = getMilestonesByProject(project.id);
-        const completedMilestones = milestones.filter(m => m.status === 'approved' || m.status === 'paid').length;
-        const progress = milestones.length > 0 ? Math.round((completedMilestones / milestones.length) * 100) : 0;
-
-        return {
-          id: project.id,
-          name: project.title,
-          status: statusLabels[project.status] || project.status,
-          statusKey: project.status,
-          progress,
-          freelancer: project.freelancer_name || 'Pending',
-          dueDate: project.end_date ? new Date(project.end_date).toLocaleDateString() : 'N/A',
-        };
-      });
-  }, [allProjects, getMilestonesByProject]);
-
-  // Pending actions - check for milestones that need approval
-  const pendingActions = useMemo(() => {
-    return allProjects
-      .flatMap(project => {
-        const milestones = getMilestonesByProject(project.id);
-        const pendingMilestones = milestones.filter(m => m.status === 'submitted');
-        return pendingMilestones.map(milestone => ({
-          id: `${project.id}-${milestone.id}`,
-          text: `Review milestone "${milestone.title}" for ${project.title}`,
-          action: 'Review Now',
-          link: `/client/projects/${project.id}`,
-        }));
-      })
-      .slice(0, 3);
-  }, [allProjects, getMilestonesByProject]);
-
-  // Recent activity - empty for now as there's no activity feed in DataContext
-  const recentActivity: Array<{ id: number; text: string; time: string; type: string }> = [];
-
   if (loading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (error || !dashboard || dashboard.role !== 'client') {
     return (
-      <DashboardSkeleton />
+      <DashboardLayout>
+        <div className="p-8 text-center">
+          <p className="text-red-600">{error || 'Failed to load dashboard data'}</p>
+        </div>
+      </DashboardLayout>
     );
   }
+
+  const { stats, activeProjects, pendingActions, recentActivity } = dashboard.data;
+
+  const statsConfig = [
+    { label: 'Active Projects', value: stats.activeProjects.toString(), icon: FolderKanban, color: 'text-blue-600', bgColor: 'bg-blue-50' },
+    { label: 'Pending Approvals', value: stats.pendingApprovals.toString(), icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-50' },
+    { label: 'Upcoming Deadlines', value: stats.upcomingDeadlines.toString(), icon: Clock, color: 'text-orange-600', bgColor: 'bg-orange-50' },
+    { label: 'Total Spent', value: formatCurrency(stats.totalSpent), icon: IndianRupee, color: 'text-purple-600', bgColor: 'bg-purple-50' },
+  ];
+
+  const getStatusColor = (statusKey: string) => {
+    switch (statusKey.toLowerCase()) {
+      case 'in_progress':
+      case 'in-progress':
+        return 'bg-blue-100 text-blue-700';
+      case 'assigned':
+        return 'bg-green-100 text-green-700';
+      case 'in_bidding':
+      case 'in-bidding':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'completed':
+        return 'bg-purple-100 text-purple-700';
+      case 'cancelled':
+        return 'bg-red-100 text-red-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -129,7 +77,7 @@ export default function ClientDashboard() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat, index) => (
+          {statsConfig.map((stat, index) => (
             <StatCard
               key={index}
               label={stat.label}
@@ -165,7 +113,7 @@ export default function ClientDashboard() {
                           <h4 className="font-medium">{project.name}</h4>
                           <p className="text-sm text-gray-500">Freelancer: {project.freelancer}</p>
                         </div>
-                        <Badge className={statusColors[project.statusKey] || 'bg-gray-100 text-gray-700'}>
+                        <Badge className={getStatusColor(project.statusKey)}>
                           {project.status}
                         </Badge>
                       </div>

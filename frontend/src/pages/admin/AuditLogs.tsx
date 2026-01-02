@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/shared/DashboardLayout';
+import { StatCard } from '../../components/shared/StatCard';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -20,28 +21,37 @@ import {
 } from '../../components/ui/dialog';
 import {
     getAllAuditLogs,
+    getAuditLogStats,
     AuditLogResponse,
+    AuditLogStats,
 } from '../../services/auditLogService';
 import {
-    Shield,
+    Database,
+    Activity,
+    AlertCircle,
+    AlertTriangle,
     Search,
     Filter,
     User,
-    Activity,
-    AlertCircle,
-    ChevronLeft,
-    ChevronRight,
+    Shield,
     Eye,
     Download,
     Clock,
     MapPin,
     Monitor,
+    ChevronLeft,
+    ChevronRight,
+    Info,
+    CreditCard,
+    FolderKanban,
+    Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 export default function AuditLogs() {
     const [auditLogs, setAuditLogs] = useState<AuditLogResponse[]>([]);
+    const [stats, setStats] = useState<AuditLogStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedLog, setSelectedLog] = useState<AuditLogResponse | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
@@ -49,6 +59,7 @@ export default function AuditLogs() {
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [actionFilter, setActionFilter] = useState('all');
+    const [categoryFilter, setCategoryFilter] = useState('all');
     const [severityFilter, setSeverityFilter] = useState('all');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -61,11 +72,39 @@ export default function AuditLogs() {
 
     useEffect(() => {
         fetchAuditLogs();
-    }, [currentPage, actionFilter, severityFilter, startDate, endDate]);
+        fetchStats();
+    }, [currentPage, actionFilter, categoryFilter, severityFilter, startDate, endDate]);
+
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            if (searchTerm !== '') {
+                setCurrentPage(1);
+                fetchAuditLogs();
+            }
+        }, 500);
+        return () => clearTimeout(timeoutId);
+    }, [searchTerm]);
 
     const fetchAuditLogs = async () => {
         try {
             setLoading(true);
+            let searchQuery = searchTerm || undefined;
+
+            // If category filter is applied, modify the search to include action patterns
+            if (categoryFilter !== 'all') {
+                const actionPatterns = {
+                    'user': 'USER',
+                    'bid': 'BID',
+                    'payment': 'PAYMENT',
+                    'security': 'LOGIN,AUTH',
+                    'project': 'PROJECT',
+                };
+                const categorySearch = actionPatterns[categoryFilter as keyof typeof actionPatterns];
+                if (categorySearch) {
+                    searchQuery = searchQuery ? `${searchQuery} ${categorySearch}` : categorySearch;
+                }
+            }
+
             const response = await getAllAuditLogs({
                 page: currentPage,
                 limit: itemsPerPage,
@@ -73,7 +112,7 @@ export default function AuditLogs() {
                 severity: severityFilter === 'all' ? undefined : severityFilter,
                 startDate: startDate || undefined,
                 endDate: endDate || undefined,
-                search: searchTerm || undefined,
+                search: searchQuery,
             });
 
             setAuditLogs(response.auditLogs);
@@ -87,6 +126,18 @@ export default function AuditLogs() {
         }
     };
 
+    const fetchStats = async () => {
+        try {
+            const response = await getAuditLogStats({
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+            });
+            setStats(response.stats);
+        } catch (error: any) {
+            console.error('Error fetching audit stats:', error);
+        }
+    };
+
     const handleSearch = () => {
         setCurrentPage(1);
         fetchAuditLogs();
@@ -97,18 +148,86 @@ export default function AuditLogs() {
         setDetailsOpen(true);
     };
 
+    // Stats data from API
+    const statsData = [
+        { 
+            label: 'Total Logs', 
+            value: stats?.totalLogs?.toLocaleString() || '0', 
+            icon: Database, 
+            color: 'text-blue-600', 
+            bgColor: 'bg-blue-50' 
+        },
+        { 
+            label: "Today's Activity", 
+            value: stats?.byAction?.reduce((sum, item) => sum + item.count, 0)?.toLocaleString() || '0', 
+            icon: Activity, 
+            color: 'text-green-600', 
+            bgColor: 'bg-green-50' 
+        },
+        { 
+            label: 'Critical Events', 
+            value: stats?.bySeverity?.find(s => s._id === 'critical')?.count?.toString() || '0', 
+            icon: AlertCircle, 
+            color: 'text-red-600', 
+            bgColor: 'bg-red-50' 
+        },
+        { 
+            label: 'Warnings', 
+            value: stats?.bySeverity?.find(s => s._id === 'high')?.count?.toString() || '0', 
+            icon: AlertTriangle, 
+            color: 'text-yellow-600', 
+            bgColor: 'bg-yellow-50' 
+        },
+    ];
+
+    const getCategoryFromAction = (action: string) => {
+        if (action.includes('USER')) return 'user';
+        if (action.includes('BID')) return 'bid';
+        if (action.includes('PAYMENT')) return 'payment';
+        if (action.includes('LOGIN') || action.includes('AUTH')) return 'security';
+        if (action.includes('PROJECT')) return 'project';
+        return 'system';
+    };
+
+    const getCategoryColor = (category: string) => {
+        switch (category) {
+            case 'user': return 'bg-purple-100 text-purple-700';
+            case 'bid': return 'bg-orange-100 text-orange-700';
+            case 'payment': return 'bg-green-100 text-green-700';
+            case 'security': return 'bg-red-100 text-red-700';
+            case 'project': return 'bg-blue-100 text-blue-700';
+            default: return 'bg-gray-100 text-gray-700';
+        }
+    };
+
     const getSeverityColor = (severity: string) => {
         switch (severity) {
-            case 'critical':
-                return 'bg-red-100 text-red-700';
-            case 'high':
-                return 'bg-orange-100 text-orange-700';
-            case 'medium':
-                return 'bg-yellow-100 text-yellow-700';
-            case 'low':
-                return 'bg-green-100 text-green-700';
-            default:
-                return 'bg-gray-100 text-gray-700';
+            case 'critical': return 'bg-red-100 text-red-700';
+            case 'high': return 'bg-orange-100 text-orange-700';
+            case 'medium': return 'bg-yellow-100 text-yellow-700';
+            case 'low': return 'bg-green-100 text-green-700';
+            default: return 'bg-gray-100 text-gray-700';
+        }
+    };
+
+    const getSeverityIcon = (severity: string) => {
+        switch (severity) {
+            case 'critical': return <AlertCircle className="size-3" />;
+            case 'high': return <AlertTriangle className="size-3" />;
+            case 'medium': return <AlertTriangle className="size-3" />;
+            case 'low': return <Info className="size-3" />;
+            default: return null;
+        }
+    };
+
+    const getCategoryIcon = (category: string) => {
+        switch (category) {
+            case 'user': return <User className="size-3" />;
+            case 'bid': return <FolderKanban className="size-3" />;
+            case 'payment': return <CreditCard className="size-3" />;
+            case 'security': return <Lock className="size-3" />;
+            case 'project': return <FolderKanban className="size-3" />;
+            default: return null;
         }
     };
 
@@ -140,9 +259,23 @@ export default function AuditLogs() {
                     </Button>
                 </div>
 
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {statsData.map((stat, index) => (
+                        <StatCard
+                            key={index}
+                            label={stat.label}
+                            value={stat.value}
+                            icon={stat.icon}
+                            color={stat.color}
+                            bgColor={stat.bgColor}
+                        />
+                    ))}
+                </div>
+
                 {/* Filters */}
                 <Card className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
 
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
@@ -154,6 +287,20 @@ export default function AuditLogs() {
                                 className="pl-10"
                             />
                         </div>
+
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="All Categories" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Categories</SelectItem>
+                                <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="bid">Bid</SelectItem>
+                                <SelectItem value="payment">Payment</SelectItem>
+                                <SelectItem value="security">Security</SelectItem>
+                                <SelectItem value="project">Project</SelectItem>
+                            </SelectContent>
+                        </Select>
 
                         <Select value={actionFilter} onValueChange={setActionFilter}>
                             <SelectTrigger>
@@ -176,10 +323,10 @@ export default function AuditLogs() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Severities</SelectItem>
-                                <SelectItem value="low">Low</SelectItem>
-                                <SelectItem value="medium">Medium</SelectItem>
-                                <SelectItem value="high">High</SelectItem>
                                 <SelectItem value="critical">Critical</SelectItem>
+                                <SelectItem value="high">High</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="low">Low</SelectItem>
                             </SelectContent>
                         </Select>
                         <div className="flex items-end">
@@ -376,7 +523,7 @@ export default function AuditLogs() {
                                                 <p className="text-sm text-gray-600">Role</p>
                                                 <Badge>{selectedLog.performedByRole}</Badge>
                                             </div>
-                                            {selectedLog.performedBy.userID && (
+                                            {selectedLog.performedBy?.userID && (
                                                 <div>
                                                     <p className="text-sm text-gray-600">User ID</p>
                                                     <p className="font-mono text-sm">{selectedLog.performedBy.userID}</p>
@@ -403,7 +550,7 @@ export default function AuditLogs() {
                                                 <p className="text-sm text-gray-600">Role</p>
                                                 <Badge>{selectedLog.targetUserRole}</Badge>
                                             </div>
-                                            {selectedLog.targetUser.userID && (
+                                            {selectedLog.targetUser?.userID && (
                                                 <div>
                                                     <p className="text-sm text-gray-600">User ID</p>
                                                     <p className="font-mono text-sm">{selectedLog.targetUser.userID}</p>
