@@ -36,6 +36,23 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
   const { getUserNotifications, markNotificationAsRead } = useData();
   const [selectedTab, setSelectedTab] = useState('all');
 
+  const getProjectLink = (projectId: string) => {
+    if (!user) return '/';
+    switch (user.role) {
+      case 'client':
+        return `/client/projects/${projectId}`;
+      case 'freelancer':
+        return `/freelancer/projects/${projectId}/detail`;
+      case 'admin':
+      case 'superadmin':
+        return `/admin/projects/${projectId}`;
+      case 'agent':
+        return `/agent/projects/${projectId}`;
+      default:
+        return '/';
+    }
+  };
+
   if (!user) return null;
 
   const notifications = getUserNotifications(user.id).sort((a, b) => 
@@ -71,7 +88,7 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
                 <h3 className="font-medium mb-1 text-sm">{notification.title}</h3>
-                <p className="text-sm text-gray-600 mb-2">{notification.description}</p>
+                <p className="text-sm text-gray-600 mb-2 line-clamp-1">{notification.description}</p>
                 <p className="text-xs text-gray-500">
                   {new Date(notification.created_at).toLocaleString()}
                 </p>
@@ -90,7 +107,7 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
               </div>
             </div>
             {notification.link && (
-              <Link to={notification.link} onClick={onClose}>
+              <Link to={getProjectLink(notification.link.split('/').pop() || '')} onClick={onClose}>
                 <Button variant="link" size="sm" className="mt-2 px-0">
                   View Details →
                 </Button>
