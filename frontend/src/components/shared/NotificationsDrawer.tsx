@@ -35,6 +35,7 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
   const { user } = useAuth();
   const { getUserNotifications, markNotificationAsRead } = useData();
   const [selectedTab, setSelectedTab] = useState('all');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const getProjectLink = (projectId: string) => {
     if (!user) return '/';
@@ -77,28 +78,77 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
   const NotificationCard: React.FC<NotificationCardProps> = ({ notification }) => {
     const Icon = notificationIcons[notification.type];
     const colorClass = notificationColors[notification.type];
+    const isExpanded = expandedId === notification.id;
+
+    const handleToggle = () => {
+      setExpandedId((prev) => (prev === notification.id ? null : notification.id));
+      if (!notification.read) {
+        markNotificationAsRead(notification.id);
+      }
+    };
+
+    const handleCardClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
+      const scrollContainer = e.currentTarget.closest(
+        '[data-notifications-scroll="true"]'
+      ) as HTMLElement | null;
+
+      const prevScrollTop = scrollContainer?.scrollTop;
+      handleToggle();
+
+      if (scrollContainer && typeof prevScrollTop === 'number') {
+        requestAnimationFrame(() => {
+          scrollContainer.scrollTop = prevScrollTop;
+        });
+      }
+    };
 
     return (
-      <Card className={`p-4 mb-3 ${notification.read ? 'opacity-60' : 'border-l-4 border-l-blue-500'}`}>
+      <Card
+        className={`p-4 mb-3 cursor-pointer select-none transition-colors hover:bg-gray-50 ${
+          notification.read && !isExpanded ? 'opacity-60' : 'border-l-4 border-l-blue-500'
+        }`}
+        onClick={handleCardClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleToggle();
+          }
+        }}
+      >
         <div className="flex items-start gap-4">
           <div className={`size-10 rounded-full flex items-center justify-center flex-shrink-0 ${colorClass}`}>
             <Icon className="size-5" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
-              <div className="flex-1">
-                <h3 className="font-medium mb-1 text-sm">{notification.title}</h3>
-                <p className="text-sm text-gray-600 mb-2 line-clamp-1">{notification.description}</p>
+              <div className="flex-1 min-w-0">
+                <h3 className={`font-medium mb-1 text-sm ${isExpanded ? 'text-gray-900' : 'text-gray-700'}`}>
+                  {notification.title}
+                </h3>
+                <p
+                  className={`text-sm mb-2 ${
+                    isExpanded
+                      ? 'text-gray-900 whitespace-pre-wrap break-words'
+                      : 'text-gray-600 line-clamp-1'
+                  }`}
+                >
+                  {notification.description}
+                </p>
                 <p className="text-xs text-gray-500">
                   {new Date(notification.created_at).toLocaleString()}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-shrink-0">
                 {!notification.read && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleMarkAsRead(notification.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarkAsRead(notification.id);
+                    }}
                     title="Mark as read"
                   >
                     <Check className="size-4" />
@@ -106,8 +156,14 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
                 )}
               </div>
             </div>
-            {notification.link && (
-              <Link to={getProjectLink(notification.link.split('/').pop() || '')} onClick={onClose}>
+            {notification.link && isExpanded && (
+              <Link
+                to={getProjectLink(notification.link.split('/').pop() || '')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+              >
                 <Button variant="link" size="sm" className="mt-2 px-0">
                   View Details →
                 </Button>
@@ -165,7 +221,7 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
                 <p className="text-gray-600">You're all caught up!</p>
               </Card>
             ) : (
-              <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
+              <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2" data-notifications-scroll="true">
                 {notifications.map(notification => (
                   <NotificationCard key={notification.id} notification={notification} />
                 ))}
@@ -181,7 +237,7 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
                 <p className="text-gray-600">You're all caught up!</p>
               </Card>
             ) : (
-              <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
+              <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2" data-notifications-scroll="true">
                 {unreadNotifications.map(notification => (
                   <NotificationCard key={notification.id} notification={notification} />
                 ))}
@@ -197,7 +253,7 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
                 <p className="text-gray-600">Read notifications will appear here</p>
               </Card>
             ) : (
-              <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
+              <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2" data-notifications-scroll="true">
                 {readNotifications.map(notification => (
                   <NotificationCard key={notification.id} notification={notification} />
                 ))}

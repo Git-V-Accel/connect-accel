@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { socketService } from '../services/socketService';
 import { SocketEvents } from '../constants/socketConstants';
 import * as projectService from '../services/projectService';
 import * as bidService from '../services/bidService';
 import apiClient from '../services/apiService';
+import { API_CONFIG } from '../config/api';
 import { toast } from '../utils/toast';
 
 // Types
@@ -282,7 +283,7 @@ interface DataContextType {
     getUserConversations: (userId: string) => Conversation[];
 
     // Notification methods
-    createNotification: (notification: Omit<Notification, 'id' | 'created_at' | 'read'>) => Notification;
+    createNotification: (notification: Omit<Notification, 'id' | 'created_at' | 'read'> & Partial<Pick<Notification, 'id' | 'created_at' | 'read'>>) => Notification;
     markNotificationAsRead: (id: string) => void;
     getUserNotifications: (userId: string) => Notification[];
 
@@ -470,7 +471,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             if (!user) return;
 
             try {
-                const response = await apiClient.get('/notifications', { params: { limit: 50 } });
+                const response = await apiClient.get(`${API_CONFIG.API_URL}/notifications`, { params: { limit: 50 } });
                 const rows = response.data?.data || [];
 
                 const normalizeType = (raw: any): Notification['type'] => {
@@ -485,6 +486,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
                 const normalized: Notification[] = rows.map((n: any) => {
                     const projectId = n.projectId?._id || n.projectId;
+                    const readAt = n.readAt || n.read_at;
                     return {
                         id: n._id || n.id,
                         user_id: (typeof n.user === 'string' ? n.user : n.user?._id) || n.user_id,
@@ -492,7 +494,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                         title: n.title,
                         description: n.message || n.description,
                         link: projectId ? `/projects/${projectId}` : n.link,
-                        read: Boolean(n.isRead ?? n.read),
+                        read: Boolean(n.isRead ?? n.read ?? readAt),
                         created_at: n.createdAt || n.created_at,
                     };
                 });
@@ -1207,18 +1209,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
 
     // Notification methods
-    const createNotification = (notificationData: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
+    const createNotification = (
+        notificationData: Omit<Notification, 'id' | 'created_at' | 'read'> & Partial<Pick<Notification, 'id' | 'created_at' | 'read'>>
+    ) => {
         const newNotification: Notification = {
             ...notificationData,
-            id: 'notif_' + Math.random().toString(36).substr(2, 9),
-            created_at: new Date().toISOString(),
-            read: false,
+            id: notificationData.id || 'notif_' + Math.random().toString(36).substr(2, 9),
+            created_at: notificationData.created_at || new Date().toISOString(),
+            read: Boolean(notificationData.read),
         };
         setData((prev: any) => ({ ...prev, notifications: [...prev.notifications, newNotification] }));
         return newNotification;
     };
 
     const markNotificationAsRead = (id: string) => {
+        // Persist to backend (fire-and-forget). Local state is updated immediately.
+        (async () => {
+            try {
+                await apiClient.put(`${API_CONFIG.API_URL}/notifications/${id}/read`);
+            } catch (error) {
+                console.error('Failed to mark notification as read:', error);
+            }
+        })();
         setData((prev: any) => ({
             ...prev,
             notifications: prev.notifications.map((n: Notification) =>
