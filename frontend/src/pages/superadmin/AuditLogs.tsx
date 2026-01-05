@@ -94,6 +94,7 @@ export default function AuditLogs() {
           'payment': 'PAYMENT',
           'security': 'LOGIN,AUTH',
           'project': 'PROJECT',
+          'notification': 'NOTIFICATION',
         };
         const categorySearch = actionPatterns[categoryFilter as keyof typeof actionPatterns];
         if (categorySearch) {
@@ -169,33 +170,33 @@ export default function AuditLogs() {
 
   // Stats data from API
   const statsData = [
-    { 
-      label: 'Total Logs', 
-      value: stats?.totalLogs?.toLocaleString() || '0', 
-      icon: Database, 
-      color: 'text-blue-600', 
-      bgColor: 'bg-blue-50' 
+    {
+      label: 'Total Logs',
+      value: stats?.totalLogs?.toLocaleString() || '0',
+      icon: Database,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50'
     },
-    { 
-      label: "Today's Activity", 
-      value: stats?.byAction?.reduce((sum, item) => sum + item.count, 0)?.toLocaleString() || '0', 
-      icon: Activity, 
-      color: 'text-green-600', 
-      bgColor: 'bg-green-50' 
+    {
+      label: "Today's Activity",
+      value: stats?.byAction?.reduce((sum, item) => sum + item.count, 0)?.toLocaleString() || '0',
+      icon: Activity,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50'
     },
-    { 
-      label: 'Critical Events', 
-      value: stats?.bySeverity?.find(s => s._id === 'critical')?.count?.toString() || '0', 
-      icon: AlertCircle, 
-      color: 'text-red-600', 
-      bgColor: 'bg-red-50' 
+    {
+      label: 'Critical Events',
+      value: stats?.bySeverity?.find(s => s._id === 'critical')?.count?.toString() || '0',
+      icon: AlertCircle,
+      color: 'text-red-600',
+      bgColor: 'bg-red-50'
     },
-    { 
-      label: 'Warnings', 
-      value: stats?.bySeverity?.find(s => s._id === 'high')?.count?.toString() || '0', 
-      icon: AlertTriangle, 
-      color: 'text-yellow-600', 
-      bgColor: 'bg-yellow-50' 
+    {
+      label: 'Warnings',
+      value: stats?.bySeverity?.find(s => s._id === 'high')?.count?.toString() || '0',
+      icon: AlertTriangle,
+      color: 'text-yellow-600',
+      bgColor: 'bg-yellow-50'
     },
   ];
 
@@ -205,6 +206,7 @@ export default function AuditLogs() {
     if (action.includes('PAYMENT')) return 'payment';
     if (action.includes('LOGIN') || action.includes('AUTH')) return 'security';
     if (action.includes('PROJECT')) return 'project';
+    if (action.includes('NOTIFICATION')) return 'notification';
     return 'system';
   };
 
@@ -215,6 +217,7 @@ export default function AuditLogs() {
       case 'payment': return 'bg-green-100 text-green-700';
       case 'security': return 'bg-red-100 text-red-700';
       case 'project': return 'bg-blue-100 text-blue-700';
+      case 'notification': return 'bg-indigo-100 text-indigo-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
@@ -242,10 +245,11 @@ export default function AuditLogs() {
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'user': return <User className="size-3" />;
-      case 'bid': return <FolderKanban className="size-3" />;
+      case 'bid': return <Activity className="size-3" />;
       case 'payment': return <CreditCard className="size-3" />;
       case 'security': return <Lock className="size-3" />;
       case 'project': return <FolderKanban className="size-3" />;
+      case 'notification': return <Clock className="size-3" />;
       default: return null;
     }
   };
@@ -271,7 +275,7 @@ export default function AuditLogs() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">Audit Logs</h1>
-            <p className="text-gray-600">Complete audit trail of all system activities.</p>
+            <p className="text-gray-600">Track all actions, project updates, and system activities.</p>
           </div>
           <Button onClick={handleExport} className="bg-blue-600 hover:bg-blue-700">
             <Download className="size-4 mr-2" />
@@ -305,7 +309,7 @@ export default function AuditLogs() {
                 className="pl-10"
               />
             </div>
-            
+
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="All Categories" />
@@ -313,10 +317,11 @@ export default function AuditLogs() {
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="user">User</SelectItem>
-                <SelectItem value="bid">Bid</SelectItem>
+                <SelectItem value="project">Project</SelectItem>
+                <SelectItem value="bid">Bidding</SelectItem>
                 <SelectItem value="payment">Payment</SelectItem>
                 <SelectItem value="security">Security</SelectItem>
-                <SelectItem value="project">Project</SelectItem>
+                <SelectItem value="notification">Notifications</SelectItem>
               </SelectContent>
             </Select>
 
@@ -350,7 +355,7 @@ export default function AuditLogs() {
         {/* Recent Activity Table */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
-          
+
           {loading ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>

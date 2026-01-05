@@ -6,6 +6,8 @@ const NotificationService = require('../services/notificationService');
 const socketService = require('../services/socketService');
 const { validationResult } = require('express-validator');
 const { processAttachments } = require('../utils/attachmentStorage');
+const { createAuditLog } = require('../utils/auditLogger');
+const { AUDIT_ACTIONS } = require('../constants/auditMessages');
 
 // Helper function to handle API responses
 const sendResponse = (res, success, data = null, message = '', statusCode = 200) => {
@@ -71,13 +73,31 @@ const submitBid = async (req, res) => {
 
     await bid.save();
 
+    // Add Audit Log
+    try {
+      await createAuditLog({
+        performedBy: req.user,
+        action: AUDIT_ACTIONS.BID_PLACED,
+        metadata: {
+          projectId,
+          projectTitle: project.title,
+          bidAmount,
+          bidId: bid._id
+        },
+        req
+      });
+    } catch (auditError) {
+      console.error('Failed to log bid submission audit:', auditError);
+    }
+
     // Create notifications for bid submission
     try {
       await NotificationService.notifyBidCreated(
         projectId,
         bid._id.toString(),
         bidderId,
-        bidAmount
+        bidAmount,
+        req.user
       );
 
       // Notify stakeholders that a bid was received (client/admin/superadmin/assigned agent)
@@ -85,7 +105,8 @@ const submitBid = async (req, res) => {
         projectId,
         bid._id.toString(),
         bidderId,
-        bidAmount
+        bidAmount,
+        req.user
       );
     } catch (notificationError) {
       console.error('Failed to create bid notifications:', notificationError);
@@ -248,6 +269,24 @@ const updateBidStatus = async (req, res) => {
 
     await bid.save();
 
+    // Add Audit Log
+    try {
+      await createAuditLog({
+        performedBy: req.user,
+        action: status === 'accepted' ? AUDIT_ACTIONS.BID_ACCEPTED : (status === 'rejected' ? AUDIT_ACTIONS.BID_REJECTED : AUDIT_ACTIONS.BID_PLACED), // Reusing BID_PLACED for generic updates if needed
+        targetUser: { _id: bid.bidderId, name: bid.bidderName, email: bid.bidderEmail },
+        metadata: {
+          projectId: bid.projectId,
+          projectTitle: bid.projectTitle,
+          bidId: bid._id,
+          status
+        },
+        req
+      });
+    } catch (auditError) {
+      console.error('Failed to log bid status update audit:', auditError);
+    }
+
     // Trigger dashboard refresh for all connected clients
     try {
       socketService.emitDashboardRefresh({
@@ -273,7 +312,7 @@ const updateBid = async (req, res) => {
   try {
     const { bidId } = req.params;
     const updates = req.body;
-    
+
     const bid = await Bid.findById(bidId);
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
@@ -298,7 +337,7 @@ const updateBid = async (req, res) => {
     // Don't allow status changes through this endpoint (use updateBidStatus instead)
     const allowedUpdates = ['bidAmount', 'timeline', 'description', 'attachments', 'notes'];
     const actualUpdates = {};
-    
+
     for (const key of allowedUpdates) {
       if (updates[key] !== undefined) {
         actualUpdates[key] = updates[key];
@@ -306,6 +345,23 @@ const updateBid = async (req, res) => {
     }
 
     const updatedBid = await Bid.findByIdAndUpdate(bidId, actualUpdates, { new: true });
+
+    // Add Audit Log
+    try {
+      await createAuditLog({
+        performedBy: req.user,
+        action: AUDIT_ACTIONS.BID_PLACED, // Reusing BID_PLACED as "Bid Updated" isn't specifically defined but fits
+        metadata: {
+          projectId: bid.projectId,
+          projectTitle: bid.projectTitle,
+          bidId: bid._id,
+          isUpdate: true
+        },
+        req
+      });
+    } catch (auditError) {
+      console.error('Failed to log bid update audit:', auditError);
+    }
 
     // Trigger dashboard refresh for all connected clients
     try {
@@ -318,7 +374,7 @@ const updateBid = async (req, res) => {
     } catch (emitError) {
       console.error('Failed to emit dashboard refresh:', emitError);
     }
-    
+
     sendResponse(res, true, updatedBid, 'Bid updated successfully');
   } catch (error) {
     handleError(res, error, 'Failed to update bid');
@@ -432,6 +488,24 @@ const updateAcceptanceStatus = async (req, res) => {
       console.error('Failed to emit dashboard refresh:', emitError);
     }
 
+    // Add Audit Log
+    try {
+      await createAuditLog({
+        performedBy: req.user,
+        action: isAccepted ? AUDIT_ACTIONS.BID_ACCEPTED : AUDIT_ACTIONS.BID_PLACED,
+        targetUser: { _id: bid.bidderId, name: bid.bidderName, email: bid.bidderEmail },
+        metadata: {
+          projectId: bid.projectId,
+          projectTitle: bid.projectTitle,
+          bidId: bid._id,
+          isAccepted
+        },
+        req
+      });
+    } catch (auditError) {
+      console.error('Failed to log bid acceptance audit:', auditError);
+    }
+
     sendResponse(res, true, bid, 'Bid acceptance status updated');
   } catch (error) {
     handleError(res, error, 'Failed to update acceptance status');
@@ -461,6 +535,24 @@ const updateDeclineStatus = async (req, res) => {
       });
     } catch (emitError) {
       console.error('Failed to emit dashboard refresh:', emitError);
+    }
+
+    // Add Audit Log
+    try {
+      await createAuditLog({
+        performedBy: req.user,
+        action: isDeclined ? AUDIT_ACTIONS.BID_REJECTED : AUDIT_ACTIONS.BID_PLACED,
+        targetUser: { _id: bid.bidderId, name: bid.bidderName, email: bid.bidderEmail },
+        metadata: {
+          projectId: bid.projectId,
+          projectTitle: bid.projectTitle,
+          bidId: bid._id,
+          isDeclined
+        },
+        req
+      });
+    } catch (auditError) {
+      console.error('Failed to log bid decline audit:', auditError);
     }
 
     sendResponse(res, true, bid, 'Bid decline status updated');

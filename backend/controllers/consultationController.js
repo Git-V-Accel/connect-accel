@@ -3,6 +3,8 @@ const User = require('../models/User');
 const ActivityLogger = require('../services/activityLogger');
 const socketService = require('../services/socketService');
 const { STATUS_CODES, MESSAGES, USER_ROLES } = require('../constants');
+const { createAuditLog } = require('../utils/auditLogger');
+const { AUDIT_ACTIONS } = require('../constants/auditMessages');
 
 const ensureAdmin = (role) =>
   role === USER_ROLES.ADMIN || role === USER_ROLES.SUPERADMIN;
@@ -32,8 +34,8 @@ const getConsultations = async (req, res) => {
     const consultations = await ConsultationRequest.find(filter)
       .populate('client', 'name email company phone')
       .populate('assignedTo', 'name email role')
-    .populate('assignedBy', 'name email role')
-    .populate('project', 'title status createdAt')
+      .populate('assignedBy', 'name email role')
+      .populate('project', 'title status createdAt')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -106,6 +108,23 @@ const assignConsultation = async (req, res) => {
     consultation.status = 'assigned';
     await consultation.save();
 
+    // Add Audit Log
+    try {
+      await createAuditLog({
+        performedBy: req.user,
+        action: AUDIT_ACTIONS.CONSULTATION_ASSIGNED,
+        targetUser: assigneeUser,
+        metadata: {
+          consultationId: consultation._id,
+          clientName: consultation.clientName || 'Client',
+          assigneeName: assigneeUser.name
+        },
+        req
+      });
+    } catch (auditError) {
+      console.error('Failed to log consultation assignment audit:', auditError);
+    }
+
     await ActivityLogger.logActivity({
       user: req.user._id,
       activityType: 'consultation_requested',
@@ -122,11 +141,11 @@ const assignConsultation = async (req, res) => {
       severity: 'medium',
     });
 
-  const updatedConsultation = await ConsultationRequest.findById(id)
+    const updatedConsultation = await ConsultationRequest.findById(id)
       .populate('client', 'name email company phone')
       .populate('assignedTo', 'name email role')
-    .populate('assignedBy', 'name email role')
-    .populate('project', 'title status createdAt');
+      .populate('assignedBy', 'name email role')
+      .populate('project', 'title status createdAt');
 
     // Notify all admin users about the assignment in real-time
     socketService.emitToAdminUsers('consultation-updated', {

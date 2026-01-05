@@ -5,6 +5,8 @@ const Bid = require('../models/Bid');
 const socketService = require('./socketService');
 const { getNotificationConfig, formatNotificationMessage } = require('../constants/notificationConfig');
 const { USER_ROLES } = require('../constants');
+const { createAuditLog } = require('../utils/auditLogger');
+const { AUDIT_ACTIONS } = require('../constants/auditMessages');
 
 class NotificationService {
   static looksLikeObjectId(value) {
@@ -35,26 +37,26 @@ class NotificationService {
    */
   static async createNotification(eventType, data, options = {}) {
     try {
-      const { excludeUserIds = [], specificUserIds = [], projectId = null } = options;
-      
+      const { excludeUserIds = [], specificUserIds = [], projectId = null, performedBy = null } = options;
+
       // Get all notification configs for this event type
       const notifications = [];
-      
+
       // Find all relevant notification configs for this event
       const relevantConfigs = this.getRelevantConfigs(eventType);
-      
+
       for (const config of relevantConfigs) {
         // Get target users based on roles and specific conditions
         const targetUsers = await this.getTargetUsers(config, data, specificUserIds, excludeUserIds);
-        
+
         for (const user of targetUsers) {
           // Skip if user is in exclude list
           if (excludeUserIds.includes(user._id.toString())) continue;
-          
+
           // Format message with user-specific data
           const notificationData = await this.prepareNotificationData(config, data, user);
           const { title, message } = formatNotificationMessage(config.template, notificationData);
-          
+
           // Create notification
           const uiType = this.toUiType(config.type);
           const notification = new Notification({
@@ -72,18 +74,34 @@ class NotificationService {
               socketEvent: config.socketEvent
             }
           });
-          
+
           await notification.save();
           notifications.push(notification);
-          
+
+          // Log audit entry for notification sent
+          try {
+            await createAuditLog({
+              performedBy: performedBy,
+              action: AUDIT_ACTIONS.NOTIFICATION_SENT,
+              targetUser: user,
+              metadata: {
+                title,
+                eventType,
+                projectId: projectId || data.projectId
+              }
+            });
+          } catch (auditError) {
+            console.error('Audit log for notification failed:', auditError);
+          }
+
           // Send real-time notification
           this.sendRealTimeNotification(user._id.toString(), notification, config.socketEvent);
         }
       }
-      
+
       console.log(`Created ${notifications.length} notifications for event: ${eventType}`);
       return notifications;
-      
+
     } catch (error) {
       console.error('Error creating notifications:', error);
       throw error;
@@ -96,7 +114,7 @@ class NotificationService {
   static getRelevantConfigs(eventType) {
     const { NOTIFICATION_CONFIG } = require('../constants/notificationConfig');
     const configs = [];
-    
+
     for (const role in NOTIFICATION_CONFIG) {
       const roleConfig = NOTIFICATION_CONFIG[role];
       if (!roleConfig) continue;
@@ -114,7 +132,7 @@ class NotificationService {
         }
       }
     }
-    
+
     // Deduplicate by type+socketEvent to avoid duplicates when both branches match
     const seen = new Set();
     return configs.filter((cfg) => {
@@ -137,15 +155,15 @@ class NotificationService {
         status: 'active'
       });
     }
-    
+
     let query = {
       role: { $in: config.roles },
       status: 'active'
     };
-    
+
     // Apply role-specific filtering based on event data
     query = await this.applyRoleSpecificFiltering(query, config, data);
-    
+
     return await User.find(query);
   }
 
@@ -160,7 +178,7 @@ class NotificationService {
         query._id = project.client;
       }
     }
-    
+
     // AGENT: Only notify agents assigned to specific projects
     if (config.roles.includes('agent') && data.projectId) {
       const project = await Project.findById(data.projectId);
@@ -168,7 +186,7 @@ class NotificationService {
         query._id = project.assignedAgentId;
       }
     }
-    
+
     // FREELANCER: Specific freelancer notifications
     if (config.roles.includes('freelancer')) {
       if (data.freelancerId) {
@@ -181,11 +199,11 @@ class NotificationService {
           projectId: data.projectId,
           status: 'shortlisted'
         }).select('bidderId');
-        
+
         query._id = { $in: shortlistedBids.map(bid => bid.bidderId) };
       }
     }
-    
+
     return query;
   }
 
@@ -194,14 +212,14 @@ class NotificationService {
    */
   static async prepareNotificationData(config, data, user) {
     const notificationData = { ...data };
-    
+
     // Add user-specific data
     if (user) {
       notificationData.userName = user.name;
       notificationData.userEmail = user.email;
       notificationData.userRole = user.role;
     }
-    
+
     // Fetch related data if needed
     if (data.projectId && !notificationData.projectTitle) {
       const project = await Project.findById(data.projectId);
@@ -242,15 +260,15 @@ class NotificationService {
     if (data.suspendedBy && (this.looksLikeObjectId(String(notificationData.suspendedBy || '')) || !notificationData.suspendedBy)) {
       notificationData.suspendedBy = await this.getUserName(data.suspendedBy);
     }
-    
+
     if (data.freelancerId && !notificationData.freelancerName) {
       notificationData.freelancerName = await this.getUserName(data.freelancerId);
     }
-    
+
     if (data.clientId && !notificationData.clientName) {
       notificationData.clientName = await this.getUserName(data.clientId);
     }
-    
+
     if (data.agentId && !notificationData.agentName) {
       notificationData.agentName = await this.getUserName(data.agentId);
     }
@@ -259,7 +277,7 @@ class NotificationService {
     if (data.bidderId && !notificationData.freelancerName) {
       notificationData.freelancerName = await this.getUserName(data.bidderId);
     }
-    
+
     return notificationData;
   }
 
@@ -295,7 +313,7 @@ class NotificationService {
         created_at: notification.createdAt,
         metadata: notification.metadata
       };
-      
+
       // Always emit the generic event used across the app UI
       socketService.emitToUser(userId, 'notification:created', socketData);
 
@@ -303,7 +321,7 @@ class NotificationService {
       if (socketEvent && socketEvent !== 'notification:created') {
         socketService.emitToUser(userId, socketEvent, socketData);
       }
-      
+
     } catch (error) {
       console.error('Error sending real-time notification:', error);
     }
@@ -314,191 +332,191 @@ class NotificationService {
    */
 
   // Project notifications
-  static async notifyProjectCreated(projectId, clientId) {
+  static async notifyProjectCreated(projectId, clientId, performedBy) {
     return this.createNotification('PROJECT_CREATED', {
       projectId,
       clientId
-    });
+    }, { performedBy });
   }
 
-  static async notifyProjectUpdated(projectId, updatedBy) {
+  static async notifyProjectUpdated(projectId, updatedBy, performedBy) {
     return this.createNotification('PROJECT_UPDATED', {
       projectId,
       updatedBy
-    });
+    }, { performedBy });
   }
 
-  static async notifyProjectStatusChanged(projectId, oldStatus, newStatus, changedBy) {
+  static async notifyProjectStatusChanged(projectId, oldStatus, newStatus, changedBy, performedBy) {
     return this.createNotification('PROJECT_STATUS_CHANGED', {
       projectId,
       oldStatus,
       newStatus,
       changedBy
-    });
+    }, { performedBy });
   }
 
-  static async notifyProjectDeleted(projectId, deletedBy) {
+  static async notifyProjectDeleted(projectId, deletedBy, performedBy) {
     return this.createNotification('PROJECT_DELETED', {
       projectId,
       deletedBy
-    });
+    }, { performedBy });
   }
 
   // Milestone notifications
-  static async notifyMilestoneCreated(projectId, milestoneId, milestoneTitle, createdBy) {
+  static async notifyMilestoneCreated(projectId, milestoneId, milestoneTitle, createdBy, performedBy) {
     return this.createNotification('MILESTONE_CREATED', {
       projectId,
       milestoneId,
       milestoneTitle,
       createdBy
-    });
+    }, { performedBy });
   }
 
-  static async notifyMilestoneUpdated(projectId, milestoneId, milestoneTitle, updatedBy) {
+  static async notifyMilestoneUpdated(projectId, milestoneId, milestoneTitle, updatedBy, performedBy) {
     return this.createNotification('MILESTONE_UPDATED', {
       projectId,
       milestoneId,
       milestoneTitle,
       updatedBy
-    });
+    }, { performedBy });
   }
 
-  static async notifyMilestoneCompleted(projectId, milestoneId, milestoneTitle, completedBy) {
+  static async notifyMilestoneCompleted(projectId, milestoneId, milestoneTitle, completedBy, performedBy) {
     return this.createNotification('MILESTONE_COMPLETED', {
       projectId,
       milestoneId,
       milestoneTitle,
       completedBy
-    });
+    }, { performedBy });
   }
 
   // Bid notifications
-  static async notifyBidCreated(projectId, bidId, bidderId, bidAmount) {
+  static async notifyBidCreated(projectId, bidId, bidderId, bidAmount, performedBy) {
     return this.createNotification('BID_CREATED', {
       projectId,
       bidId,
       bidderId,
       bidAmount
-    });
+    }, { performedBy });
   }
 
-  static async notifyBidReceived(projectId, bidId, bidderId, bidAmount) {
+  static async notifyBidReceived(projectId, bidId, bidderId, bidAmount, performedBy) {
     return this.createNotification('BID_RECEIVED', {
       projectId,
       bidId,
       bidderId,
       bidAmount
-    });
+    }, { performedBy });
   }
 
-  static async notifyBidAccepted(projectId, bidId, bidderId, acceptedBy) {
+  static async notifyBidAccepted(projectId, bidId, bidderId, acceptedBy, performedBy) {
     return this.createNotification('BID_ACCEPTED', {
       projectId,
       bidId,
       bidderId,
       acceptedBy
-    });
+    }, { performedBy });
   }
 
-  static async notifyBidRejected(projectId, bidId, bidderId, rejectedBy) {
+  static async notifyBidRejected(projectId, bidId, bidderId, rejectedBy, performedBy) {
     return this.createNotification('BID_REJECTED', {
       projectId,
       bidId,
       bidderId,
       rejectedBy
-    });
+    }, { performedBy });
   }
 
-  static async notifyBidShortlisted(projectId, bidId, bidderId, shortlistedBy) {
+  static async notifyBidShortlisted(projectId, bidId, bidderId, shortlistedBy, performedBy) {
     return this.createNotification('BID_SHORTLISTED', {
       projectId,
       bidId,
       bidderId,
       shortlistedBy
-    });
+    }, { performedBy });
   }
 
   // User management notifications
-  static async notifyUserCreated(userId, createdBy, role, auditLogId) {
+  static async notifyUserCreated(userId, createdBy, role, auditLogId, performedBy) {
     return this.createNotification('USER_CREATED', {
       userId,
       createdBy,
       role,
       auditLogId
-    });
+    }, { performedBy });
   }
 
-  static async notifyUserUpdated(userId, updatedBy, auditLogId) {
+  static async notifyUserUpdated(userId, updatedBy, auditLogId, performedBy) {
     return this.createNotification('USER_UPDATED', {
       userId,
       updatedBy,
       auditLogId
-    });
+    }, { performedBy });
   }
 
-  static async notifyUserVerificationChanged(userId, verificationStatus, changedBy, auditLogId) {
+  static async notifyUserVerificationChanged(userId, verificationStatus, changedBy, auditLogId, performedBy) {
     return this.createNotification('USER_VERIFICATION_CHANGED', {
       userId,
       verificationStatus,
       changedBy,
       auditLogId
-    });
+    }, { performedBy });
   }
 
-  static async notifyUserDeleted(userId, deletedBy, auditLogId) {
+  static async notifyUserDeleted(userId, deletedBy, auditLogId, performedBy) {
     return this.createNotification('USER_DELETED', {
       userId,
       deletedBy,
       auditLogId
-    });
+    }, { performedBy });
   }
 
-  static async notifyUserSuspended(userId, suspendedBy, auditLogId) {
+  static async notifyUserSuspended(userId, suspendedBy, auditLogId, performedBy) {
     return this.createNotification('USER_SUSPENDED', {
       userId,
       suspendedBy,
       auditLogId
-    });
+    }, { performedBy });
   }
 
   // Assignment notifications
-  static async notifyFreelancerAssigned(projectId, freelancerId, assignedBy) {
+  static async notifyFreelancerAssigned(projectId, freelancerId, assignedBy, performedBy) {
     return this.createNotification('FREELANCER_ASSIGNED', {
       projectId,
       freelancerId,
       assignedBy
-    });
+    }, { performedBy });
   }
 
-  static async notifyAgentAssigned(projectId, agentId, assignedBy) {
+  static async notifyAgentAssigned(projectId, agentId, assignedBy, performedBy) {
     return this.createNotification('AGENT_ASSIGNED', {
       projectId,
       agentId,
       assignedBy
-    });
+    }, { performedBy });
   }
 
-  static async notifyAgentUnassigned(projectId, agentId, unassignedBy) {
+  static async notifyAgentUnassigned(projectId, agentId, unassignedBy, performedBy) {
     return this.createNotification('AGENT_UNASSIGNED', {
       projectId,
       agentId,
       unassignedBy
-    });
+    }, { performedBy });
   }
 
-  static async notifyProjectAssigned(projectId, agentId, assignedBy) {
+  static async notifyProjectAssigned(projectId, agentId, assignedBy, performedBy) {
     return this.createNotification('PROJECT_ASSIGNED', {
       projectId,
       agentId,
       assignedBy
-    });
+    }, { performedBy });
   }
 
   // Project review notifications
-  static async notifyProjectReviewPending(projectId) {
+  static async notifyProjectReviewPending(projectId, performedBy) {
     return this.createNotification('PROJECT_REVIEW_PENDING', {
       projectId
-    });
+    }, { performedBy });
   }
 }
 

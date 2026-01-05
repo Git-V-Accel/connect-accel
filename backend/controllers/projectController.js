@@ -9,6 +9,8 @@ const socketService = require('../services/socketService');
 const emailService = require('../services/emailService');
 const { MESSAGES, STATUS_CODES, NOTIFICATION_TYPES, USER_ROLES, PROJECT_STATUS } = require('../constants');
 const { processAttachments } = require('../utils/attachmentStorage');
+const { createAuditLog } = require('../utils/auditLogger');
+const { AUDIT_ACTIONS } = require('../constants/auditMessages');
 
 const formatProjectResponse = (project, user) => {
   if (!project || !user) return project;
@@ -37,8 +39,8 @@ const formatProjectResponse = (project, user) => {
 const createAdminNotifications = async (notificationData) => {
   try {
     // Find all admin and superadmin users
-    const adminUsers = await User.find({ 
-      role: { $in: ['admin', 'superadmin'] } 
+    const adminUsers = await User.find({
+      role: { $in: ['admin', 'superadmin'] }
     }).select('_id');
 
     // Create notifications for each admin user
@@ -62,9 +64,9 @@ const getProjects = async (req, res) => {
   try {
     const { cursor, limit = 20, assignedFreelancerId, clientId } = req.query;
     const { cursorPaginate } = require('../utils/pagination');
-    
+
     let query = {};
-    
+
     // Filter by user role
     if (req.user.role === 'client') {
       // Clients can only see their own projects
@@ -78,14 +80,16 @@ const getProjects = async (req, res) => {
       // 2. Projects open for bidding (not assigned to anyone)
       query.$or = [
         { assignedFreelancerId: req.user.id },
-        { 
+        {
           $and: [
             { assignedFreelancerId: { $exists: false } },
-            { $or: [
-              { isOpenForBidding: true },
-              { status: 'in_bidding' },
-              { status: 'active' }
-            ]}
+            {
+              $or: [
+                { isOpenForBidding: true },
+                { status: 'in_bidding' },
+                { status: 'active' }
+              ]
+            }
           ]
         }
       ];
@@ -99,7 +103,7 @@ const getProjects = async (req, res) => {
     } else {
       query.status = { $ne: 'draft' };
     }
-    
+
     // Optional filtering for admin views
     if (
       assignedFreelancerId &&
@@ -182,9 +186,9 @@ const getProject = async (req, res) => {
       // Allow access if:
       // 1. Project is assigned to this freelancer, OR
       // 2. Freelancer has an accepted bid for this project
-      const isAssigned = project.assignedFreelancer?._id?.toString() === req.user.id || 
-                        project.assignedFreelancerId?.toString() === req.user.id;
-      
+      const isAssigned = project.assignedFreelancer?._id?.toString() === req.user.id ||
+        project.assignedFreelancerId?.toString() === req.user.id;
+
       if (!isAssigned) {
         // Check if freelancer has an accepted bid for this project
         const Bidding = require('../models/Bidding');
@@ -193,7 +197,7 @@ const getProject = async (req, res) => {
           freelancerId: req.user.id,
           isAccepted: true
         });
-        
+
         if (!acceptedBid) {
           return res.status(STATUS_CODES.FORBIDDEN).json({
             success: false,
@@ -225,7 +229,7 @@ const createProject = async (req, res) => {
   try {
     let title, description, budget, timeline, category, skills, priority, status;
     let isNegotiableBudget = false;
-    
+
     if (req.body.title) {
       title = typeof req.body.title === 'string' ? req.body.title : req.body.title;
     }
@@ -264,7 +268,7 @@ const createProject = async (req, res) => {
         isNegotiableBudget = !!req.body.isNegotiableBudget;
       }
     }
-    
+
     // Handle attachments from uploads or base64 payloads
     const processedAttachments = processAttachments(req.files, req.body.attachments);
     if (req.body.attachments) {
@@ -336,7 +340,7 @@ const createProject = async (req, res) => {
           const assignedToAdmin =
             consultationForContext.assignedTo &&
             consultationForContext.assignedTo.toString() ===
-              req.user._id.toString();
+            req.user._id.toString();
 
           if (
             assignedToAdmin ||
@@ -389,21 +393,31 @@ const createProject = async (req, res) => {
     // Log activity
     try {
       await ActivityLogger.logProjectCreated(project._id, req.user.id, req);
+
+      // Add Audit Log
+      await createAuditLog({
+        performedBy: req.user,
+        action: AUDIT_ACTIONS.PROJECT_CREATED,
+        metadata: {
+          projectId: project._id,
+          projectTitle: project.title,
+          targetClientId: targetClientId
+        },
+        req
+      });
     } catch (activityError) {
       console.error('Failed to log project creation activity:', activityError);
     }
 
     // Create notifications using the new notification service
     try {
-      // Notify client about project creation
       await NotificationService.notifyProjectCreated(
         project._id.toString(),
-        targetClientId.toString()
+        targetClientId.toString(),
+        req.user
       );
-      
-      // If project needs review, notify admins
       if (project.status === 'pending_review' || project.status === 'pending') {
-        await NotificationService.notifyProjectReviewPending(project._id.toString());
+        await NotificationService.notifyProjectReviewPending(project._id.toString(), req.user);
       }
     } catch (notificationError) {
       console.error('Failed to create project notifications:', notificationError);
@@ -536,7 +550,7 @@ const updateProject = async (req, res) => {
       const currentAttachments = Array.isArray(project.attachments) ? project.attachments : [];
       finalAttachments = [...currentAttachments, ...processedAttachments];
     }
-    
+
     // Prepare update data
     const updateData = { ...req.body };
     updateData.attachments = finalAttachments;
@@ -545,7 +559,7 @@ const updateProject = async (req, res) => {
     if (req.user.role === 'client' && req.body.status && req.body.status !== project.status) {
       const { CLIENT_ALLOWED_TRANSITIONS } = require('../constants');
       const allowedNextStatuses = CLIENT_ALLOWED_TRANSITIONS[project.status] || [];
-      
+
       if (!allowedNextStatuses.includes(req.body.status)) {
         return res.status(STATUS_CODES.BAD_REQUEST).json({
           success: false,
@@ -556,7 +570,7 @@ const updateProject = async (req, res) => {
 
     // Handle statusRemarks for hold or cancelled
     if (['hold', 'cancelled'].includes(req.body.status) && !req.body.statusRemarks) {
-       return res.status(STATUS_CODES.BAD_REQUEST).json({
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
         message: `Please provide a reason for setting the project to ${req.body.status}.`
       });
@@ -569,8 +583,23 @@ const updateProject = async (req, res) => {
       updateData,
       { new: true, runValidators: true }
     ).populate('client', 'name email userID')
-     .populate('assignedFreelancer', 'name email userID')
-     .populate('assignedAgentId', 'name email userID');
+      .populate('assignedFreelancer', 'name email userID')
+      .populate('assignedAgentId', 'name email userID');
+
+    // Add Audit Log for project update
+    try {
+      await createAuditLog({
+        performedBy: req.user,
+        action: AUDIT_ACTIONS.PROJECT_UPDATED,
+        metadata: {
+          projectId: updatedProject._id,
+          projectTitle: updatedProject.title
+        },
+        req
+      });
+    } catch (auditError) {
+      console.error('Failed to log project update audit:', auditError);
+    }
 
     // Agent assignment notifications
     try {
@@ -581,14 +610,12 @@ const updateProject = async (req, res) => {
       const agentChanged = oldAgentId !== newAgentId;
       if (agentChanged) {
         // Unassigned
-        if (oldAgentId && !newAgentId) {
-          await NotificationService.notifyAgentUnassigned(updatedProject._id.toString(), oldAgentId, req.user.id);
+        if (oldAgentId && oldAgentId !== newAgentId) {
+          await NotificationService.notifyAgentUnassigned(updatedProject._id.toString(), oldAgentId, req.user.id, req.user);
         }
-
-        // Assigned
-        if (newAgentId) {
-          await NotificationService.notifyAgentAssigned(updatedProject._id.toString(), newAgentId, req.user.id);
-          await NotificationService.notifyProjectAssigned(updatedProject._id.toString(), newAgentId, req.user.id);
+        if (newAgentId && newAgentId !== oldAgentId) {
+          await NotificationService.notifyAgentAssigned(updatedProject._id.toString(), newAgentId, req.user.id, req.user);
+          await NotificationService.notifyProjectAssigned(updatedProject._id.toString(), newAgentId, req.user.id, req.user);
         }
       }
     } catch (notificationError) {
@@ -609,7 +636,7 @@ const updateProject = async (req, res) => {
     // Handle status changes - use logStatusChangeAndEmit for notifications and emails
     if (oldStatus !== updatedProject.status) {
       const ActivityLogger = require('../services/activityLogger');
-      
+
       // Determine action type for timeline
       let action = 'update_project_status';
       if (oldStatus === 'pending_review' && updatedProject.status === 'in_progress') {
@@ -621,7 +648,7 @@ const updateProject = async (req, res) => {
       } else if (updatedProject.status === 'cancelled') {
         action = 'cancel_project';
       }
-      
+
       // Use logStatusChangeAndEmit to send notifications and emails to all relevant parties
       const remark = req.body.statusRemarks || req.body.rejectionReason || null;
       await logStatusChangeAndEmit(
@@ -633,19 +660,20 @@ const updateProject = async (req, res) => {
         action,
         remark
       );
-      
+
       // Create notifications for project status change
       try {
         await NotificationService.notifyProjectStatusChanged(
           updatedProject._id.toString(),
           oldStatus,
           updatedProject.status,
-          req.user.id
+          req.user.id,
+          req.user
         );
       } catch (notificationError) {
         console.error('Failed to create project status change notifications:', notificationError);
       }
-      
+
       // Log activity for status changes
       // Log specific approval/rejection activities
       if (oldStatus === 'pending_review' && updatedProject.status === 'in_progress') {
@@ -713,7 +741,7 @@ const updateProject = async (req, res) => {
       } else {
         // Log general status change with optional remarks
         const description = `Project "${updatedProject.title}" status changed from "${oldStatus}" to "${updatedProject.status}" by ${req.user.name}${req.body.statusRemarks ? `. Reason: ${req.body.statusRemarks}` : ''}`;
-        
+
         await ActivityLogger.logActivity({
           user: req.user.id,
           project: project._id,
@@ -802,6 +830,21 @@ const deleteProject = async (req, res) => {
       }
     });
 
+    // Add Audit Log for project deletion
+    try {
+      await createAuditLog({
+        performedBy: req.user,
+        action: AUDIT_ACTIONS.PROJECT_DELETED,
+        metadata: {
+          projectId: project._id,
+          projectTitle: project.title
+        },
+        req
+      });
+    } catch (auditError) {
+      console.error('Failed to log project deletion audit:', auditError);
+    }
+
     await Project.findByIdAndDelete(req.params.id);
 
     // Emit socket event for project deletion
@@ -853,7 +896,7 @@ const deleteProject = async (req, res) => {
 const addAdditionalDescription = async (req, res) => {
   try {
     const { description } = req.body;
-    
+
     if (!description || !description.trim()) {
       return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
@@ -1036,6 +1079,24 @@ const releaseFunds = async (req, res) => {
     milestone.paymentStatus = 'paid';
     milestone.paymentProcessedAt = new Date();
     await project.save();
+
+    // Add Audit Log
+    try {
+      await createAuditLog({
+        performedBy: req.user,
+        action: AUDIT_ACTIONS.MILESTONE_PAID,
+        metadata: {
+          projectId: project._id,
+          projectTitle: project.title || 'Unknown Project',
+          milestoneTitle: milestone.title,
+          amount: milestone.amount
+        },
+        req
+      });
+    } catch (auditError) {
+      console.error('Failed to log payment audit:', auditError);
+    }
+
     return res.status(STATUS_CODES.OK).json({ success: true, message: 'Funds released', data: project });
   } catch (error) {
     console.error('Release funds error:', error);
@@ -1088,6 +1149,23 @@ const addMilestone = async (req, res) => {
 
     project.milestones.push(milestone);
     await project.save();
+
+    // Add Audit Log
+    try {
+      await createAuditLog({
+        performedBy: req.user,
+        action: AUDIT_ACTIONS.MILESTONE_CREATED,
+        metadata: {
+          projectId: project._id,
+          projectTitle: project.title || 'Unknown Project',
+          milestoneTitle: milestone.title,
+          amount: milestone.amount
+        },
+        req
+      });
+    } catch (auditError) {
+      console.error('Failed to log milestone creation audit:', auditError);
+    }
 
     // Log activity (best-effort)
     try {
@@ -1207,6 +1285,24 @@ const updateMilestoneStatus = async (req, res) => {
     milestone.status = status;
     if (status === 'completed') milestone.completedAt = new Date();
     await project.save();
+
+    // Add Audit Log
+    try {
+      await createAuditLog({
+        performedBy: req.user,
+        action: status === 'completed' ? AUDIT_ACTIONS.MILESTONE_COMPLETED : AUDIT_ACTIONS.MILESTONE_UPDATED,
+        metadata: {
+          projectId: project._id,
+          projectTitle: project.title || 'Unknown Project',
+          milestoneTitle: milestone.title,
+          newStatus: status
+        },
+        req
+      });
+    } catch (auditError) {
+      console.error('Failed to log milestone status update audit:', auditError);
+    }
+
     return res.status(STATUS_CODES.OK).json({ success: true, message: 'Milestone status updated', data: project });
   } catch (error) {
     console.error('Update milestone status error:', error);
@@ -1231,6 +1327,23 @@ const updateMilestone = async (req, res) => {
     if (amount !== undefined) milestone.amount = Number(amount);
     if (notes !== undefined) milestone.notes = String(notes);
     await project.save();
+
+    // Add Audit Log
+    try {
+      await createAuditLog({
+        performedBy: req.user,
+        action: AUDIT_ACTIONS.MILESTONE_UPDATED,
+        metadata: {
+          projectId: project._id,
+          projectTitle: project.title || 'Unknown Project',
+          milestoneTitle: milestone.title
+        },
+        req
+      });
+    } catch (auditError) {
+      console.error('Failed to log milestone update audit:', auditError);
+    }
+
     return res.status(STATUS_CODES.OK).json({ success: true, message: 'Milestone updated', data: project });
   } catch (error) {
     console.error('Update milestone error:', error);
@@ -1244,7 +1357,7 @@ const updateMilestone = async (req, res) => {
 const markProjectForBidding = async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
-    
+
     if (!project) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
@@ -1268,7 +1381,7 @@ const markProjectForBidding = async (req, res) => {
     if (project.status === 'pending' || project.status === 'active') {
       project.status = 'in_bidding';
     }
-    
+
     await project.save();
 
     // If status changed, use logStatusChangeAndEmit to send notifications and emails
@@ -1314,14 +1427,14 @@ const requestConsultation = async (req, res) => {
   try {
     // Fetch fresh user data to ensure we have the latest phone number
     const client = await User.findById(req.user._id).select('-password');
-    
+
     if (!client) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
         message: MESSAGES.USER_NOT_FOUND
       });
     }
-    
+
     // Get client details
     const clientName = client.name || 'Unknown Client';
     const clientEmail = client.email || '';
@@ -1329,10 +1442,10 @@ const requestConsultation = async (req, res) => {
     // Check multiple possible sources for phone number
     const clientPhone = req.body.clientPhone || req.body.phone || client.phone || '';
     const clientCompany = client.company || '';
-    
+
     // Get project details if provided
     const { projectTitle, projectDescription, projectBudget, projectTimeline, projectCategory } = req.body;
-    
+
     // Build project details string
     let projectDetails = '';
     if (projectTitle || projectDescription || projectBudget || projectTimeline || projectCategory) {
@@ -1344,19 +1457,19 @@ const requestConsultation = async (req, res) => {
         ${projectDescription ? `<strong>Description:</strong> ${projectDescription.substring(0, 200)}${projectDescription.length > 200 ? '...' : ''}` : ''}
       `;
     }
-    
+
     // Find all admin and superadmin users
-    const adminUsers = await User.find({ 
-      role: { $in: ['admin', 'superadmin'] } 
+    const adminUsers = await User.find({
+      role: { $in: ['admin', 'superadmin'] }
     }).select('_id name email');
-    
+
     if (adminUsers.length === 0) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
         message: 'No admin users found'
       });
     }
-    
+
     // Create notifications for each admin
     const notifications = adminUsers.map(adminUser => ({
       user: adminUser._id,
@@ -1376,10 +1489,10 @@ const requestConsultation = async (req, res) => {
         projectCategory
       }
     }));
-    
+
     if (notifications.length > 0) {
       const createdNotifications = await Notification.insertMany(notifications);
-      
+
       // Send email to each admin
       for (const adminUser of adminUsers) {
         try {
@@ -1397,7 +1510,7 @@ const requestConsultation = async (req, res) => {
           // Continue with other admins even if one email fails
         }
       }
-      
+
       // Emit socket notifications to connected admin users
       createdNotifications.forEach((notification, index) => {
         const adminUser = adminUsers[index];
@@ -1415,7 +1528,7 @@ const requestConsultation = async (req, res) => {
           });
         }
       });
-      
+
       // Also emit global notification to admin users
       socketService.emitToAdminUsers('global-notification', {
         type: NOTIFICATION_TYPES.CONSULTATION_REQUESTED,
@@ -1456,7 +1569,7 @@ const requestConsultation = async (req, res) => {
     } catch (consultationError) {
       console.error('Failed to create consultation request record:', consultationError);
     }
-    
+
     // Log activity
     await ActivityLogger.logActivity({
       user: client._id,
@@ -1478,7 +1591,7 @@ const requestConsultation = async (req, res) => {
       tags: ['consultation', 'client'],
       severity: 'medium',
     });
-    
+
     res.status(STATUS_CODES.OK).json({
       success: true,
       message: 'Consultation request sent to all admins successfully',
@@ -1508,6 +1621,36 @@ const logStatusChangeAndEmit = async (projectId, userId, userRole, oldStatus, ne
     remark,
     timestamp: new Date()
   });
+
+  // Add Audit Log for project status change
+  try {
+    // Get user details if available for better logging
+    const executor = userId === 'system' ? null : await User.findById(userId).lean();
+
+    // Get project title for description
+    const project = await Project.findById(projectId).select('title').lean();
+
+    let auditAction = AUDIT_ACTIONS.PROJECT_STATUS_CHANGED;
+    if (action === 'approve_project' || (oldStatus === 'pending_review' && newStatus === 'in_progress')) {
+      auditAction = AUDIT_ACTIONS.PROJECT_APPROVED;
+    } else if (action === 'reject_project' || (oldStatus === 'pending_review' && newStatus === 'rejected')) {
+      auditAction = AUDIT_ACTIONS.PROJECT_REJECTED;
+    }
+
+    await createAuditLog({
+      performedBy: executor,
+      action: auditAction,
+      previousValues: { status: oldStatus },
+      newValues: { status: newStatus },
+      metadata: {
+        projectId,
+        projectTitle: project?.title || 'Unknown Project',
+        remark
+      }
+    });
+  } catch (auditError) {
+    console.error('Failed to log project status change audit:', auditError);
+  }
 
   // Populate user details for timeline entry
   const populatedTimeline = await ProjectTimeline.findById(timelineEntry._id)
@@ -1602,8 +1745,8 @@ const logStatusChangeAndEmit = async (projectId, userId, userRole, oldStatus, ne
   }
 
   // Notify assigned freelancer if status >= in_progress
-  if (project.assignedFreelancerId && project.assignedFreelancerId._id && 
-      (newStatus === PROJECT_STATUS.IN_PROGRESS || newStatus === PROJECT_STATUS.COMPLETED)) {
+  if (project.assignedFreelancerId && project.assignedFreelancerId._id &&
+    (newStatus === PROJECT_STATUS.IN_PROGRESS || newStatus === PROJECT_STATUS.COMPLETED)) {
     addRecipient(project.assignedFreelancerId._id, project.assignedFreelancerId.email, project.assignedFreelancerId.name, 'freelancer');
   }
 
@@ -1614,7 +1757,7 @@ const logStatusChangeAndEmit = async (projectId, userId, userRole, oldStatus, ne
   try {
     if (notificationEntries.length > 0) {
       const createdNotifications = await Notification.insertMany(notificationEntries);
-      
+
       // Emit socket notifications to connected users
       recipients.forEach((recipient, index) => {
         const notification = notificationEntries[index];
@@ -1952,8 +2095,8 @@ const completeProject = async (req, res) => {
     }
 
     // Freelancers can only complete their assigned projects
-    if (req.user.role === USER_ROLES.FREELANCER && 
-        project.assignedFreelancerId?.toString() !== req.user.id) {
+    if (req.user.role === USER_ROLES.FREELANCER &&
+      project.assignedFreelancerId?.toString() !== req.user.id) {
       return res.status(STATUS_CODES.FORBIDDEN).json({
         success: false,
         message: 'You can only complete projects assigned to you'

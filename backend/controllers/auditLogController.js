@@ -35,7 +35,11 @@ const getMyAuditLogs = async (req, res) => {
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
-      if (endDate) query.createdAt.$lte = new Date(endDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
+      }
     }
 
     if (search) {
@@ -128,7 +132,9 @@ const getAllAuditLogs = async (req, res) => {
         query.createdAt.$gte = new Date(startDate);
       }
       if (endDate) {
-        query.createdAt.$lte = new Date(endDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
       }
     }
 
@@ -217,7 +223,9 @@ const getUserAuditLogs = async (req, res) => {
         query.createdAt.$gte = new Date(startDate);
       }
       if (endDate) {
-        query.createdAt.$lte = new Date(endDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
       }
     }
 
@@ -269,7 +277,9 @@ const getAuditLogStats = async (req, res) => {
         dateFilter.createdAt.$gte = new Date(startDate);
       }
       if (endDate) {
-        dateFilter.createdAt.$lte = new Date(endDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.createdAt.$lte = end;
       }
     }
 
@@ -282,21 +292,21 @@ const getAuditLogStats = async (req, res) => {
     ] = await Promise.all([
       // Total logs count
       AuditLog.countDocuments(dateFilter),
-      
+
       // Count by action type
       AuditLog.aggregate([
         { $match: dateFilter },
         { $group: { _id: '$action', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
       ]),
-      
+
       // Count by severity
       AuditLog.aggregate([
         { $match: dateFilter },
         { $group: { _id: '$severity', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
       ]),
-      
+
       // Recent logs (last 10)
       AuditLog.find(dateFilter)
         .populate('performedBy', 'name email role')

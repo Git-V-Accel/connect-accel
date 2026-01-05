@@ -8,7 +8,7 @@ import { API_CONFIG } from '../config/api';
 
 export interface AuditLogResponse {
     _id: string;
-    performedBy: {
+    performedBy?: {
         _id: string;
         name: string;
         email: string;
@@ -21,16 +21,16 @@ export interface AuditLogResponse {
 
     action: string;
 
-    targetUser: {
+    targetUser?: {
         _id: string;
         name: string;
         email: string;
         role: string;
         userID?: string;
     };
-    targetUserName: string;
-    targetUserEmail: string;
-    targetUserRole: string;
+    targetUserName?: string;
+    targetUserEmail?: string;
+    targetUserRole?: string;
 
     description: string;
     changes: Record<string, any>;

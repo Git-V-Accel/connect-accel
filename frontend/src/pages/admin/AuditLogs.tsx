@@ -98,6 +98,7 @@ export default function AuditLogs() {
                     'payment': 'PAYMENT',
                     'security': 'LOGIN,AUTH',
                     'project': 'PROJECT',
+                    'notification': 'NOTIFICATION',
                 };
                 const categorySearch = actionPatterns[categoryFilter as keyof typeof actionPatterns];
                 if (categorySearch) {
@@ -150,33 +151,33 @@ export default function AuditLogs() {
 
     // Stats data from API
     const statsData = [
-        { 
-            label: 'Total Logs', 
-            value: stats?.totalLogs?.toLocaleString() || '0', 
-            icon: Database, 
-            color: 'text-blue-600', 
-            bgColor: 'bg-blue-50' 
+        {
+            label: 'Total Logs',
+            value: stats?.totalLogs?.toLocaleString() || '0',
+            icon: Database,
+            color: 'text-blue-600',
+            bgColor: 'bg-blue-50'
         },
-        { 
-            label: "Today's Activity", 
-            value: stats?.byAction?.reduce((sum, item) => sum + item.count, 0)?.toLocaleString() || '0', 
-            icon: Activity, 
-            color: 'text-green-600', 
-            bgColor: 'bg-green-50' 
+        {
+            label: "Today's Activity",
+            value: stats?.byAction?.reduce((sum, item) => sum + item.count, 0)?.toLocaleString() || '0',
+            icon: Activity,
+            color: 'text-green-600',
+            bgColor: 'bg-green-50'
         },
-        { 
-            label: 'Critical Events', 
-            value: stats?.bySeverity?.find(s => s._id === 'critical')?.count?.toString() || '0', 
-            icon: AlertCircle, 
-            color: 'text-red-600', 
-            bgColor: 'bg-red-50' 
+        {
+            label: 'Critical Events',
+            value: stats?.bySeverity?.find(s => s._id === 'critical')?.count?.toString() || '0',
+            icon: AlertCircle,
+            color: 'text-red-600',
+            bgColor: 'bg-red-50'
         },
-        { 
-            label: 'Warnings', 
-            value: stats?.bySeverity?.find(s => s._id === 'high')?.count?.toString() || '0', 
-            icon: AlertTriangle, 
-            color: 'text-yellow-600', 
-            bgColor: 'bg-yellow-50' 
+        {
+            label: 'Warnings',
+            value: stats?.bySeverity?.find(s => s._id === 'high')?.count?.toString() || '0',
+            icon: AlertTriangle,
+            color: 'text-yellow-600',
+            bgColor: 'bg-yellow-50'
         },
     ];
 
@@ -186,6 +187,7 @@ export default function AuditLogs() {
         if (action.includes('PAYMENT')) return 'payment';
         if (action.includes('LOGIN') || action.includes('AUTH')) return 'security';
         if (action.includes('PROJECT')) return 'project';
+        if (action.includes('NOTIFICATION')) return 'notification';
         return 'system';
     };
 
@@ -196,6 +198,7 @@ export default function AuditLogs() {
             case 'payment': return 'bg-green-100 text-green-700';
             case 'security': return 'bg-red-100 text-red-700';
             case 'project': return 'bg-blue-100 text-blue-700';
+            case 'notification': return 'bg-indigo-100 text-indigo-700';
             default: return 'bg-gray-100 text-gray-700';
         }
     };
@@ -223,18 +226,22 @@ export default function AuditLogs() {
     const getCategoryIcon = (category: string) => {
         switch (category) {
             case 'user': return <User className="size-3" />;
-            case 'bid': return <FolderKanban className="size-3" />;
+            case 'bid': return <Activity className="size-3" />;
             case 'payment': return <CreditCard className="size-3" />;
             case 'security': return <Lock className="size-3" />;
             case 'project': return <FolderKanban className="size-3" />;
+            case 'notification': return <Clock className="size-3" />;
             default: return null;
         }
     };
 
     const getActionIcon = (action: string) => {
-        if (action.includes('CREATED')) return <User className="size-4" />;
+        if (action.includes('CREATED')) return <FolderKanban className="size-4" />;
         if (action.includes('UPDATED')) return <Activity className="size-4" />;
         if (action.includes('DELETED')) return <AlertCircle className="size-4" />;
+        if (action.includes('BID')) return <Activity className="size-4" />;
+        if (action.includes('PAYMENT')) return <CreditCard className="size-4" />;
+        if (action.includes('NOTIFICATION')) return <Clock className="size-4" />;
         return <Shield className="size-4" />;
     };
 
@@ -250,7 +257,7 @@ export default function AuditLogs() {
                     <div>
                         <h1 className="text-3xl mb-2">Audit Logs</h1>
                         <p className="text-gray-600">
-                            Track all user management activities and changes
+                            Track all actions, project updates, and system activities
                         </p>
                     </div>
                     <Button>
@@ -295,10 +302,11 @@ export default function AuditLogs() {
                             <SelectContent>
                                 <SelectItem value="all">All Categories</SelectItem>
                                 <SelectItem value="user">User</SelectItem>
-                                <SelectItem value="bid">Bid</SelectItem>
+                                <SelectItem value="project">Project</SelectItem>
+                                <SelectItem value="bid">Bidding</SelectItem>
                                 <SelectItem value="payment">Payment</SelectItem>
                                 <SelectItem value="security">Security</SelectItem>
-                                <SelectItem value="project">Project</SelectItem>
+                                <SelectItem value="notification">Notifications</SelectItem>
                             </SelectContent>
                         </Select>
 
@@ -308,12 +316,14 @@ export default function AuditLogs() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Actions</SelectItem>
+                                <SelectItem value="PROJECT_CREATED">Project Created</SelectItem>
+                                <SelectItem value="PROJECT_STATUS_CHANGED">Status Changed</SelectItem>
+                                <SelectItem value="BID_PLACED">Bid Placed</SelectItem>
+                                <SelectItem value="USER_LOGIN">User Login</SelectItem>
+                                <SelectItem value="NOTIFICATION_SENT">Notification Sent</SelectItem>
                                 <SelectItem value="USER_CREATED">User Created</SelectItem>
                                 <SelectItem value="USER_UPDATED">User Updated</SelectItem>
                                 <SelectItem value="USER_DELETED">User Deleted</SelectItem>
-                                <SelectItem value="USER_ROLE_UPDATED">Role Updated</SelectItem>
-                                <SelectItem value="USER_STATUS_UPDATED">Status Updated</SelectItem>
-                                <SelectItem value="USER_PROFILE_UPDATED">Profile Updated</SelectItem>
                             </SelectContent>
                         </Select>
 

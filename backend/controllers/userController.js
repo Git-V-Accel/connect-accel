@@ -50,9 +50,9 @@ const getMe = async (req, res) => {
 // @access  Private
 const updateProfile = async (req, res) => {
   try {
-    const { 
-      name, 
-      email, 
+    const {
+      name,
+      email,
       phone,
       company,
       title,
@@ -106,7 +106,7 @@ const updateProfile = async (req, res) => {
     // Create audit log for profile update
     const fieldsToCheck = ['name', 'email', 'phone', 'company', 'title', 'location', 'website', 'bio', 'avatar', 'additionalFields'];
     const { changes, previousValues, newValues } = detectChanges(oldUser.toObject(), user.toObject(), fieldsToCheck);
-    
+
     if (Object.keys(changes).length > 0) {
       await createAuditLog({
         performedBy: user,
@@ -155,7 +155,7 @@ const deleteAccount = async (req, res) => {
   try {
     // Get user data before deletion for audit log
     const user = await User.findById(req.user.id).select('-password');
-    
+
     if (!user) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
@@ -198,13 +198,13 @@ const deleteAccount = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     let query = {};
-    
+
     // Admins can only see clients, freelancers, and agents (not other admins or superadmins)
     if (req.user.role === USER_ROLES.ADMIN) {
       query.role = { $in: [USER_ROLES.CLIENT, USER_ROLES.FREELANCER, USER_ROLES.AGENT] };
     }
     // Superadmins can see all users
-    
+
     const users = await User.find(query).select('-password').sort({ createdAt: -1 });
 
     res.status(STATUS_CODES.OK).json({
@@ -408,7 +408,7 @@ const updateUserRole = async (req, res) => {
 
     // Get old user data for audit log
     const oldUser = await User.findById(req.params.id).select('-password');
-    
+
     if (!oldUser) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
@@ -542,7 +542,7 @@ const createUser = async (req, res) => {
     if (role === USER_ROLES.FREELANCER) {
       // Handle skills - can be string (comma-separated) or array
       if (skills) {
-        userData.skills = Array.isArray(skills) 
+        userData.skills = Array.isArray(skills)
           ? skills.map(s => String(s).trim()).filter(s => s)
           : String(skills).split(',').map(s => s.trim()).filter(s => s);
       } else {
@@ -585,7 +585,8 @@ const createUser = async (req, res) => {
         user._id.toString(),
         req.user.id,
         user.role,
-        auditLog?._id?.toString?.() || auditLog?._id
+        auditLog?._id?.toString?.() || auditLog?._id,
+        req.user
       );
     } catch (notificationError) {
       console.error('Failed to create user creation notifications:', notificationError);
@@ -595,7 +596,7 @@ const createUser = async (req, res) => {
     let emailSent = false;
     try {
       // Check if email credentials are configured
-      if (!EMAIL_CONFIG.USER || !EMAIL_CONFIG.PASS ) {
+      if (!EMAIL_CONFIG.USER || !EMAIL_CONFIG.PASS) {
         console.log('Email credentials not configured, skipping email sending');
       } else {
         const loginUrl = `${FRONTEND_CONFIG.URL}/login`;
@@ -624,7 +625,7 @@ const createUser = async (req, res) => {
 
     res.status(STATUS_CODES.CREATED).json({
       success: true,
-      message: emailSent 
+      message: emailSent
         ? 'User created successfully and welcome email sent'
         : 'User created successfully (email not sent - credentials not configured)',
       user: {
@@ -677,7 +678,7 @@ const updateUserStatus = async (req, res) => {
 
     // Get old user data for audit log
     const oldUser = await User.findById(req.params.id).select('-password');
-    
+
     if (!oldUser) {
       return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
@@ -717,7 +718,8 @@ const updateUserStatus = async (req, res) => {
         await NotificationService.notifyUserSuspended(
           user._id.toString(),
           req.user.id,
-          auditLog?._id?.toString?.() || auditLog?._id
+          auditLog?._id?.toString?.() || auditLog?._id,
+          req.user
         );
       }
     } catch (notificationError) {
@@ -784,7 +786,8 @@ const deleteUser = async (req, res) => {
       await NotificationService.notifyUserDeleted(
         user._id.toString(),
         req.user.id,
-        auditLog?._id?.toString?.() || auditLog?._id
+        auditLog?._id?.toString?.() || auditLog?._id,
+        req.user
       );
     } catch (notificationError) {
       console.error('Failed to create user deletion notifications:', notificationError);

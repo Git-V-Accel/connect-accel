@@ -15,7 +15,7 @@ const { AUDIT_MESSAGES, AUDIT_ACTIONS, AUDIT_SEVERITY } = require('../constants/
  */
 const createAuditLog = async ({
   performedBy,
-  targetUser,
+  targetUser = null,
   action,
   changes = {},
   previousValues = {},
@@ -26,66 +26,134 @@ const createAuditLog = async ({
   try {
     // Generate description based on action
     let description = '';
-    
+    const performerName = performedBy?.name || 'System';
+    const targetName = targetUser?.name || 'N/A';
+
     switch (action) {
       case AUDIT_ACTIONS.USER_CREATED:
-        description = AUDIT_MESSAGES.USER_CREATED(performedBy.name, targetUser.name);
+        description = AUDIT_MESSAGES.USER_CREATED(performerName, targetName);
         break;
       case AUDIT_ACTIONS.USER_UPDATED:
-        description = AUDIT_MESSAGES.USER_UPDATED(performedBy.name, targetUser.name);
+        description = AUDIT_MESSAGES.USER_UPDATED(performerName, targetName);
         break;
       case AUDIT_ACTIONS.USER_PROFILE_UPDATED:
-        description = AUDIT_MESSAGES.USER_PROFILE_UPDATED(performedBy.name, targetUser.name);
+        description = AUDIT_MESSAGES.USER_PROFILE_UPDATED(performerName, targetName);
         break;
       case AUDIT_ACTIONS.USER_ROLE_UPDATED:
         description = AUDIT_MESSAGES.USER_ROLE_UPDATED(
-          performedBy.name,
-          targetUser.name,
+          performerName,
+          targetName,
           previousValues.role,
           newValues.role
         );
         break;
       case AUDIT_ACTIONS.USER_STATUS_UPDATED:
         description = AUDIT_MESSAGES.USER_STATUS_UPDATED(
-          performedBy.name,
-          targetUser.name,
+          performerName,
+          targetName,
           previousValues.status,
           newValues.status
         );
         break;
       case AUDIT_ACTIONS.USER_PASSWORD_CHANGED:
-        description = AUDIT_MESSAGES.USER_PASSWORD_CHANGED(performedBy.name, targetUser.name);
+        description = AUDIT_MESSAGES.USER_PASSWORD_CHANGED(performerName, targetName);
         break;
       case AUDIT_ACTIONS.USER_DELETED:
-        description = AUDIT_MESSAGES.USER_DELETED(performedBy.name, targetUser.name);
+        description = AUDIT_MESSAGES.USER_DELETED(performerName, targetName);
         break;
       case AUDIT_ACTIONS.USER_REGISTERED:
-        description = AUDIT_MESSAGES.USER_REGISTERED(targetUser.name);
+        description = AUDIT_MESSAGES.USER_REGISTERED(targetName);
         break;
       case AUDIT_ACTIONS.USER_LOGIN:
-        description = AUDIT_MESSAGES.USER_LOGIN(targetUser.name);
+        description = AUDIT_MESSAGES.USER_LOGIN(targetName);
         break;
       case AUDIT_ACTIONS.USER_LOGOUT:
-        description = AUDIT_MESSAGES.USER_LOGOUT(targetUser.name);
+        description = AUDIT_MESSAGES.USER_LOGOUT(targetName);
         break;
+
+      // Project Actions
+      case AUDIT_ACTIONS.PROJECT_CREATED:
+        description = AUDIT_MESSAGES.PROJECT_CREATED(performerName, metadata.projectTitle || 'Unknown Project');
+        break;
+      case AUDIT_ACTIONS.PROJECT_UPDATED:
+        description = AUDIT_MESSAGES.PROJECT_UPDATED(performerName, metadata.projectTitle || 'Unknown Project');
+        break;
+      case AUDIT_ACTIONS.PROJECT_APPROVED:
+        description = AUDIT_MESSAGES.PROJECT_APPROVED(performerName, metadata.projectTitle || 'Unknown Project');
+        break;
+      case AUDIT_ACTIONS.PROJECT_REJECTED:
+        description = AUDIT_MESSAGES.PROJECT_REJECTED(performerName, metadata.projectTitle || 'Unknown Project', metadata.remark || metadata.reason);
+        break;
+      case AUDIT_ACTIONS.PROJECT_STATUS_CHANGED:
+        description = AUDIT_MESSAGES.PROJECT_STATUS_CHANGED(
+          performerName,
+          metadata.projectTitle || 'Unknown Project',
+          previousValues.status,
+          newValues.status
+        );
+        break;
+      case AUDIT_ACTIONS.PROJECT_DELETED:
+        description = AUDIT_MESSAGES.PROJECT_DELETED(performerName, metadata.projectTitle || 'Unknown Project');
+        break;
+
+      // Bid Actions
+      case AUDIT_ACTIONS.BID_PLACED:
+        description = AUDIT_MESSAGES.BID_PLACED(performerName, metadata.projectTitle || 'Project', metadata.amount);
+        break;
+      case AUDIT_ACTIONS.BID_ACCEPTED:
+        description = AUDIT_MESSAGES.BID_ACCEPTED(performerName, metadata.projectTitle || 'Project', targetName);
+        break;
+      case AUDIT_ACTIONS.BID_REJECTED:
+        description = AUDIT_MESSAGES.BID_REJECTED(performerName, metadata.projectTitle || 'Project', targetName);
+        break;
+
+      // Payment Actions
+      case AUDIT_ACTIONS.PAYMENT_INITIATED:
+        description = AUDIT_MESSAGES.PAYMENT_INITIATED(performerName, metadata.projectTitle || 'Project', metadata.amount);
+        break;
+      case AUDIT_ACTIONS.PAYMENT_COMPLETED:
+        description = AUDIT_MESSAGES.PAYMENT_COMPLETED(performerName, metadata.projectTitle || 'Project', metadata.amount);
+        break;
+      case AUDIT_ACTIONS.PAYMENT_FAILED:
+        description = AUDIT_MESSAGES.PAYMENT_FAILED(performerName, metadata.projectTitle || 'Project', metadata.amount, metadata.reason);
+        break;
+
+      // Milestone Actions
+      case AUDIT_ACTIONS.MILESTONE_CREATED:
+        description = AUDIT_MESSAGES.MILESTONE_CREATED(performerName, metadata.projectTitle || 'Project', metadata.milestoneTitle || 'Milestone');
+        break;
+      case AUDIT_ACTIONS.MILESTONE_UPDATED:
+        description = AUDIT_MESSAGES.MILESTONE_UPDATED(performerName, metadata.projectTitle || 'Project', metadata.milestoneTitle || 'Milestone');
+        break;
+      case AUDIT_ACTIONS.MILESTONE_COMPLETED:
+        description = AUDIT_MESSAGES.MILESTONE_COMPLETED(performerName, metadata.projectTitle || 'Project', metadata.milestoneTitle || 'Milestone');
+        break;
+      case AUDIT_ACTIONS.MILESTONE_PAID:
+        description = AUDIT_MESSAGES.MILESTONE_PAID(performerName, metadata.projectTitle || 'Project', metadata.milestoneTitle || 'Milestone', metadata.amount);
+        break;
+
+      case AUDIT_ACTIONS.CONSULTATION_ASSIGNED:
+        description = AUDIT_MESSAGES.CONSULTATION_ASSIGNED(performerName, metadata.clientName || 'Client', metadata.assigneeName || 'Admin');
+        break;
+
+      case AUDIT_ACTIONS.NOTIFICATION_SENT:
+        description = AUDIT_MESSAGES.NOTIFICATION_SENT(targetName, metadata.title || 'Notification');
+        break;
+
       default:
-        description = `${performedBy.name} performed ${action} on ${targetUser.name}`;
+        description = `${performerName} performed ${action}${targetUser ? ` on ${targetName}` : ''}`;
     }
 
     // Get IP address and user agent from request
-    const ipAddress = req ? (req.ip || req.connection?.remoteAddress) : null;
-    const userAgent = req ? req.get('user-agent') : null;
+    const ipAddress = req ? (req.ip || req.connection?.remoteAddress) : (metadata.ipAddress || null);
+    const userAgent = req ? req.get('user-agent') : (metadata.userAgent || null);
 
     // Create audit log entry
-    const auditLog = await AuditLog.create({
-      performedBy: performedBy._id || performedBy.id,
-      performedByName: performedBy.name,
-      performedByEmail: performedBy.email,
-      performedByRole: performedBy.role,
-      targetUser: targetUser._id || targetUser.id,
-      targetUserName: targetUser.name,
-      targetUserEmail: targetUser.email,
-      targetUserRole: targetUser.role,
+    const auditLogData = {
+      performedBy: performedBy?._id || performedBy?.id || null,
+      performedByName: performerName,
+      performedByEmail: performedBy?.email || 'system@connect-accel.com',
+      performedByRole: performedBy?.role || 'system',
       action,
       description,
       changes,
@@ -95,7 +163,16 @@ const createAuditLog = async ({
       userAgent,
       severity: AUDIT_SEVERITY[action] || 'medium',
       metadata
-    });
+    };
+
+    if (targetUser) {
+      auditLogData.targetUser = targetUser._id || targetUser.id;
+      auditLogData.targetUserName = targetUser.name;
+      auditLogData.targetUserEmail = targetUser.email;
+      auditLogData.targetUserRole = targetUser.role;
+    }
+
+    const auditLog = await AuditLog.create(auditLogData);
 
     console.log(`Audit log created: ${action} - ${description}`);
     return auditLog;
@@ -129,7 +206,7 @@ const detectChanges = (oldObj, newObj, fieldsToCheck) => {
         previousValues[field] = oldValue;
         newValues[field] = newValue;
       }
-    } 
+    }
     // Handle object comparison
     else if (typeof oldValue === 'object' && typeof newValue === 'object' && oldValue !== null && newValue !== null) {
       if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
