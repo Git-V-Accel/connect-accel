@@ -58,45 +58,7 @@
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  
-  html {
-    scroll-behavior: auto;
-    /* Performance optimizations */
-    -webkit-overflow-scrolling: touch;
-    overflow-scrolling: touch;
-  }
-  
-  body {
-    @apply bg-background text-foreground font-outfit antialiased;
-    /* Performance optimizations */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    /* Scroll performance */
-    overscroll-behavior-y: none;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-outfit font-bold tracking-tight;
-  }
-  
-  /* Performance: GPU acceleration for commonly animated elements */
-  section {
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    perspective: 1000px;
-    /* Contain rendering to improve scroll performance */
-    contain: layout style paint;
-    isolation: isolate; /* Create new stacking context */
-  }
-  
-  /* Background pattern containers are optimized via inline styles */
-}
+
 
 @layer utilities {
   .text-gradient {
