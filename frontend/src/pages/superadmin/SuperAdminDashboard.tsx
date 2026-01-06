@@ -85,7 +85,7 @@ export default function SuperAdminDashboard() {
     try {
       await updateProject(selectedProject.id, {
         status: 'cancelled',
-        rejectionReason: rejectionReason
+        statusRemarks: rejectionReason
       });
       toast.success(`Project "${selectedProject.title}" rejected successfully!`);
       setIsRejectDialogOpen(false);

@@ -4,22 +4,11 @@ import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { RichTextEditor } from '../../components/common/RichTextEditor';
 import { Label } from '../../components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '../../components/ui/dialog';
 import { useData } from '../../contexts/DataContext';
 import {
   ArrowLeft,
   Star,
-  CheckCircle,
-  XCircle,
   MessageSquare,
   IndianRupee,
   Clock,
@@ -32,6 +21,9 @@ import {
   ThumbsDown,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
+import AcceptBidDialog from '../../components/common/AcceptBidDialog';
+import RejectBidDialog from '../../components/common/RejectBidDialog';
+import { RichTextViewer } from '@/components/common';
 
 export default function BiddingManagement() {
   const { id } = useParams();
@@ -39,7 +31,7 @@ export default function BiddingManagement() {
   const { projects, bids, updateBid, updateProject } = useData();
   
   const project = projects.find((p) => p.id === id);
-  const projectBids = bids.filter((b) => b.project_id === id);
+  const projectBids = bids.filter((b) => b.project_id === id && b.freelancer_id);
 
   const [selectedBid, setSelectedBid] = useState<any>(null);
   const [isAcceptDialogOpen, setIsAcceptDialogOpen] = useState(false);
@@ -64,6 +56,17 @@ export default function BiddingManagement() {
 
   const handleAcceptBid = () => {
     if (!selectedBid) return;
+
+    // Check if there's already an accepted bid for this project
+    const hasAcceptedBid = projectBids.some(bid => 
+      bid.status === 'accepted' && 
+      bid.id !== selectedBid.id
+    );
+
+    if (hasAcceptedBid) {
+      toast.error('This project already has an accepted bid. Only one bid can be accepted per project.');
+      return;
+    }
 
     // Update bid status
     updateBid(selectedBid.id, {
@@ -277,26 +280,7 @@ export default function BiddingManagement() {
             </div>
           </div>
         </div>
-
-        {/* Project Info */}
-        <Card className="p-6">
-          <div className="grid md:grid-cols-4 gap-6">
-            <div className="md:col-span-2">
-              <h2 className="text-xl mb-2">{project.title}</h2>
-              <p className="text-gray-600 line-clamp-2">{project.description}</p>
-            </div>
-            <div>
-              <Label className="text-gray-600">Client Budget</Label>
-              <p className="text-2xl mt-1">₹{project.client_budget.toLocaleString()}</p>
-            </div>
-            <div>
-              <Label className="text-gray-600">Total Bids</Label>
-              <p className="text-2xl mt-1">{projectBids.length}</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Bid Statistics */}
+ {/* Bid Statistics */}
         <div className="grid md:grid-cols-4 gap-4">
           <Card className="p-4">
             <div className="text-sm text-gray-600">Pending Bids</div>
@@ -336,7 +320,23 @@ export default function BiddingManagement() {
             </div>
           </Card>
         </div>
-
+        {/* Project Info */}
+        <Card className="p-6">
+          <div className="grid md:grid-cols-4 gap-6">
+            <div className="md:col-span-2">
+              <h2 className="text-xl mb-2">{project.title}</h2>
+          <RichTextViewer content={project.description} />  
+            </div>
+            <div>
+              <Label className="text-gray-600">Client Budget</Label>
+              <p className="text-2xl mt-1">₹{project.client_budget.toLocaleString()}</p>
+            </div>
+            <div>
+              <Label className="text-gray-600">Total Bids</Label>
+              <p className="text-2xl mt-1">{projectBids.length}</p>
+            </div>
+          </div>
+        </Card>
         {/* Bids List */}
         <div>
           <h3 className="text-xl mb-4">
@@ -365,115 +365,26 @@ export default function BiddingManagement() {
         </div>
 
         {/* Accept Dialog */}
-        <Dialog open={isAcceptDialogOpen} onOpenChange={setIsAcceptDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Accept Bid & Assign Freelancer</DialogTitle>
-              <DialogDescription>
-                This will assign the freelancer to the project and reject all other bids.
-              </DialogDescription>
-            </DialogHeader>
-            
-            {selectedBid && (
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Client Budget</span>
-                    <span className="font-medium">
-                      ₹{project.client_budget.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Freelancer Bid</span>
-                    <span className="font-medium">₹{selectedBid.amount.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t">
-                    <span className="font-medium">Platform Margin</span>
-                    <span className="font-medium text-purple-600">
-                      ₹{(project.client_budget - selectedBid.amount).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Margin Percentage</span>
-                    <span>
-                      {(
-                        ((project.client_budget - selectedBid.amount) / project.client_budget) *
-                        100
-                      ).toFixed(1)}
-                      %
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Admin Notes (Optional)</Label>
-                  <RichTextEditor
-                    value={adminNotes}
-                    onChange={setAdminNotes}
-                    placeholder="Add notes about why this bid was selected..."
-                    className="mt-1"
-                    minHeight="120px"
-                  />
-                </div>
-              </div>
-            )}
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAcceptDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAcceptBid} className="bg-green-600 hover:bg-green-700">
-                <CheckCircle className="size-4 mr-2" />
-                Accept & Assign
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <AcceptBidDialog
+          isOpen={isAcceptDialogOpen}
+          onOpenChange={setIsAcceptDialogOpen}
+          onAccept={handleAcceptBid}
+          selectedBid={selectedBid}
+          project={project}
+          adminNotes={adminNotes}
+          onAdminNotesChange={setAdminNotes}
+        />
 
         {/* Reject Dialog */}
-        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Reject Bid</DialogTitle>
-              <DialogDescription>
-                Please provide a reason for rejecting this bid.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label>Rejection Reason *</Label>
-                <RichTextEditor
-                  value={rejectionReason}
-                  onChange={setRejectionReason}
-                  placeholder="Explain why this bid is being rejected..."
-                  className="mt-1"
-                  minHeight="150px"
-                />
-              </div>
-              <div>
-                <Label>Admin Notes (Optional)</Label>
-                <RichTextEditor
-                  value={adminNotes}
-                  onChange={setAdminNotes}
-                  placeholder="Internal notes..."
-                  className="mt-1"
-                  minHeight="100px"
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleRejectBid} className="bg-red-600 hover:bg-red-700">
-                <XCircle className="size-4 mr-2" />
-                Reject Bid
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <RejectBidDialog
+          isOpen={isRejectDialogOpen}
+          onOpenChange={setIsRejectDialogOpen}
+          onReject={handleRejectBid}
+          rejectionReason={rejectionReason}
+          onRejectionReasonChange={setRejectionReason}
+          adminNotes={adminNotes}
+          onAdminNotesChange={setAdminNotes}
+        />
 
       </div>
     </DashboardLayout>

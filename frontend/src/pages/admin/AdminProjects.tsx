@@ -66,7 +66,18 @@ export default function AdminProjects() {
     hold: nonDraftProjects.filter(p => p.status === 'hold').length,
     completed: nonDraftProjects.filter(p => p.status === 'completed').length,
     cancelled: nonDraftProjects.filter(p => p.status === 'cancelled').length,
-    totalRevenue: nonDraftProjects.reduce((sum, p) => sum + (p.budget || p.client_budget || 0), 0)
+    totalRevenue: (() => {
+    const revenue = nonDraftProjects.reduce((sum, p) => sum + (p.budget || p.client_budget || 0), 0);
+    if (revenue >= 10000000) { // 1 Crore+
+      return `₹${(revenue / 10000000).toFixed(1)}C`;
+    } else if (revenue >= 1000000) { // 1 Million+
+      return `₹${(revenue / 1000000).toFixed(1)}M`;
+    } else if (revenue >= 1000) { // 1 Thousand+
+      return `₹${(revenue / 1000).toFixed(1)}K`;
+    } else {
+      return `₹${revenue.toLocaleString()}`;
+    }
+  })()
   };
 
   const filterProjects = (statusValue: string) => {
@@ -185,7 +196,9 @@ export default function AdminProjects() {
             <div className="flex items-center gap-2 text-blue-600">
               <FileText className="size-4" />
               <span className="text-sm font-medium">
-                {getBidsByProject ? getBidsByProject(project.id).length : 0} Bids Received
+                {getBidsByProject ? getBidsByProject(project.id).filter(bid => 
+                  bid.freelancer_id || bid.freelancer_name
+                ).length : 0} Freelancer Proposals
               </span>
             </div>
           )}
@@ -294,7 +307,7 @@ export default function AdminProjects() {
               <div>
                 <p className="text-sm text-gray-600">Total Revenue</p>
                 <p className="text-2xl mt-1">
-                  ₹{systemStats.totalRevenue.toLocaleString()}
+                  {systemStats.totalRevenue.toLocaleString()}
                 </p>
               </div>
               <div className="bg-purple-100 p-3 rounded-lg">

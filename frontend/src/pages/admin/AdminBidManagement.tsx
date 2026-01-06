@@ -98,6 +98,24 @@ export default function AdminBidManagement() {
 
   const handleAcceptBid = async (bidId: string) => {
     try {
+      // Check if there's already an accepted bid for this project
+      const currentBid = bids.find(bid => bid.id === bidId);
+      if (!currentBid) {
+        toast.error('Bid not found');
+        return;
+      }
+
+      const hasAcceptedBid = bids.some(bid => 
+        bid.projectId === currentBid.projectId && 
+        bid.status === 'accepted' && 
+        bid.id !== bidId
+      );
+
+      if (hasAcceptedBid) {
+        toast.error('This project already has an accepted bid. Only one bid can be accepted per project.');
+        return;
+      }
+
       await bidService.updateBidAcceptance(bidId, true);
       toast.success('Bid accepted successfully!');
       loadBids();
@@ -143,6 +161,15 @@ export default function AdminBidManagement() {
       loadBids();
     } catch (error: any) {
       toast.error(error.message || 'Failed to shortlist bid');
+    }
+  };
+ const handleUndoShortlist = async (bidId: string) => {
+    try {
+      await bidService.updateBidShortlist(bidId, false);
+      toast.success('Bid shortlisted undone');
+      loadBids();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to undo shortlist');
     }
   };
 
@@ -302,12 +329,13 @@ export default function AdminBidManagement() {
                 getProject(bid.projectId);
                 const projectTitle = bid.projectTitle || bid.project?.title || 'Unknown Project';
                 const bidderName = bid.bidderName || bid.bidder?.name || 'Unknown';
+                const bidderRole = bid.bidder?.role;
                 const bidderRating = bid.bidder?.rating;
                 const bidderCompletedProjects = bid.bidder?.completedProjects;
 
                 return (
-                  <div key={bid.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-4">
+                  <div key={bid.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow ">
+                    <div className="flex items-start justify-between mb-4 cursor-pointer" onClick={() => navigate(`/admin/bids/${bid.id}`)}>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-xl">{projectTitle}</h3>
@@ -323,7 +351,7 @@ export default function AdminBidManagement() {
                         <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
                           <div className="flex items-center gap-1">
                             <Users className="size-4" />
-                            <span>{bidderName}</span>
+                            <Link to={`/admin/users/${bid.bidderId}`} className="text-blue-600 hover:underline">{bidderName} <em>({bidderRole})</em> </Link>
                             {bidderRating && (
                               <>
                                 <span className="mx-2">•</span>
@@ -386,61 +414,6 @@ export default function AdminBidManagement() {
                           </Link>
                         </Button>
                       )}
-                      {bid.status === 'pending' || bid.status === 'under_review' ? (
-                        <>
-                          <Button size="sm" onClick={() => handleAcceptBid(bid.id)}>
-                            <CheckCircle2 className="size-4 mr-2" />
-                            Accept
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleShortlist(bid.id)}
-                          >
-                            <Users className="size-4 mr-2" />
-                            Shortlist
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRejectBid(bid.id)}
-                          >
-                            <XCircle className="size-4 mr-2" />
-                            Reject
-                          </Button>
-                        </>
-                      ) : bid.status === 'shortlisted' ? (
-                        <>
-                          <Button size="sm" onClick={() => handleAcceptBid(bid.id)}>
-                            <CheckCircle2 className="size-4 mr-2" />
-                            Accept
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRejectBid(bid.id)}
-                          >
-                            <XCircle className="size-4 mr-2" />
-                            Reject
-                          </Button>
-                        </>
-                      ) : bid.status === 'accepted' ? (
-                        <Button variant="outline" size="sm" onClick={() => handleUndoAcceptBid(bid.id)}>
-                          <XCircle className="size-4 mr-2" />
-                          Undo Accept
-                        </Button>
-                      ) : bid.status === 'rejected' ? (
-                        <Button variant="outline" size="sm" onClick={() => handleUndoRejectBid(bid.id)}>
-                          <XCircle className="size-4 mr-2" />
-                          Undo Reject
-                        </Button>
-                      ) : null}
-                      <Button asChild variant="outline" size="sm">
-                        <Link to={`/admin/bids/${bid.id}`}>
-                          <FileText className="size-4 mr-2" />
-                          View Details
-                        </Link>
-                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -450,14 +423,6 @@ export default function AdminBidManagement() {
                         <Trash2 className="size-4 mr-2" />
                         Delete
                       </Button>
-                      {bid.bidderId && (
-                        <Button asChild variant="outline" size="sm">
-                          <Link to={`/admin/users/${bid.bidderId}/freelancer`}>
-                            <Users className="size-4 mr-2" />
-                            View Profile
-                          </Link>
-                        </Button>
-                      )}
                       {bid.projectId && (
                         <Button asChild variant="outline" size="sm">
                           <Link to={`/admin/projects/${bid.projectId}/review`}>

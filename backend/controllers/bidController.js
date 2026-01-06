@@ -319,8 +319,8 @@ const deleteBid = async (req, res) => {
 
     // Instead of hard delete, maybe withdraw? 
     // But route says DELETE. Let's do hard delete for now or check status.
-    // If pending, allow delete.
-    if (bid.status !== 'pending' && req.user.role !== 'admin') {
+    // Allow admins to delete any bid, others can only delete pending bids
+    if (bid.status !== 'pending' && !['admin', 'superadmin'].includes(req.user.role)) {
       return sendResponse(res, false, null, 'Cannot delete bid in current status', 400);
     }
 

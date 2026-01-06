@@ -247,6 +247,7 @@ interface DataContextType {
 
     // Bid methods
     createBid: (bid: Omit<Bid, 'id' | 'created_at'>) => Bid;
+    deleteBid: (bidId: string) => void;
     updateBid: (id: string, updates: Partial<Bid>) => void;
     getBidsByProject: (projectId: string) => Bid[];
     getBidsByFreelancer: (freelancerId: string) => Bid[];
@@ -823,6 +824,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return newBid;
     };
 
+    const deleteBid = (bidId: string) => {
+        setData((prev: any) => ({
+            ...prev,
+            bids: prev.bids.filter((b: Bid) => b.id !== bidId),
+        }));
+    };
+
     const updateBid = (id: string, updates: Partial<Bid>) => {
         setData((prev: any) => {
             const updatedBids = prev.bids.map((b: Bid) => (b.id === id ? { ...b, ...updates } : b));
@@ -1292,6 +1300,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         getMilestonesByProject,
 
         createBid,
+        deleteBid,
         updateBid,
         getBidsByProject,
         getBidsByFreelancer,

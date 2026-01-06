@@ -10,6 +10,7 @@ import { Label } from "../../components/ui/label";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { createBid } from "../../services/bidService";
+import { getProjectBids } from "../../services/bidService";
 import {
   projectTypes,
   statusColors,
@@ -30,22 +31,33 @@ import {
 import { toast } from "../../utils/toast";
 import { RichTextViewer } from "../../components/common";
 import ProjectDetail from "../client/ProjectDetail";
+import { updateProject } from "@/services/projectService";
 
 export default function CreateBid() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects } = useData();
+  const { projects, getBidsByProject } = useData();
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
 
-  // Filter projects based on user role
+  // Filter projects based on user role and exclude projects with existing bids
   const availableProjects =
     user?.role === "agent"
       ? projects.filter((p) => p.assigned_agent_id === user?.id)
       : projects;
 
+  // Further filter to exclude projects that already have bids
+  const projectsWithoutBids = availableProjects.filter((project) => {
+    const existingBids = getBidsByProject(project.id);
+    return existingBids.length === 0;
+  });
+
   const [selectedProjectId, setSelectedProjectId] = useState<string>(id || "");
   const project = availableProjects.find((p) => p.id === selectedProjectId);
+
+  // Check if bid already exists for this project
+  const existingBids = project ? getBidsByProject(project.id) : [];
+  const hasExistingBid = existingBids.length > 0;
 
   const [formData, setFormData] = useState({
     title: "",
@@ -55,6 +67,18 @@ export default function CreateBid() {
     amount: "",
     duration_weeks: "",
   });
+
+  // Refresh bids data when component loads to clear stale cache after withdrawal
+  useEffect(() => {
+    if (selectedProjectId) {
+      // Refresh bids for the specific project to get latest data
+      getProjectBids(selectedProjectId).then(() => {
+        // This will trigger a re-render with updated bid data
+      }).catch(error => {
+        console.error('Failed to refresh project bids:', error);
+      });
+    }
+  }, [selectedProjectId]);
 
   useEffect(() => {
     if (project) {
@@ -71,7 +95,7 @@ export default function CreateBid() {
 
   const handleProjectSelect = (projectId: string) => {
     setSelectedProjectId(projectId);
-    const selectedProject = availableProjects.find((p) => p.id === projectId);
+    const selectedProject = projectsWithoutBids.find((p) => p.id === projectId);
     if (selectedProject) {
       setFormData({
         title: selectedProject.title || "",
@@ -120,7 +144,13 @@ export default function CreateBid() {
                   className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Choose a project...</option>
-                  {availableProjects.map((proj) => (
+                  {/* Show selected project first if it exists (for withdrawal scenario) */}
+                  {project && !projectsWithoutBids.some(p => p.id === project.id) && (
+                    <option key={project.id} value={project.id}>
+                      {project.title} (Previously withdrawn)
+                    </option>
+                  )}
+                  {projectsWithoutBids.map((proj) => (
                     <option key={proj.id} value={proj.id}>
                       {proj.title}
                     </option>
@@ -195,7 +225,9 @@ export default function CreateBid() {
         description: formData.description.trim(),
         notes: "",
       });
-
+await updateProject(project.id, {
+      status: "in_bidding",
+    });
       toast.success("Bid created successfully!");
       const redirectPath =
         user?.role === "agent" ? `/agent/bids` : `/admin/bids`;
@@ -368,6 +400,20 @@ export default function CreateBid() {
             <Card className="p-6">
               <h2 className="text-xl mb-6">Bid Information</h2>
               <form onSubmit={handleSubmit} className="space-y-6">
+                {hasExistingBid && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="size-5 text-yellow-600" />
+                      <div>
+                        <h3 className="font-medium text-yellow-800">Bid Already Exists</h3>
+                        <p className="text-sm text-yellow-700 mt-1">
+                          A bid has already been created for this project. You cannot create multiple bids for the same project.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <Label htmlFor="title">Project Title *</Label>
                   <Input
@@ -380,6 +426,7 @@ export default function CreateBid() {
                     placeholder="Enter project title"
                     className="mt-2"
                     required
+                    disabled={hasExistingBid}
                   />
                 </div>
 
@@ -393,6 +440,7 @@ export default function CreateBid() {
                     placeholder="Enter project description"
                     className="mt-2"
                     minHeight="200px"
+                    disabled={hasExistingBid}
                   />
                 </div>
 
@@ -428,6 +476,7 @@ export default function CreateBid() {
                       min="0"
                       className="mt-2"
                       required
+                      disabled={hasExistingBid}
                     />
                     {project.budget && (
                       <p className="text-xs text-gray-500 mt-1">
@@ -465,6 +514,7 @@ export default function CreateBid() {
                       min="1"
                       className="mt-2"
                       required
+                      disabled={hasExistingBid}
                     />
                   </div>
                 </div>
@@ -485,10 +535,10 @@ export default function CreateBid() {
                   <Button
                     type="submit"
                     className="flex-1"
-                    disabled={submitting}
+                    disabled={submitting || hasExistingBid}
                   >
                     <CheckCircle className="size-4 mr-2" />
-                    {submitting ? "Creating..." : "Create Bid"}
+                    {hasExistingBid ? "Bid Already Exists" : submitting ? "Creating..." : "Create Bid"}
                   </Button>
                 </div>
               </form>
