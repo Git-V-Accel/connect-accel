@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
+import React, { useState } from 'react';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import {
@@ -33,6 +34,8 @@ interface AssignAgentDialogProps {
   isEditingAgent: boolean;
   validationError?: string;
   isLoading?: boolean;
+  assignmentType?: string;
+  onAssignmentTypeChange?: (value: string) => void;
 }
 
 const AssignAgentDialog = ({
@@ -44,14 +47,24 @@ const AssignAgentDialog = ({
   onAgentSelect,
   isEditingAgent,
   validationError,
-  isLoading = false
-}: AssignAgentDialogProps) => (
+  isLoading = false,
+  assignmentType: externalAssignmentType,
+  onAssignmentTypeChange
+}: AssignAgentDialogProps) => {
+  const [internalAssignmentType, setInternalAssignmentType] = useState<string>(externalAssignmentType || "assign_to_agent");
+
+  const assignmentType = externalAssignmentType || internalAssignmentType;
+
+  return (
   <Dialog
     open={isOpen}
     onOpenChange={(open) => {
       onOpenChange(open);
       if (!open) {
         onAgentSelect("");
+        if (!externalAssignmentType) {
+          setInternalAssignmentType("assign_to_agent");
+        }
       }
     }}
   >
@@ -68,40 +81,73 @@ const AssignAgentDialog = ({
       </DialogHeader>
       <div className="space-y-4">
         <div>
-          <Label htmlFor="agent-select">Select Agent *</Label>
+          <Label htmlFor="assignment-type">Assignment Type *</Label>
           <Select
-            value={selectedAgentId}
-            onValueChange={onAgentSelect}
+            value={assignmentType}
+            onValueChange={(value) => {
+              if (onAssignmentTypeChange) {
+                onAssignmentTypeChange(value);
+              } else {
+                setInternalAssignmentType(value);
+              }
+              onAgentSelect(""); // Clear agent selection when type changes
+            }}
             disabled={isLoading}
           >
             <SelectTrigger
-              id="agent-select"
-              className={`mt-2 ${validationError ? "border-red-500" : ""}`}
+              id="assignment-type"
+              className="mt-2"
             >
-              <SelectValue placeholder={isLoading ? "Loading agents..." : "Choose an agent..."} />
+              <SelectValue placeholder="Choose assignment type..." />
             </SelectTrigger>
             <SelectContent>
-              {isLoading ? (
-                <SelectItem value="loading" disabled>
-                  Loading agents...
-                </SelectItem>
-              ) : agents.length === 0 ? (
-                <SelectItem value="no-agents" disabled>
-                  No agents available
-                </SelectItem>
-              ) : (
-                agents.map((agent) => (
-                  <SelectItem key={agent.id} value={agent.id}>
-                    {agent.name} ({agent.userID || 'N/A'})
-                  </SelectItem>
-                ))
-              )}
+              <SelectItem value="assign_to_agent">
+                Assign to Agent
+              </SelectItem>
+              <SelectItem value="move_to_in_house">
+                Move to In House
+              </SelectItem>
             </SelectContent>
           </Select>
-          {validationError && (
-            <p className="text-sm text-red-500 mt-1">{validationError}</p>
-          )}
         </div>
+
+        {assignmentType === "assign_to_agent" && (
+          <div>
+            <Label htmlFor="agent-select">Select Agent *</Label>
+            <Select
+              value={selectedAgentId}
+              onValueChange={onAgentSelect}
+              disabled={isLoading}
+            >
+              <SelectTrigger
+                id="agent-select"
+                className={`mt-2 ${validationError ? "border-red-500" : ""}`}
+              >
+                <SelectValue placeholder={isLoading ? "Loading agents..." : "Choose an agent..."} />
+              </SelectTrigger>
+              <SelectContent>
+                {isLoading ? (
+                  <SelectItem value="loading" disabled>
+                    Loading agents...
+                  </SelectItem>
+                ) : agents.length === 0 ? (
+                  <SelectItem value="no-agents" disabled>
+                    No agents available
+                  </SelectItem>
+                ) : (
+                  agents.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.name} ({agent.userID || 'N/A'})
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            {validationError && (
+              <p className="text-sm text-red-500 mt-1">{validationError}</p>
+            )}
+          </div>
+        )}
       </div>
       <DialogFooter>
         <Button
@@ -109,20 +155,27 @@ const AssignAgentDialog = ({
           onClick={() => {
             onOpenChange(false);
             onAgentSelect("");
+            if (!externalAssignmentType) {
+              setInternalAssignmentType("assign_to_agent");
+            }
           }}
         >
           Cancel
         </Button>
         <Button
           onClick={onAssign}
-          disabled={!selectedAgentId || isLoading}
+          disabled={(assignmentType === "assign_to_agent" && !selectedAgentId) || isLoading}
         >
           <CheckCircle className="size-4 mr-2" />
-          {isEditingAgent ? 'Re-assign Agent' : 'Assign Agent'}
+          {assignmentType === "assign_to_agent" 
+            ? (isEditingAgent ? 'Re-assign Agent' : 'Assign Agent')
+            : 'Move to In House'
+          }
         </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
-);
+  );
+};
 
 export default AssignAgentDialog;

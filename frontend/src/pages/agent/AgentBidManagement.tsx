@@ -179,6 +179,24 @@ export default function AgentBidManagement() {
 
   const handleAcceptBid = async (bidId: string) => {
     try {
+      // Check if there's already an accepted bid for this project
+      const currentBid = bids.find(bid => bid.id === bidId);
+      if (!currentBid) {
+        toast.error('Bid not found');
+        return;
+      }
+
+      const hasAcceptedBid = bids.some(bid => 
+        bid.projectId === currentBid.projectId && 
+        bid.status === 'accepted' && 
+        bid.id !== bidId
+      );
+
+      if (hasAcceptedBid) {
+        toast.error('This project already has an accepted bid. Only one bid can be accepted per project.');
+        return;
+      }
+
       await bidService.updateBidAcceptance(bidId, true);
       toast.success('Bid accepted successfully!');
       loadBids(); // Reload bids to reflect changes

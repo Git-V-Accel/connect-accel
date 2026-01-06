@@ -59,6 +59,7 @@ import SubmitProposal from "./pages/freelancer/SubmitProposal";
 // Admin portal
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProjects from "./pages/admin/AdminProjects";
+import AdminInHouse from "./pages/admin/AdminInHouse";
 import ProjectReview from "./pages/admin/ProjectReview";
 import FreelancerDetails from "./pages/admin/FreelancerDetails";
 import BiddingManagement from "./pages/admin/BiddingManagement";
@@ -180,6 +181,7 @@ function AppRoutes() {
       {/* Admin routes */}
       <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/projects" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminProjects /></ProtectedRoute>} />
+      <Route path="/admin/in-house" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminInHouse /></ProtectedRoute>} />
       <Route path="/admin/projects/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminProjectDetail /></ProtectedRoute>} />
       <Route path="/admin/projects/:id/review" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><ProjectReview /></ProtectedRoute>} />
       <Route path="/admin/freelancers/:id" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><FreelancerDetails /></ProtectedRoute>} />

@@ -510,6 +510,24 @@ export default function DashboardLayout({
                 </div>
               </div>
             </div> */}
+            {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                <div className="p-4 flex border-t items-center gap-3 cursor-pointer" onClick={() => navigate('/admin/in-house')}>
+                  <div className="flex-shrink-0">
+                    <Briefcase className="w-6 h-6 text-gray-500" />
+                  </div>
+                  <div
+                    style={{
+                      transition: "opacity 220ms ease, transform 220ms ease",
+                      opacity: sidebarOpen ? 1 : 0,
+                      transform: sidebarOpen ? "translateX(0)" : "translateX(-6px)",
+                      display: "inline-block",
+                    }}
+                  >
+                    <div className="text-sm">In House</div>
+                    <div className="text-xs text-gray-500">Projects</div>
+                  </div>
+                </div>
+              )}
           </div>
         </aside>
 

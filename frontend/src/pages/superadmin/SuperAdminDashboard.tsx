@@ -13,6 +13,8 @@ import { useDashboard } from '../../hooks/useDashboard';
 import { formatCurrency } from '../../utils/format';
 import { useState, useEffect } from 'react';
 import { listAgents } from '../../services/userService';
+import { updateProject } from '../../services/projectService';
+import { toast } from '../../utils/toast';
 import {
   Clock,
   Briefcase,
@@ -59,24 +61,63 @@ export default function SuperAdminDashboard() {
     fetchAgents();
   }, []);
 
-  const handleApproveProject = () => {
-    console.log('Approving project:', selectedProject);
-    setIsApproveDialogOpen(false);
-    setSelectedProject(null);
+  const handleApproveProject = async () => {
+    if (!selectedProject) return;
+    
+    try {
+      await updateProject(selectedProject.id, {
+        status: 'in_bidding'
+      });
+      toast.success(`Project "${selectedProject.title}" approved successfully!`);
+      setIsApproveDialogOpen(false);
+      setSelectedProject(null);
+      // Optionally refresh dashboard data
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to approve project:', error);
+      toast.error('Failed to approve project. Please try again.');
+    }
   };
 
-  const handleRejectProject = () => {
-    console.log('Rejecting project:', selectedProject, 'Reason:', rejectionReason);
-    setIsRejectDialogOpen(false);
-    setSelectedProject(null);
-    setRejectionReason('');
+  const handleRejectProject = async () => {
+    if (!selectedProject || !rejectionReason) return;
+    
+    try {
+      await updateProject(selectedProject.id, {
+        status: 'cancelled',
+        statusRemarks: rejectionReason
+      });
+      toast.success(`Project "${selectedProject.title}" rejected successfully!`);
+      setIsRejectDialogOpen(false);
+      setSelectedProject(null);
+      setRejectionReason('');
+      // Optionally refresh dashboard data
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to reject project:', error);
+      toast.error('Failed to reject project. Please try again.');
+    }
   };
 
-  const handleAssignAgent = () => {
-    console.log('Assigning agent:', selectedAgentId, 'to project:', selectedProject);
-    setIsAssignAgentDialogOpen(false);
-    setSelectedProject(null);
-    setSelectedAgentId('');
+  const handleAssignAgent = async () => {
+    if (!selectedProject || !selectedAgentId) return;
+    
+    try {
+      await updateProject(selectedProject.id, {
+        assignedAgentId: selectedAgentId,
+        status: 'assigned'
+      });
+      const selectedAgent = agents.find(agent => agent.id === selectedAgentId);
+      toast.success(`Agent "${selectedAgent?.name}" assigned to project "${selectedProject.title}" successfully!`);
+      setIsAssignAgentDialogOpen(false);
+      setSelectedProject(null);
+      setSelectedAgentId('');
+      // Optionally refresh dashboard data
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to assign agent:', error);
+      toast.error('Failed to assign agent. Please try again.');
+    }
   };
 
   const openApproveDialog = (project: any) => {

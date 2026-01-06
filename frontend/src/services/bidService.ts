@@ -162,6 +162,7 @@ export const getProjectBids = async (
   }
 ): Promise<Bid[]> => {
   const response = await apiClient.get(API_CONFIG.BIDS.GET_BY_PROJECT(projectId), { params });
+  console.log("response", response);
   if (response.data.success && response.data.data) {
     const bids = Array.isArray(response.data.data) ? response.data.data : [];
     return bids.map(normalizeBid);

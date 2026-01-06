@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { getProjectActivityLogs, ActivityLog } from "../../services/activityLogService";
+import {
+  getProjectActivityLogs,
+  ActivityLog,
+} from "../../services/activityLogService";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import ApproveProjectDialog from "../../components/shared/ApproveProjectDialog";
@@ -49,6 +52,7 @@ import {
   IndianRupee,
   Clock,
   User,
+  Home,
   Mail,
   Phone,
   Calendar,
@@ -80,8 +84,8 @@ export default function ProjectReview() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAgent = user?.role === 'agent';
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isAgent = user?.role === "agent";
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const {
     projects,
     getProject,
@@ -91,13 +95,16 @@ export default function ProjectReview() {
     updateMilestone,
     deleteMilestone,
     getMilestonesByProject,
+    deleteBid,
   } = useData();
 
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadingBids, setLoadingBids] = useState(false);
   const [projectBids, setProjectBids] = useState<Bid[]>([]);
-  const [biddingsByBidId, setBiddingsByBidId] = useState<Map<string, any[]>>(new Map());
+  const [biddingsByBidId, setBiddingsByBidId] = useState<Map<string, any[]>>(
+    new Map()
+  );
   const [acceptedBidding, setAcceptedBidding] = useState<any>(null);
   const [loadingAcceptedBidding, setLoadingAcceptedBidding] = useState(false);
   const [assignedFreelancer, setAssignedFreelancer] = useState<any>(null);
@@ -113,10 +120,12 @@ export default function ProjectReview() {
         const fetchedProject = await getProject(id, true);
         setProject(fetchedProject || null);
       } catch (error: any) {
-        console.error('Failed to load project:', error);
+        console.error("Failed to load project:", error);
         // Handle rate limit errors
         if (error.response?.status === 429) {
-          toast.error('Too many requests. Please wait a moment and refresh the page.');
+          toast.error(
+            "Too many requests. Please wait a moment and refresh the page."
+          );
         }
         // Fallback to local project if fetch fails
         const localProject = projects.find((p) => p.id === id);
@@ -137,10 +146,12 @@ export default function ProjectReview() {
         const logs = await getProjectActivityLogs(id);
         setActivityLogs(logs);
       } catch (error: any) {
-        console.error('Failed to load activity logs:', error);
+        console.error("Failed to load activity logs:", error);
         // Handle rate limit errors
         if (error.response?.status === 429) {
-          toast.error('Too many requests. Activity logs will load automatically when available.');
+          toast.error(
+            "Too many requests. Activity logs will load automatically when available."
+          );
         }
       } finally {
         setLoadingLogs(false);
@@ -160,10 +171,10 @@ export default function ProjectReview() {
     const loadAgents = async () => {
       try {
         const users = await userService.listUsers();
-        const agentUsers = users.filter((u) => u.role === 'agent');
+        const agentUsers = users.filter((u) => u.role === "agent");
         setAgents(agentUsers);
       } catch (error: any) {
-        console.error('Failed to load agents:', error);
+        console.error("Failed to load agents:", error);
       }
     };
     loadAgents();
@@ -184,20 +195,27 @@ export default function ProjectReview() {
         await Promise.all(
           bids.map(async (bid: Bid) => {
             try {
-              const biddingsResponse = await apiClient.get(API_CONFIG.BIDDING.GET_BY_ADMIN_BID(bid.id));
+              const biddingsResponse = await apiClient.get(
+                API_CONFIG.BIDDING.GET_BY_ADMIN_BID(bid.id)
+              );
               if (biddingsResponse.data.success && biddingsResponse.data.data) {
-                const biddings = Array.isArray(biddingsResponse.data.data) ? biddingsResponse.data.data : [];
+                const biddings = Array.isArray(biddingsResponse.data.data)
+                  ? biddingsResponse.data.data
+                  : [];
                 biddingsMap.set(bid.id, biddings);
               }
             } catch (error) {
-              console.error(`Failed to load biddings for bid ${bid.id}:`, error);
+              console.error(
+                `Failed to load biddings for bid ${bid.id}:`,
+                error
+              );
               biddingsMap.set(bid.id, []);
             }
           })
         );
         setBiddingsByBidId(biddingsMap);
       } catch (error: any) {
-        console.error('Failed to load bids:', error);
+        console.error("Failed to load bids:", error);
         setProjectBids([]);
       } finally {
         setLoadingBids(false);
@@ -239,13 +257,18 @@ export default function ProjectReview() {
           const bids = await bidService.getProjectBids(id);
           for (const bid of bids) {
             try {
-              const response = await apiClient.get(API_CONFIG.BIDDING.GET_BY_ADMIN_BID(bid.id));
+              const response = await apiClient.get(
+                API_CONFIG.BIDDING.GET_BY_ADMIN_BID(bid.id)
+              );
               if (response.data.success && response.data.data) {
-                const biddings = Array.isArray(response.data.data) ? response.data.data : [];
+                const biddings = Array.isArray(response.data.data)
+                  ? response.data.data
+                  : [];
                 const acceptedBid = biddings.find(
                   (b: any) =>
                     b.isAccepted === true &&
-                    (b.freelancerId?._id?.toString() === project.freelancer_id ||
+                    (b.freelancerId?._id?.toString() ===
+                      project.freelancer_id ||
                       b.freelancerId?.toString() === project.freelancer_id)
                 );
                 if (acceptedBid) {
@@ -254,12 +277,15 @@ export default function ProjectReview() {
                 }
               }
             } catch (error) {
-              console.error(`Failed to check biddings for bid ${bid.id}:`, error);
+              console.error(
+                `Failed to check biddings for bid ${bid.id}:`,
+                error
+              );
             }
           }
         }
       } catch (error: any) {
-        console.error('Failed to load accepted bidding:', error);
+        console.error("Failed to load accepted bidding:", error);
       } finally {
         setLoadingAcceptedBidding(false);
       }
@@ -279,7 +305,9 @@ export default function ProjectReview() {
       }
 
       // First check if freelancer is in local context
-      const localFreelancer = freelancers.find((f) => f.id === project.freelancer_id);
+      const localFreelancer = freelancers.find(
+        (f) => f.id === project.freelancer_id
+      );
       if (localFreelancer) {
         setAssignedFreelancer(localFreelancer);
         return;
@@ -290,15 +318,15 @@ export default function ProjectReview() {
         setAssignedFreelancer({
           id: project.freelancer_id,
           name: project.freelancer_name,
-          email: project.freelancer_email || '',
-          title: '',
+          email: project.freelancer_email || "",
+          title: "",
           rating: 0,
           total_reviews: 0,
-          bio: '',
+          bio: "",
           hourly_rate: 0,
-          availability: 'unknown',
+          availability: "unknown",
           skills: [],
-          member_since: new Date().toISOString()
+          member_since: new Date().toISOString(),
         });
         return;
       }
@@ -306,9 +334,10 @@ export default function ProjectReview() {
       // If not found locally and no populated data, try to fetch from backend
       setLoadingFreelancer(true);
       try {
-        const freelancerId = project.freelancer_id?.toString() || project.freelancer_id;
+        const freelancerId =
+          project.freelancer_id?.toString() || project.freelancer_id;
         if (!freelancerId) {
-          throw new Error('Invalid freelancer ID');
+          throw new Error("Invalid freelancer ID");
         }
 
         const freelancerData = await userService.getUserById(freelancerId);
@@ -318,33 +347,33 @@ export default function ProjectReview() {
           // Fallback: create minimal freelancer object with just ID
           setAssignedFreelancer({
             id: project.freelancer_id,
-            name: 'Assigned Freelancer',
-            email: '',
-            title: '',
+            name: "Assigned Freelancer",
+            email: "",
+            title: "",
             rating: 0,
             total_reviews: 0,
-            bio: '',
+            bio: "",
             hourly_rate: 0,
-            availability: 'unknown',
+            availability: "unknown",
             skills: [],
-            member_since: new Date().toISOString()
+            member_since: new Date().toISOString(),
           });
         }
       } catch (error: any) {
-        console.error('Failed to load assigned freelancer:', error);
+        console.error("Failed to load assigned freelancer:", error);
         // Fallback: create minimal freelancer object
         setAssignedFreelancer({
           id: project.freelancer_id,
-          name: 'Assigned Freelancer',
-          email: '',
-          title: '',
+          name: "Assigned Freelancer",
+          email: "",
+          title: "",
           rating: 0,
           total_reviews: 0,
-          bio: '',
+          bio: "",
           hourly_rate: 0,
-          availability: 'unknown',
+          availability: "unknown",
           skills: [],
-          member_since: new Date().toISOString()
+          member_since: new Date().toISOString(),
         });
       } finally {
         setLoadingFreelancer(false);
@@ -352,7 +381,12 @@ export default function ProjectReview() {
     };
 
     loadAssignedFreelancer();
-  }, [project?.freelancer_id, project?.freelancer_name, project?.freelancer_email, freelancers]);
+  }, [
+    project?.freelancer_id,
+    project?.freelancer_name,
+    project?.freelancer_email,
+    freelancers,
+  ]);
 
   const projectMilestones = project ? getMilestonesByProject(project.id) : [];
   const isSuperAdmin = user?.role === "superadmin";
@@ -370,6 +404,7 @@ export default function ProjectReview() {
   const [isAssignAgentDialogOpen, setIsAssignAgentDialogOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [isEditingAgent, setIsEditingAgent] = useState(false);
+  const [assignmentType, setAssignmentType] = useState<string>("assign_to_agent");
   const [isWithdrawBidDialogOpen, setIsWithdrawBidDialogOpen] = useState(false);
   const [bidToWithdraw, setBidToWithdraw] = useState<Bid | null>(null);
 
@@ -550,7 +585,10 @@ export default function ProjectReview() {
     return "";
   };
 
-  const validateMilestoneAmount = (amount: string, projectBudget?: number): string => {
+  const validateMilestoneAmount = (
+    amount: string,
+    projectBudget?: number
+  ): string => {
     if (!amount) {
       return "";
     }
@@ -595,7 +633,10 @@ export default function ProjectReview() {
   };
 
   // Helper function to update validation errors
-  const setFieldError = (field: keyof typeof validationErrors, error: string) => {
+  const setFieldError = (
+    field: keyof typeof validationErrors,
+    error: string
+  ) => {
     setValidationErrors((prev) => ({
       ...prev,
       [field]: error || undefined,
@@ -609,7 +650,9 @@ export default function ProjectReview() {
           <div className="text-center">
             <Loader2 className="size-12 text-blue-600 mx-auto mb-4 animate-spin" />
             <h2 className="text-2xl mb-2">Loading Project...</h2>
-            <p className="text-gray-600">Please wait while we fetch the project details</p>
+            <p className="text-gray-600">
+              Please wait while we fetch the project details
+            </p>
           </div>
         </div>
       </DashboardLayout>
@@ -623,7 +666,11 @@ export default function ProjectReview() {
           <div className="text-center">
             <AlertCircle className="size-12 text-gray-400 mx-auto mb-4" />
             <h2 className="text-2xl mb-2">Project Not Found</h2>
-            <Button onClick={() => navigate(isAgent ? "/agent/projects" : "/admin/projects")}>
+            <Button
+              onClick={() =>
+                navigate(isAgent ? "/agent/projects" : "/admin/projects")
+              }
+            >
               Back to Projects
             </Button>
           </div>
@@ -658,7 +705,7 @@ export default function ProjectReview() {
           const updatedProject = await getProject(id);
           setProject(updatedProject || project);
         } catch (error) {
-          console.error('Failed to reload project:', error);
+          console.error("Failed to reload project:", error);
         }
 
         // Reload activity logs after approval
@@ -666,12 +713,14 @@ export default function ProjectReview() {
           const logs = await getProjectActivityLogs(id);
           setActivityLogs(logs);
         } catch (error) {
-          console.error('Failed to reload activity logs:', error);
+          console.error("Failed to reload activity logs:", error);
         }
       }
     } catch (error: any) {
-      console.error('Failed to approve project:', error);
-      toast.error(error?.response?.data?.message || "Failed to approve project");
+      console.error("Failed to approve project:", error);
+      toast.error(
+        error?.response?.data?.message || "Failed to approve project"
+      );
     }
   };
 
@@ -699,12 +748,12 @@ export default function ProjectReview() {
           const logs = await getProjectActivityLogs(id);
           setActivityLogs(logs);
         } catch (error) {
-          console.error('Failed to reload activity logs:', error);
+          console.error("Failed to reload activity logs:", error);
         }
       }
       navigate(isAgent ? "/agent/projects" : "/admin/projects");
     } catch (error: any) {
-      console.error('Failed to reject project:', error);
+      console.error("Failed to reject project:", error);
       toast.error(error?.response?.data?.message || "Failed to reject project");
     }
   };
@@ -730,7 +779,9 @@ export default function ProjectReview() {
 
     // Extract weeks from timeline string or use default
     const weeksMatch = editedTimeline.match(/(\d+)\s*(?:week|weeks?)/i);
-    const durationWeeks = weeksMatch ? parseInt(weeksMatch[1]) : project.duration_weeks || 0;
+    const durationWeeks = weeksMatch
+      ? parseInt(weeksMatch[1])
+      : project.duration_weeks || 0;
 
     updateProject(project.id, {
       title: editedTitle,
@@ -756,31 +807,75 @@ export default function ProjectReview() {
   };
 
   const handleAssignAgent = async () => {
-    const agentError = validateAgentSelection(selectedAgentId);
-    setFieldError("selectedAgentId", agentError);
+    // Only validate agent selection if we're assigning to an agent
+    if (assignmentType === "assign_to_agent") {
+      const agentError = validateAgentSelection(selectedAgentId);
+      setFieldError("selectedAgentId", agentError);
 
-    if (agentError) {
-      toast.error("Please select an agent");
-      return;
+      if (agentError) {
+        toast.error("Please select an agent");
+        return;
+      }
     }
 
     try {
-      await updateProject(project.id, {
-        assigned_agent_id: selectedAgentId,
-      } as any);
-      toast.success("Agent assigned successfully!");
+      // Check assignment type from state
+      if (assignmentType === "assign_to_agent") {
+        // Check if project is currently in-house and needs to be moved out
+        if (project?.assignment_type === 'in_house') {
+          // Move from in-house to agent - remove from in-house first
+          const removeResponse = await apiClient.delete(`/in-house/by-project/${project.id}`);
+          
+          if (!removeResponse.data.success) {
+            throw new Error(removeResponse.data.message || 'Failed to remove project from in-house');
+          }
+          
+          // Then assign to agent
+          await updateProject(project.id, {
+            assigned_agent_id: selectedAgentId,
+            assignment_type: "agent",
+            status: "assigned",
+          } as any);
+          
+          toast.success("Project reassigned from in-house to agent successfully!");
+        } else {
+          // Regular agent assignment
+          await updateProject(project.id, {
+            assigned_agent_id: selectedAgentId,
+            assignment_type: "agent",
+            status: "assigned",
+          } as any);
+          toast.success("Agent assigned successfully!");
+        }
+      } else if (assignmentType === "move_to_in_house") {
+        // Move to in-house using new API
+        const response = await apiClient.post('/in-house/move', {
+          projectId: project.id,
+          notes: 'Moved to in-house from project review',
+          priority: 'medium'
+        });
+
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Failed to move project to in-house');
+        }
+
+        toast.success("Project moved to in-house successfully!");
+      }
+      
+      loadStatus(project.id);
       setIsAssignAgentDialogOpen(false);
       setSelectedAgentId("");
       setIsEditingAgent(false);
+      setAssignmentType("assign_to_agent");
       setFieldError("selectedAgentId", "");
-      // Reload project to get updated agent data
+      // Reload project to get updated data
       if (id) {
         const fetchedProject = await getProject(id);
         setProject(fetchedProject || null);
       }
     } catch (error: any) {
-      console.error('Failed to assign agent:', error);
-      toast.error(error?.response?.data?.message || "Failed to assign agent");
+      console.error("Failed to assign project:", error);
+      toast.error(error?.message || "Failed to assign project");
     }
   };
 
@@ -791,7 +886,7 @@ export default function ProjectReview() {
   };
 
   const handleWithdrawBid = () => {
-    const existingBid = projectBids.find(b => b.projectId === project?.id);
+    const existingBid = projectBids.find((b) => b.projectId === project?.id);
     if (existingBid) {
       setBidToWithdraw(existingBid);
       setIsWithdrawBidDialogOpen(true);
@@ -802,8 +897,13 @@ export default function ProjectReview() {
     if (!bidToWithdraw) return;
 
     try {
+      await updateProject(project.id, {
+        status: "closed",
+      } as any);
+      loadStatus(project.id);
       await bidService.deleteBid(bidToWithdraw.id, reason);
-      toast.success('Bid withdrawn successfully');
+      deleteBid(bidToWithdraw.id); // Update global DataContext
+      toast.success("Bid withdrawn successfully");
       setIsWithdrawBidDialogOpen(false);
       setBidToWithdraw(null);
       // Reload bids
@@ -812,8 +912,45 @@ export default function ProjectReview() {
         setProjectBids(Array.isArray(response) ? response : []);
       }
     } catch (error: any) {
-      console.error('Failed to withdraw bid:', error);
-      toast.error(error.message || 'Failed to withdraw bid');
+      console.error("Failed to withdraw bid:", error);
+      toast.error(error.message || "Failed to withdraw bid");
+    }
+  };
+  const loadStatus = (id: string) => {
+    // Force refresh from backend to get latest data (bypass cache)
+    // Small delay to ensure backend has processed the update
+    setTimeout(async () => {
+      try {
+        const refreshedProject = await getProject(id, true);
+        if (refreshedProject) {
+          setProject(refreshedProject);
+        }
+      } catch (error) {
+        console.error("Failed to refresh project after status update:", error);
+      }
+    }, 300);
+  };
+
+  const handleProjectStatusUpdate = async (newStatus: string) => {
+    if (!project || newStatus === project.status) return;
+
+    try {
+      // Update project status
+      await updateProject(project.id, { status: newStatus as any });
+      toast.success(
+        `Project status updated to ${
+          statusLabels[newStatus as keyof typeof statusLabels] || newStatus
+        }`
+      );
+
+      // Force refresh from backend to get latest data (bypass cache)
+      // Small delay to ensure backend has processed the update
+      loadStatus(project.id);
+    } catch (error: any) {
+      console.error("Failed to update project status:", error);
+      toast.error(
+        error?.response?.data?.message || "Failed to update project status"
+      );
     }
   };
 
@@ -824,11 +961,22 @@ export default function ProjectReview() {
     const titleError = validateMilestoneTitle(milestoneTitle);
     const startDateError = validateDate(milestoneStartDate, "Start date");
     const endDateError = validateDate(milestoneEndDate, "End date");
-    const dateRangeError = validateDateRange(milestoneStartDate, milestoneEndDate);
+    const dateRangeError = validateDateRange(
+      milestoneStartDate,
+      milestoneEndDate
+    );
     const descriptionError = validateMilestoneDescription(milestoneDescription);
-    const amountPercentError = validateMilestoneAmountPercent(milestoneAmountPercent);
-    const amountError = validateMilestoneAmount(milestoneAmount, project.client_budget);
-    const amountFieldsError = validateMilestoneAmountFields(milestoneAmountPercent, milestoneAmount);
+    const amountPercentError = validateMilestoneAmountPercent(
+      milestoneAmountPercent
+    );
+    const amountError = validateMilestoneAmount(
+      milestoneAmount,
+      project.client_budget
+    );
+    const amountFieldsError = validateMilestoneAmountFields(
+      milestoneAmountPercent,
+      milestoneAmount
+    );
 
     setValidationErrors({
       milestoneTitle: titleError,
@@ -839,7 +987,16 @@ export default function ProjectReview() {
       milestoneAmount: amountError || amountFieldsError,
     });
 
-    if (titleError || startDateError || endDateError || dateRangeError || descriptionError || amountPercentError || amountError || amountFieldsError) {
+    if (
+      titleError ||
+      startDateError ||
+      endDateError ||
+      dateRangeError ||
+      descriptionError ||
+      amountPercentError ||
+      amountError ||
+      amountFieldsError
+    ) {
       toast.error("Please fix the validation errors");
       return;
     }
@@ -901,11 +1058,23 @@ export default function ProjectReview() {
     // Validate all fields
     const titleError = validateMilestoneTitle(editMilestoneTitle);
     const endDateError = validateDate(editMilestoneEndDate, "End date");
-    const dateRangeError = editMilestoneStartDate ? validateDateRange(editMilestoneStartDate, editMilestoneEndDate) : "";
-    const descriptionError = validateMilestoneDescription(editMilestoneDescription);
-    const amountPercentError = validateMilestoneAmountPercent(editMilestoneAmountPercent);
-    const amountError = validateMilestoneAmount(editMilestoneAmount, project.client_budget);
-    const amountFieldsError = validateMilestoneAmountFields(editMilestoneAmountPercent, editMilestoneAmount);
+    const dateRangeError = editMilestoneStartDate
+      ? validateDateRange(editMilestoneStartDate, editMilestoneEndDate)
+      : "";
+    const descriptionError = validateMilestoneDescription(
+      editMilestoneDescription
+    );
+    const amountPercentError = validateMilestoneAmountPercent(
+      editMilestoneAmountPercent
+    );
+    const amountError = validateMilestoneAmount(
+      editMilestoneAmount,
+      project.client_budget
+    );
+    const amountFieldsError = validateMilestoneAmountFields(
+      editMilestoneAmountPercent,
+      editMilestoneAmount
+    );
 
     setValidationErrors({
       editMilestoneTitle: titleError,
@@ -915,7 +1084,15 @@ export default function ProjectReview() {
       editMilestoneAmount: amountError || amountFieldsError,
     });
 
-    if (titleError || endDateError || dateRangeError || descriptionError || amountPercentError || amountError || amountFieldsError) {
+    if (
+      titleError ||
+      endDateError ||
+      dateRangeError ||
+      descriptionError ||
+      amountPercentError ||
+      amountError ||
+      amountFieldsError
+    ) {
       toast.error("Please fix the validation errors");
       return;
     }
@@ -969,18 +1146,24 @@ export default function ProjectReview() {
     setIsDeleteMilestoneDialogOpen(true);
   };
 
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate(isAgent ? "/agent/projects" : "/admin/projects")}>
+            <Button
+              variant="ghost"
+              onClick={() =>
+                navigate(isAgent ? "/agent/projects" : "/admin/projects")
+              }
+            >
               <ArrowLeft className="size-4 mr-2" />
             </Button>
             <div>
-              <h1 className="text-3xl">{isAgent ? 'Project Details' : 'Project Review'}</h1>
+              <h1 className="text-3xl">
+                {isAgent ? "Project Details" : "Project Review"}
+              </h1>
               <p className="text-gray-600">Review and manage project details</p>
             </div>
           </div>
@@ -1057,13 +1240,20 @@ export default function ProjectReview() {
                           value={editedTitle}
                           onChange={(e) => {
                             setEditedTitle(e.target.value);
-                            setFieldError("editedTitle", validateTitle(e.target.value));
+                            setFieldError(
+                              "editedTitle",
+                              validateTitle(e.target.value)
+                            );
                           }}
                           placeholder="Enter project title"
-                          className={`text-2xl font-semibold ${validationErrors.editedTitle ? "border-red-500" : ""}`}
+                          className={`text-2xl font-semibold ${
+                            validationErrors.editedTitle ? "border-red-500" : ""
+                          }`}
                         />
                         {validationErrors.editedTitle && (
-                          <p className="text-sm text-red-500 mt-1">{validationErrors.editedTitle}</p>
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.editedTitle}
+                          </p>
                         )}
                       </div>
                     ) : (
@@ -1078,7 +1268,9 @@ export default function ProjectReview() {
                           setEditedDescription(project.description);
                           setEditedBudget(project.client_budget.toString());
                           setEditedTimeline(
-                            project.duration_weeks ? `${project.duration_weeks} weeks` : ""
+                            project.duration_weeks
+                              ? `${project.duration_weeks} weeks`
+                              : ""
                           );
                           setIsEditing(true);
                         }}
@@ -1098,19 +1290,28 @@ export default function ProjectReview() {
                             value={editedDescription}
                             onChange={(value) => {
                               setEditedDescription(value);
-                              setFieldError("editedDescription", validateDescription(value));
+                              setFieldError(
+                                "editedDescription",
+                                validateDescription(value)
+                              );
                             }}
                             placeholder="Describe the project..."
-                            className={`mt-2 ${validationErrors.editedDescription ? "border-red-500" : ""}`}
+                            className={`mt-2 ${
+                              validationErrors.editedDescription
+                                ? "border-red-500"
+                                : ""
+                            }`}
                             minHeight="200px"
                           />
                           {validationErrors.editedDescription && (
-                            <p className="text-sm text-red-500 mt-1">{validationErrors.editedDescription}</p>
+                            <p className="text-sm text-red-500 mt-1">
+                              {validationErrors.editedDescription}
+                            </p>
                           )}
                         </div>
                       ) : (
                         <div className="mt-2">
-                          <RichTextViewer content={project.description || ''} />
+                          <RichTextViewer content={project.description || ""} />
                         </div>
                       )}
                     </div>
@@ -1134,18 +1335,29 @@ export default function ProjectReview() {
                               value={editedTimeline}
                               onChange={(e) => {
                                 setEditedTimeline(e.target.value);
-                                setFieldError("editedTimeline", validateTimeline(e.target.value));
+                                setFieldError(
+                                  "editedTimeline",
+                                  validateTimeline(e.target.value)
+                                );
                               }}
                               placeholder="e.g., 2 weeks"
-                              className={`mt-1 ${validationErrors.editedTimeline ? "border-red-500" : ""}`}
+                              className={`mt-1 ${
+                                validationErrors.editedTimeline
+                                  ? "border-red-500"
+                                  : ""
+                              }`}
                             />
                             {validationErrors.editedTimeline && (
-                              <p className="text-sm text-red-500 mt-1">{validationErrors.editedTimeline}</p>
+                              <p className="text-sm text-red-500 mt-1">
+                                {validationErrors.editedTimeline}
+                              </p>
                             )}
                           </div>
                         ) : (
                           <p className="mt-1">
-                            {project.duration_weeks ? `${project.duration_weeks} weeks` : "N/A"}
+                            {project.duration_weeks
+                              ? `${project.duration_weeks} weeks`
+                              : "N/A"}
                           </p>
                         )}
                       </div>
@@ -1158,15 +1370,24 @@ export default function ProjectReview() {
                               value={editedBudget}
                               onChange={(e) => {
                                 setEditedBudget(e.target.value);
-                                setFieldError("editedBudget", validateBudget(e.target.value));
+                                setFieldError(
+                                  "editedBudget",
+                                  validateBudget(e.target.value)
+                                );
                               }}
                               placeholder="Enter budget"
-                              className={`mt-1 ${validationErrors.editedBudget ? "border-red-500" : ""}`}
+                              className={`mt-1 ${
+                                validationErrors.editedBudget
+                                  ? "border-red-500"
+                                  : ""
+                              }`}
                               min="0"
                               step="0.01"
                             />
                             {validationErrors.editedBudget && (
-                              <p className="text-sm text-red-500 mt-1">{validationErrors.editedBudget}</p>
+                              <p className="text-sm text-red-500 mt-1">
+                                {validationErrors.editedBudget}
+                              </p>
                             )}
                           </div>
                         ) : (
@@ -1195,18 +1416,21 @@ export default function ProjectReview() {
                       </div>
                     )}
 
-                    {project.skills_required && project.skills_required.length > 0 && (
-                      <div className="pt-4 border-t">
-                        <Label className="text-gray-600">Required Skills</Label>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {project.skills_required.map((skill, idx) => (
-                            <Badge key={idx} variant="outline">
-                              {skill}
-                            </Badge>
-                          ))}
+                    {project.skills_required &&
+                      project.skills_required.length > 0 && (
+                        <div className="pt-4 border-t">
+                          <Label className="text-gray-600">
+                            Required Skills
+                          </Label>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {project.skills_required.map((skill, idx) => (
+                              <Badge key={idx} variant="outline">
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
                 </Card>
 
@@ -1242,19 +1466,19 @@ export default function ProjectReview() {
                                     milestone.status === "paid"
                                       ? "default"
                                       : milestone.status === "approved"
-                                        ? "default"
-                                        : milestone.status === "submitted"
-                                          ? "secondary"
-                                          : "outline"
+                                      ? "default"
+                                      : milestone.status === "submitted"
+                                      ? "secondary"
+                                      : "outline"
                                   }
                                   className={
                                     milestone.status === "paid"
                                       ? "bg-green-100 text-green-800 border-green-200"
                                       : milestone.status === "approved"
-                                        ? "bg-blue-100 text-blue-800 border-blue-200"
-                                        : milestone.status === "submitted"
-                                          ? "bg-yellow-100 text-yellow-800 border-yellow-200"
-                                          : "bg-gray-100 text-gray-800 border-gray-200"
+                                      ? "bg-blue-100 text-blue-800 border-blue-200"
+                                      : milestone.status === "submitted"
+                                      ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                                      : "bg-gray-100 text-gray-800 border-gray-200"
                                   }
                                 >
                                   {milestone.status}
@@ -1343,7 +1567,7 @@ export default function ProjectReview() {
                       </div>
                       <div>
                         <Label className="text-gray-600">Email</Label>
-                        <p>{project.client_email || 'N/A'}</p>
+                        <p>{project.client_email || "N/A"}</p>
                       </div>
                     </div>
 
@@ -1353,7 +1577,7 @@ export default function ProjectReview() {
                       </div>
                       <div>
                         <Label className="text-gray-600">Phone</Label>
-                        <p>{project.client_phone || 'N/A'}</p>
+                        <p>{project.client_phone || "N/A"}</p>
                       </div>
                     </div>
 
@@ -1384,7 +1608,9 @@ export default function ProjectReview() {
                 {loadingFreelancer ? (
                   <Card className="p-6">
                     <div className="text-center py-8">
-                      <p className="text-gray-600">Loading freelancer details...</p>
+                      <p className="text-gray-600">
+                        Loading freelancer details...
+                      </p>
                     </div>
                   </Card>
                 ) : project.freelancer_id ? (
@@ -1397,41 +1623,47 @@ export default function ProjectReview() {
                             <div className="flex items-start justify-between mb-6">
                               <div className="flex items-center gap-4">
                                 <div className="size-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-medium">
-                                  {freelancer.name?.charAt(0)?.toUpperCase() || 'F'}
+                                  {freelancer.name?.charAt(0)?.toUpperCase() ||
+                                    "F"}
                                 </div>
                                 <div>
                                   <h2 className="text-2xl font-medium">
                                     {freelancer.name}
                                   </h2>
                                   <p className="text-gray-600">
-                                    {freelancer.title || 'Freelancer'}
+                                    {freelancer.title || "Freelancer"}
                                   </p>
-                                  {freelancer.rating !== undefined && freelancer.rating > 0 && (
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-yellow-500">⭐</span>
-                                      <span className="font-medium">
-                                        {freelancer.rating.toFixed(1)}
-                                      </span>
-                                      <span className="text-gray-500">
-                                        ({freelancer.total_reviews || 0} reviews)
-                                      </span>
-                                    </div>
-                                  )}
+                                  {freelancer.rating !== undefined &&
+                                    freelancer.rating > 0 && (
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-yellow-500">
+                                          ⭐
+                                        </span>
+                                        <span className="font-medium">
+                                          {freelancer.rating.toFixed(1)}
+                                        </span>
+                                        <span className="text-gray-500">
+                                          ({freelancer.total_reviews || 0}{" "}
+                                          reviews)
+                                        </span>
+                                      </div>
+                                    )}
                                 </div>
                               </div>
-                              {freelancer.availability && freelancer.availability !== 'unknown' && (
-                                <Badge
-                                  className={
-                                    freelancer.availability === "available"
-                                      ? "bg-green-100 text-green-700"
-                                      : freelancer.availability === "busy"
+                              {freelancer.availability &&
+                                freelancer.availability !== "unknown" && (
+                                  <Badge
+                                    className={
+                                      freelancer.availability === "available"
+                                        ? "bg-green-100 text-green-700"
+                                        : freelancer.availability === "busy"
                                         ? "bg-yellow-100 text-yellow-700"
                                         : "bg-gray-100 text-gray-700"
-                                  }
-                                >
-                                  {freelancer.availability}
-                                </Badge>
-                              )}
+                                    }
+                                  >
+                                    {freelancer.availability}
+                                  </Badge>
+                                )}
                             </div>
 
                             <div className="space-y-4 pt-4 border-t">
@@ -1449,21 +1681,24 @@ export default function ProjectReview() {
                                 <div>
                                   <Label className="text-gray-600">Bio</Label>
                                   <div className="mt-1">
-                                    <RichTextViewer content={freelancer.bio || ''} />
+                                    <RichTextViewer
+                                      content={freelancer.bio || ""}
+                                    />
                                   </div>
                                 </div>
                               )}
 
-                              {freelancer.hourly_rate && freelancer.hourly_rate > 0 && (
-                                <div>
-                                  <Label className="text-gray-600">
-                                    Hourly Rate
-                                  </Label>
-                                  <p className="mt-1 font-medium">
-                                    ₹{freelancer.hourly_rate}/hour
-                                  </p>
-                                </div>
-                              )}
+                              {freelancer.hourly_rate &&
+                                freelancer.hourly_rate > 0 && (
+                                  <div>
+                                    <Label className="text-gray-600">
+                                      Hourly Rate
+                                    </Label>
+                                    <p className="mt-1 font-medium">
+                                      ₹{freelancer.hourly_rate}/hour
+                                    </p>
+                                  </div>
+                                )}
 
                               {freelancer.skills &&
                                 freelancer.skills.length > 0 && (
@@ -1500,38 +1735,60 @@ export default function ProjectReview() {
                           {loadingAcceptedBidding ? (
                             <Card className="p-6">
                               <div className="text-center py-4">
-                                <p className="text-gray-600">Loading proposal details...</p>
+                                <p className="text-gray-600">
+                                  Loading proposal details...
+                                </p>
                               </div>
                             </Card>
                           ) : acceptedBidding ? (
                             <Card className="p-6">
-                              <h3 className="text-lg font-medium mb-4">Accepted Proposal</h3>
+                              <h3 className="text-lg font-medium mb-4">
+                                Accepted Proposal
+                              </h3>
                               <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <Label className="text-gray-600">Bid Amount</Label>
+                                    <Label className="text-gray-600">
+                                      Bid Amount
+                                    </Label>
                                     <p className="text-xl font-semibold mt-1">
-                                      ₹{acceptedBidding.bidAmount?.toLocaleString() || 'N/A'}
+                                      ₹
+                                      {acceptedBidding.bidAmount?.toLocaleString() ||
+                                        "N/A"}
                                     </p>
                                   </div>
                                   <div>
-                                    <Label className="text-gray-600">Timeline</Label>
+                                    <Label className="text-gray-600">
+                                      Timeline
+                                    </Label>
                                     <p className="text-xl font-semibold mt-1">
-                                      {acceptedBidding.timeline || 'N/A'}
+                                      {acceptedBidding.timeline || "N/A"}
                                     </p>
                                   </div>
                                 </div>
                                 <div>
-                                  <Label className="text-gray-600">Proposal</Label>
+                                  <Label className="text-gray-600">
+                                    Proposal
+                                  </Label>
                                   <div className="mt-2">
-                                    <RichTextViewer content={acceptedBidding.proposal || acceptedBidding.description || 'No proposal provided.'} />
+                                    <RichTextViewer
+                                      content={
+                                        acceptedBidding.proposal ||
+                                        acceptedBidding.description ||
+                                        "No proposal provided."
+                                      }
+                                    />
                                   </div>
                                 </div>
                                 {acceptedBidding.submittedAt && (
                                   <div>
-                                    <Label className="text-gray-600">Submitted On</Label>
+                                    <Label className="text-gray-600">
+                                      Submitted On
+                                    </Label>
                                     <p className="mt-1">
-                                      {new Date(acceptedBidding.submittedAt).toLocaleString()}
+                                      {new Date(
+                                        acceptedBidding.submittedAt
+                                      ).toLocaleString()}
                                     </p>
                                   </div>
                                 )}
@@ -1544,45 +1801,47 @@ export default function ProjectReview() {
                               <Card className="p-6">
                                 <h3 className="font-medium mb-4">Portfolio</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {(freelancer as any).portfolio.map((item: any, idx: number) => (
-                                    <div
-                                      key={idx}
-                                      className="border rounded-lg p-4"
-                                    >
-                                      <h4 className="font-medium mb-2">
-                                        {item.title}
-                                      </h4>
-                                      <p className="text-sm text-gray-600 mb-2">
-                                        {item.description}
-                                      </p>
-                                      {item.technologies &&
-                                        item.technologies.length > 0 && (
-                                          <div className="flex flex-wrap gap-1 mt-2">
-                                            {item.technologies.map(
-                                              (tech, techIdx) => (
-                                                <Badge
-                                                  key={techIdx}
-                                                  variant="secondary"
-                                                  className="text-xs"
-                                                >
-                                                  {tech}
-                                                </Badge>
-                                              )
-                                            )}
-                                          </div>
+                                  {(freelancer as any).portfolio.map(
+                                    (item: any, idx: number) => (
+                                      <div
+                                        key={idx}
+                                        className="border rounded-lg p-4"
+                                      >
+                                        <h4 className="font-medium mb-2">
+                                          {item.title}
+                                        </h4>
+                                        <p className="text-sm text-gray-600 mb-2">
+                                          {item.description}
+                                        </p>
+                                        {item.technologies &&
+                                          item.technologies.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-2">
+                                              {item.technologies.map(
+                                                (tech, techIdx) => (
+                                                  <Badge
+                                                    key={techIdx}
+                                                    variant="secondary"
+                                                    className="text-xs"
+                                                  >
+                                                    {tech}
+                                                  </Badge>
+                                                )
+                                              )}
+                                            </div>
+                                          )}
+                                        {item.url && (
+                                          <a
+                                            href={item.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:text-blue-700 text-sm mt-2 inline-block"
+                                          >
+                                            View Project →
+                                          </a>
                                         )}
-                                      {item.url && (
-                                        <a
-                                          href={item.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-blue-600 hover:text-blue-700 text-sm mt-2 inline-block"
-                                        >
-                                          View Project →
-                                        </a>
-                                      )}
-                                    </div>
-                                  ))}
+                                      </div>
+                                    )
+                                  )}
                                 </div>
                               </Card>
                             )}
@@ -1594,20 +1853,26 @@ export default function ProjectReview() {
                                   Certifications
                                 </h3>
                                 <div className="space-y-3">
-                                  {(freelancer as any).certifications.map((cert: any, idx: number) => (
-                                    <div
-                                      key={idx}
-                                      className="flex items-center justify-between border-b pb-3 last:border-0"
-                                    >
-                                      <div>
-                                        <p className="font-medium">{cert.name}</p>
-                                        <p className="text-sm text-gray-600">
-                                          {cert.issuer}
-                                        </p>
+                                  {(freelancer as any).certifications.map(
+                                    (cert: any, idx: number) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center justify-between border-b pb-3 last:border-0"
+                                      >
+                                        <div>
+                                          <p className="font-medium">
+                                            {cert.name}
+                                          </p>
+                                          <p className="text-sm text-gray-600">
+                                            {cert.issuer}
+                                          </p>
+                                        </div>
+                                        <Badge variant="outline">
+                                          {cert.year}
+                                        </Badge>
                                       </div>
-                                      <Badge variant="outline">{cert.year}</Badge>
-                                    </div>
-                                  ))}
+                                    )
+                                  )}
                                 </div>
                               </Card>
                             )}
@@ -1643,7 +1908,8 @@ export default function ProjectReview() {
                           Freelancer Not Found
                         </h3>
                         <p className="text-gray-600">
-                          Freelancer with ID {project.freelancer_id} could not be found.
+                          Freelancer with ID {project.freelancer_id} could not
+                          be found.
                         </p>
                       </div>
                     </Card>
@@ -1661,7 +1927,11 @@ export default function ProjectReview() {
                       {project.status === "in_bidding" && (
                         <Button
                           onClick={() =>
-                            navigate(isAgent ? `/agent/projects/${project.id}/bids` : `/admin/projects/${project.id}/bids`)
+                            navigate(
+                              isAgent
+                                ? `/agent/projects/${project.id}/bids`
+                                : `/admin/projects/${project.id}/bids`
+                            )
                           }
                         >
                           View Bids
@@ -1692,7 +1962,11 @@ export default function ProjectReview() {
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            navigate(isAgent ? `/agent/projects/${project.id}/bids` : `/admin/projects/${project.id}/bids`)
+                            navigate(
+                              isAgent
+                                ? `/agent/projects/${project.id}/bids`
+                                : `/admin/projects/${project.id}/bids`
+                            )
                           }
                         >
                           <Eye className="size-4 mr-2" />
@@ -1739,11 +2013,13 @@ export default function ProjectReview() {
                                           <div className="flex items-center gap-1">
                                             <Star className="size-3 text-yellow-500 fill-yellow-500" />
                                             <span className="text-sm text-gray-600">
-                                              {freelancer.rating?.toFixed(1) || 'N/A'}
+                                              {freelancer.rating?.toFixed(1) ||
+                                                "N/A"}
                                             </span>
                                           </div>
                                           <span className="text-sm text-gray-500">
-                                            ({freelancer.total_reviews || 0} reviews)
+                                            ({freelancer.total_reviews || 0}{" "}
+                                            reviews)
                                           </span>
                                         </div>
                                       )}
@@ -1761,14 +2037,16 @@ export default function ProjectReview() {
                                         Bid Amount
                                       </Label>
                                       <p className="text-xl font-medium mt-1">
-                                        ₹{bid.bidAmount?.toLocaleString() || '0'}
+                                        ₹
+                                        {bid.bidAmount?.toLocaleString() || "0"}
                                       </p>
                                       {project && project.budget && (
                                         <p className="text-xs text-gray-500 mt-1">
                                           {(
                                             (bid.bidAmount / project.budget) *
                                             100
-                                          ).toFixed(1)}% of budget
+                                          ).toFixed(1)}
+                                          % of budget
                                         </p>
                                       )}
                                     </div>
@@ -1798,7 +2076,8 @@ export default function ProjectReview() {
                                                 bid.bidAmount) /
                                                 project.budget) *
                                               100
-                                            ).toFixed(1)}% margin
+                                            ).toFixed(1)}
+                                            % margin
                                           </p>
                                         </>
                                       )}
@@ -1811,7 +2090,9 @@ export default function ProjectReview() {
                                         Description
                                       </Label>
                                       <p className="text-sm text-gray-700 mt-2 line-clamp-3">
-                                        <RichTextViewer content={bid.description} />
+                                        <RichTextViewer
+                                          content={bid.description}
+                                        />
                                       </p>
                                     </div>
                                   )}
@@ -1829,78 +2110,125 @@ export default function ProjectReview() {
                                   )}
 
                                   {/* Freelancer Proposals Section */}
-                                  {biddingsByBidId.has(bid.id) && biddingsByBidId.get(bid.id)!.length > 0 && (
-                                    <div className="mt-4 pt-4 border-t">
-                                      <div className="flex items-center justify-between mb-3">
-                                        <Label className="text-gray-600">
-                                          Freelancer Proposals ({biddingsByBidId.get(bid.id)!.length})
-                                        </Label>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          asChild
-                                        >
-                                          <Link to={`/admin/bids/${bid.id}`}>
-                                            <Eye className="size-4 mr-2" />
-                                            View All Proposals
-                                          </Link>
-                                        </Button>
-                                      </div>
-                                      <div className="space-y-2">
-                                        {biddingsByBidId.get(bid.id)!.slice(0, 3).map((bidding: any) => {
-                                          const freelancerId = bidding.freelancerId?._id || bidding.freelancerId;
-                                          const freelancerName = bidding.freelancerId?.name || 'Unknown Freelancer';
+                                  {biddingsByBidId.has(bid.id) &&
+                                    biddingsByBidId.get(bid.id)!.length > 0 && (
+                                      <div className="mt-4 pt-4 border-t">
+                                        <div className="flex items-center justify-between mb-3">
+                                          <Label className="text-gray-600">
+                                            Freelancer Proposals (
+                                            {
+                                              biddingsByBidId.get(bid.id)!
+                                                .length
+                                            }
+                                            )
+                                          </Label>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            asChild
+                                          >
+                                            <Link to={`/admin/bids/${bid.id}`}>
+                                              <Eye className="size-4 mr-2" />
+                                              View All Proposals
+                                            </Link>
+                                          </Button>
+                                        </div>
+                                        <div className="space-y-2">
+                                          {biddingsByBidId
+                                            .get(bid.id)!
+                                            .slice(0, 3)
+                                            .map((bidding: any) => {
+                                              const freelancerId =
+                                                bidding.freelancerId?._id ||
+                                                bidding.freelancerId;
+                                              const freelancerName =
+                                                bidding.freelancerId?.name ||
+                                                "Unknown Freelancer";
 
-                                          return (
-                                            <div key={bidding._id || bidding.id} className="p-3 bg-gray-50 rounded-lg border">
-                                              <div className="flex items-center justify-between">
-                                                <div className="flex-1">
-                                                  <div className="flex items-center gap-2">
-                                                    <span className="font-medium text-sm">{freelancerName}</span>
-                                                    <Badge className={getStatusColor(bidding.status)}>
-                                                      {bidding.status}
-                                                    </Badge>
-                                                  </div>
-                                                  <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
-                                                    <span>₹{bidding.bidAmount?.toLocaleString() || '0'}</span>
-                                                    {bidding.timeline && (
-                                                      <span>
-                                                        <Clock className="size-3 inline mr-1" />
-                                                        {bidding.timeline}
-                                                      </span>
-                                                    )}
+                                              return (
+                                                <div
+                                                  key={
+                                                    bidding._id || bidding.id
+                                                  }
+                                                  className="p-3 bg-gray-50 rounded-lg border"
+                                                >
+                                                  <div className="flex items-center justify-between">
+                                                    <div className="flex-1">
+                                                      <div className="flex items-center gap-2">
+                                                        <span className="font-medium text-sm">
+                                                          {freelancerName}
+                                                        </span>
+                                                        <Badge
+                                                          className={getStatusColor(
+                                                            bidding.status
+                                                          )}
+                                                        >
+                                                          {bidding.status}
+                                                        </Badge>
+                                                      </div>
+                                                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
+                                                        <span>
+                                                          ₹
+                                                          {bidding.bidAmount?.toLocaleString() ||
+                                                            "0"}
+                                                        </span>
+                                                        {bidding.timeline && (
+                                                          <span>
+                                                            <Clock className="size-3 inline mr-1" />
+                                                            {bidding.timeline}
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                    <Button
+                                                      variant="outline"
+                                                      size="sm"
+                                                      asChild
+                                                    >
+                                                      <Link
+                                                        to={`/admin/bids/${
+                                                          bid.id
+                                                        }/proposal?biddingId=${
+                                                          bidding._id ||
+                                                          bidding.id
+                                                        }`}
+                                                      >
+                                                        <Eye className="size-3 mr-1" />
+                                                        View
+                                                      </Link>
+                                                    </Button>
                                                   </div>
                                                 </div>
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  asChild
+                                              );
+                                            })}
+                                          {biddingsByBidId.get(bid.id)!.length >
+                                            3 && (
+                                            <div className="text-center pt-2">
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                asChild
+                                              >
+                                                <Link
+                                                  to={`/admin/bids/${bid.id}`}
                                                 >
-                                                  <Link to={`/admin/bids/${bid.id}/proposal?biddingId=${bidding._id || bidding.id}`}>
-                                                    <Eye className="size-3 mr-1" />
-                                                    View
-                                                  </Link>
-                                                </Button>
-                                              </div>
+                                                  View{" "}
+                                                  {biddingsByBidId.get(bid.id)!
+                                                    .length - 3}{" "}
+                                                  more proposal
+                                                  {biddingsByBidId.get(bid.id)!
+                                                    .length -
+                                                    3 !==
+                                                  1
+                                                    ? "s"
+                                                    : ""}
+                                                </Link>
+                                              </Button>
                                             </div>
-                                          );
-                                        })}
-                                        {biddingsByBidId.get(bid.id)!.length > 3 && (
-                                          <div className="text-center pt-2">
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              asChild
-                                            >
-                                              <Link to={`/admin/bids/${bid.id}`}>
-                                                View {biddingsByBidId.get(bid.id)!.length - 3} more proposal{biddingsByBidId.get(bid.id)!.length - 3 !== 1 ? 's' : ''}
-                                              </Link>
-                                            </Button>
-                                          </div>
-                                        )}
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )}
                                 </div>
                               </div>
                             </Card>
@@ -1913,29 +2241,39 @@ export default function ProjectReview() {
                   <Card className="p-6">
                     <div className="text-center py-12">
                       <Award className="size-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium mb-2">
-                        No Bids Yet
-                      </h3>
+                      <h3 className="text-lg font-medium mb-2">No Bids Yet</h3>
                       <p className="text-gray-600 mb-4">
                         This project doesn't have any bids submitted yet.
                       </p>
-                      {project.status === "in_bidding" && (() => {
-                        const existingBid = projectBids.find(b => b.projectId === project?.id);
-                        const bidCreatedByAdminOrSuperadmin = existingBid && (existingBid.bidder?.role === 'admin' || existingBid.bidder?.role === 'superadmin');
-                        const bidCreatedByAgent = existingBid && existingBid.bidderId === user?.id;
-                        const shouldHideAddBid = bidCreatedByAdminOrSuperadmin || bidCreatedByAgent;
+                      {project.status === "in_bidding" &&
+                        (() => {
+                          const existingBid = projectBids.find(
+                            (b) => b.projectId === project?.id
+                          );
+                          const bidCreatedByAdminOrSuperadmin =
+                            existingBid &&
+                            (existingBid.bidder?.role === "admin" ||
+                              existingBid.bidder?.role === "superadmin");
+                          const bidCreatedByAgent =
+                            existingBid && existingBid.bidderId === user?.id;
+                          const shouldHideAddBid =
+                            bidCreatedByAdminOrSuperadmin || bidCreatedByAgent;
 
-                        return !shouldHideAddBid ? (
-                          <Button
-                            onClick={() =>
-                              navigate(isAgent ? `/agent/projects/${project.id}/create-bid` : `/admin/projects/${project.id}/create-bid`)
-                            }
-                          >
-                            <Award className="size-4 mr-2" />
-                            Create Bid
-                          </Button>
-                        ) : null;
-                      })()}
+                          return !shouldHideAddBid ? (
+                            <Button
+                              onClick={() =>
+                                navigate(
+                                  isAgent
+                                    ? `/agent/projects/${project.id}/create-bid`
+                                    : `/admin/projects/${project.id}/create-bid`
+                                )
+                              }
+                            >
+                              <Award className="size-4 mr-2" />
+                              Create Bid
+                            </Button>
+                          ) : null;
+                        })()}
                     </div>
                   </Card>
                 )}
@@ -1951,39 +2289,26 @@ export default function ProjectReview() {
                 {/* Project Status Update - Only for admin, agent, and superadmin */}
                 {(isAdmin || isAgent) && project && (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Project Status</Label>
+                    <Label className="text-sm font-medium">
+                      Project Status
+                    </Label>
                     <Select
                       value={project.status}
-                      onValueChange={async (newStatus) => {
-                        if (newStatus === project.status) return;
-                        try {
-                          // Update project status
-                          await updateProject(project.id, { status: newStatus as any });
-                          toast.success(`Project status updated to ${statusLabels[newStatus as keyof typeof statusLabels] || newStatus}`);
-
-                          // Force refresh from backend to get latest data (bypass cache)
-                          // Small delay to ensure backend has processed the update
-                          setTimeout(async () => {
-                            try {
-                              const refreshedProject = await getProject(project.id, true);
-                              if (refreshedProject) {
-                                setProject(refreshedProject);
-                              }
-                            } catch (error) {
-                              console.error('Failed to refresh project after status update:', error);
-                            }
-                          }, 300);
-                        } catch (error: any) {
-                          console.error('Failed to update project status:', error);
-                          toast.error(error?.response?.data?.message || 'Failed to update project status');
-                        }
-                      }}
+                      onValueChange={handleProjectStatusUpdate}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue>
                           <div className="flex items-center gap-2">
-                            <span className={`px-2 py-1 rounded text-xs ${statusColors[project.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-700'}`}>
-                              {statusLabels[project.status as keyof typeof statusLabels] || project.status}
+                            <span
+                              className={`px-2 py-1 rounded text-xs ${
+                                statusColors[
+                                  project.status as keyof typeof statusColors
+                                ] || "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {statusLabels[
+                                project.status as keyof typeof statusLabels
+                              ] || project.status}
                             </span>
                           </div>
                         </SelectValue>
@@ -1992,7 +2317,13 @@ export default function ProjectReview() {
                         {Object.entries(statusLabels).map(([value, label]) => (
                           <SelectItem key={value} value={value}>
                             <div className="flex items-center gap-2">
-                              <span className={`px-2 py-1 rounded text-xs ${statusColors[value as keyof typeof statusColors] || 'bg-gray-100 text-gray-700'}`}>
+                              <span
+                                className={`px-2 py-1 rounded text-xs ${
+                                  statusColors[
+                                    value as keyof typeof statusColors
+                                  ] || "bg-gray-100 text-gray-700"
+                                }`}
+                              >
                                 {label}
                               </span>
                             </div>
@@ -2004,22 +2335,50 @@ export default function ProjectReview() {
                 )}
                 {/* Hide "Add Bids" button if project already has a bid created by admin/superadmin or the agent themselves */}
                 {(() => {
-                  const existingBid = projectBids.find(b => b.projectId === project?.id);
-                  const bidCreatedByAdminOrSuperadmin = existingBid && (existingBid.bidder?.role === 'admin' || existingBid.bidder?.role === 'superadmin');
-                  const bidCreatedByAgent = existingBid && existingBid.bidderId === user?.id;
-                  const shouldHideAddBid = bidCreatedByAdminOrSuperadmin || bidCreatedByAgent;
+                  const existingBid = projectBids.find(
+                    (b) => b.projectId === project?.id
+                  );
+                  const projectStatus = project?.status;
 
-                  return !shouldHideAddBid ? (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => navigate(isAgent ? `/agent/projects/${project.id}/create-bid` : `/admin/projects/${project.id}/create-bid`)}
-                    >
-                      <Users className="size-4 mr-2" />
-                      Add Bids
-                    </Button>
-                  ) : null;
+                  // Show Withdraw Bids for admin/superadmin if bid exists, otherwise show Add Bids
+
+                  // Show Add Bids only if no bid exists and project is closed (after withdrawal)
+                  if (!existingBid && projectStatus === "closed") {
+                    return (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() =>
+                          navigate(
+                            isAgent
+                              ? `/agent/projects/${project.id}/create-bid`
+                              : `/admin/projects/${project.id}/create-bid`
+                          )
+                        }
+                      >
+                        <Users className="size-4 mr-2" />
+                        Add Bids
+                      </Button>
+                    );
+                  }
+                  
+                  // Show Withdraw Bids if bid exists
+                  if (existingBid) {
+                    return (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={handleWithdrawBid}
+                      >
+                        <Trash2 className="size-4 mr-2" />
+                        Withdraw Bids
+                      </Button>
+                    );
+                  }
+                  
+                  return null;
                 })()}
+
                 <Button
                   variant="outline"
                   className="w-full justify-start"
@@ -2028,90 +2387,121 @@ export default function ProjectReview() {
                   <Target className="size-4 mr-2" />
                   Add Milestone
                 </Button>
-                {/* Withdraw Bids - Only show for admin/superadmin if bid exists */}
-                {isAdmin && (() => {
-                  const existingBid = projectBids.find(b => b.projectId === project?.id);
-                  return existingBid ? (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={handleWithdrawBid}
-                    >
-                      <Trash2 className="size-4 mr-2" />
-                      Withdraw Bids
-                    </Button>
-                  ) : null;
-                })()}
-                {/* Assign to Agent - Only show for admin/superadmin */}
+                {/* Assignment Status - Only show for admin/superadmin */}
                 {!isAgent && (
-                  !project?.assigned_agent_id ? (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => setIsAssignAgentDialogOpen(true)}
-                    >
-                      <User className="size-4 mr-2" />
-                      Assign to Agent
-                    </Button>
-                  ) : (
-                    <div className="space-y-2 p-3 bg-gray-50 rounded-lg border">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <User className="size-4 text-gray-600" />
-                          <span className="text-sm font-medium">Assigned Agent</span>
+                  <>
+                    {(!project?.assigned_agent_id && project?.assignment_type !== 'in_house') ? (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => setIsAssignAgentDialogOpen(true)}
+                      >
+                        <User className="size-4 mr-2" />
+                        Assign to Agent
+                      </Button>
+                    ) : (
+                      <div className="space-y-2 p-3 bg-gray-50 rounded-lg border">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {project?.assignment_type === 'in_house' ? (
+                              <>
+                                <Home className="size-4 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-600">
+                                  In-House Project
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <User className="size-4 text-gray-600" />
+                                <span className="text-sm font-medium">
+                                  Assigned Agent
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleEditAgent}
+                          >
+                            <Edit className="size-3" />
+                          </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleEditAgent}
-                        >
-                          <Edit className="size-3" />
-                        </Button>
-                      </div>
-                      {(() => {
-                        const assignedAgent = agents.find(a => a.id === project.assigned_agent_id);
-                        return assignedAgent ? (
+                        {project?.assignment_type === 'in_house' ? (
                           <div className="space-y-1 text-sm">
-                            <p className="font-medium">{assignedAgent.name}</p>
-                            <p className="text-gray-600">ID: {assignedAgent.userID || 'N/A'}</p>
-                            <p className="text-gray-600">{assignedAgent.email}</p>
+                            <p className="text-gray-600">Project is currently in-house</p>
+                            <p className="text-xs text-gray-500">
+                              Can be reassigned to an agent
+                            </p>
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-500">Loading agent details...</p>
-                        );
-                      })()}
-                    </div>
-                  )
+                          (() => {
+                            const assignedAgent = agents.find(
+                              (a) => a.id === project.assigned_agent_id
+                            );
+                            return assignedAgent ? (
+                              <div className="space-y-1 text-sm">
+                                <p className="font-medium">{assignedAgent.name}</p>
+                                <p className="text-gray-600">
+                                  ID: {assignedAgent.userID || "N/A"}
+                                </p>
+                                <p className="text-gray-600">
+                                  {assignedAgent.email}
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500">
+                                Loading agent details...
+                              </p>
+                            );
+                          })()
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
                 {/* Show Agent Name for Agents (read-only) */}
                 {isAgent && project?.assigned_agent_id && (
                   <div className="space-y-2 p-3 bg-gray-50 rounded-lg border">
                     <div className="flex items-center gap-2">
                       <User className="size-4 text-gray-600" />
-                      <span className="text-sm font-medium">Assigned Agent</span>
+                      <span className="text-sm font-medium">
+                        Assigned Agent
+                      </span>
                     </div>
                     {(() => {
                       // For agents, show their own info if they're assigned
-                      const assignedAgent = agents.find(a => a.id === project.assigned_agent_id) ||
-                        (user?.id === project.assigned_agent_id && isAgent ? {
-                          name: user.name,
-                          userID: user.userID,
-                          email: user.email
-                        } : null);
+                      const assignedAgent =
+                        agents.find(
+                          (a) => a.id === project.assigned_agent_id
+                        ) ||
+                        (user?.id === project.assigned_agent_id && isAgent
+                          ? {
+                              name: user.name,
+                              userID: user.userID,
+                              email: user.email,
+                            }
+                          : null);
                       return assignedAgent ? (
                         <div className="space-y-1 text-sm">
                           <p className="font-medium">{assignedAgent.name}</p>
-                          <p className="text-gray-600">ID: {assignedAgent.userID || 'N/A'}</p>
+                          <p className="text-gray-600">
+                            ID: {assignedAgent.userID || "N/A"}
+                          </p>
                           <p className="text-gray-600">{assignedAgent.email}</p>
                         </div>
                       ) : isAgent && user ? (
                         <div className="space-y-1 text-sm">
                           <p className="font-medium">{user.name}</p>
-                          <p className="text-gray-600">ID: {user.userID || 'N/A'}</p>
+                          <p className="text-gray-600">
+                            ID: {user.userID || "N/A"}
+                          </p>
                           <p className="text-gray-600">{user.email}</p>
                         </div>
                       ) : (
-                        <p className="text-sm text-gray-500">Loading agent details...</p>
+                        <p className="text-sm text-gray-500">
+                          Loading agent details...
+                        </p>
                       );
                     })()}
                   </div>
@@ -2147,7 +2537,6 @@ export default function ProjectReview() {
           validationError={validationErrors.rejectionReason}
         />
 
-
         {/* Add Milestone Dialog */}
         <AddMilestoneDialog
           isOpen={isAddMilestoneDialogOpen}
@@ -2180,9 +2569,15 @@ export default function ProjectReview() {
           startDate={milestoneStartDate}
           onStartDateChange={(value) => {
             setMilestoneStartDate(value);
-            setFieldError("milestoneStartDate", validateDate(value, "Start date"));
+            setFieldError(
+              "milestoneStartDate",
+              validateDate(value, "Start date")
+            );
             if (milestoneEndDate) {
-              setFieldError("milestoneEndDate", validateDateRange(value, milestoneEndDate));
+              setFieldError(
+                "milestoneEndDate",
+                validateDateRange(value, milestoneEndDate)
+              );
             }
           }}
           endDate={milestoneEndDate}
@@ -2190,41 +2585,66 @@ export default function ProjectReview() {
             setMilestoneEndDate(value);
             setFieldError("milestoneEndDate", validateDate(value, "End date"));
             if (milestoneStartDate) {
-              setFieldError("milestoneEndDate", validateDateRange(milestoneStartDate, value));
+              setFieldError(
+                "milestoneEndDate",
+                validateDateRange(milestoneStartDate, value)
+              );
             }
           }}
           amountPercent={milestoneAmountPercent}
           onAmountPercentChange={(value) => {
-            if (value === "" || (parseFloat(value) >= 0 && parseFloat(value) <= 100)) {
+            if (
+              value === "" ||
+              (parseFloat(value) >= 0 && parseFloat(value) <= 100)
+            ) {
               setMilestoneAmountPercent(value);
               if (value && project) {
                 setMilestoneAmount("");
                 setFieldError("milestoneAmount", "");
               }
-              setFieldError("milestoneAmountPercent", validateMilestoneAmountPercent(value));
+              setFieldError(
+                "milestoneAmountPercent",
+                validateMilestoneAmountPercent(value)
+              );
               if (!value && !milestoneAmount) {
-                setFieldError("milestoneAmountPercent", validateMilestoneAmountFields(value, milestoneAmount));
+                setFieldError(
+                  "milestoneAmountPercent",
+                  validateMilestoneAmountFields(value, milestoneAmount)
+                );
               }
             }
           }}
           amount={milestoneAmount}
           onAmountChange={(value) => {
-            if (value === "" || (parseFloat(value) >= 0 && (!project || parseFloat(value) <= project.client_budget))) {
+            if (
+              value === "" ||
+              (parseFloat(value) >= 0 &&
+                (!project || parseFloat(value) <= project.client_budget))
+            ) {
               setMilestoneAmount(value);
               if (value) {
                 setMilestoneAmountPercent("");
                 setFieldError("milestoneAmountPercent", "");
               }
-              setFieldError("milestoneAmount", validateMilestoneAmount(value, project?.client_budget));
+              setFieldError(
+                "milestoneAmount",
+                validateMilestoneAmount(value, project?.client_budget)
+              );
               if (!value && !milestoneAmountPercent) {
-                setFieldError("milestoneAmount", validateMilestoneAmountFields(milestoneAmountPercent, value));
+                setFieldError(
+                  "milestoneAmount",
+                  validateMilestoneAmountFields(milestoneAmountPercent, value)
+                );
               }
             }
           }}
           description={milestoneDescription}
           onDescriptionChange={(value) => {
             setMilestoneDescription(value);
-            setFieldError("milestoneDescription", validateMilestoneDescription(value));
+            setFieldError(
+              "milestoneDescription",
+              validateMilestoneDescription(value)
+            );
           }}
           validationErrors={{
             milestoneTitle: validationErrors.milestoneTitle,
@@ -2270,55 +2690,90 @@ export default function ProjectReview() {
           onStartDateChange={(value) => {
             setEditMilestoneStartDate(value);
             if (editMilestoneEndDate) {
-              setFieldError("editMilestoneEndDate", validateDateRange(value, editMilestoneEndDate));
+              setFieldError(
+                "editMilestoneEndDate",
+                validateDateRange(value, editMilestoneEndDate)
+              );
             }
           }}
           endDate={editMilestoneEndDate}
           onEndDateChange={(value) => {
             setEditMilestoneEndDate(value);
-            setFieldError("editMilestoneEndDate", validateDate(value, "End date"));
+            setFieldError(
+              "editMilestoneEndDate",
+              validateDate(value, "End date")
+            );
             if (editMilestoneStartDate) {
-              setFieldError("editMilestoneEndDate", validateDateRange(editMilestoneStartDate, value));
+              setFieldError(
+                "editMilestoneEndDate",
+                validateDateRange(editMilestoneStartDate, value)
+              );
             }
           }}
           amountPercent={editMilestoneAmountPercent}
           onAmountPercentChange={(value) => {
-            if (value === "" || (parseFloat(value) >= 0 && parseFloat(value) <= 100)) {
+            if (
+              value === "" ||
+              (parseFloat(value) >= 0 && parseFloat(value) <= 100)
+            ) {
               setEditMilestoneAmountPercent(value);
               if (value && project) {
                 setEditMilestoneAmount("");
                 setFieldError("editMilestoneAmount", "");
               }
-              setFieldError("editMilestoneAmountPercent", validateMilestoneAmountPercent(value));
+              setFieldError(
+                "editMilestoneAmountPercent",
+                validateMilestoneAmountPercent(value)
+              );
               if (!value && !editMilestoneAmount) {
-                setFieldError("editMilestoneAmountPercent", validateMilestoneAmountFields(value, editMilestoneAmount));
+                setFieldError(
+                  "editMilestoneAmountPercent",
+                  validateMilestoneAmountFields(value, editMilestoneAmount)
+                );
               }
             }
           }}
           amount={editMilestoneAmount}
           onAmountChange={(value) => {
-            if (value === "" || (parseFloat(value) >= 0 && (!project || parseFloat(value) <= project.client_budget))) {
+            if (
+              value === "" ||
+              (parseFloat(value) >= 0 &&
+                (!project || parseFloat(value) <= project.client_budget))
+            ) {
               setEditMilestoneAmount(value);
               if (value) {
                 setEditMilestoneAmountPercent("");
                 setFieldError("editMilestoneAmountPercent", "");
               }
-              setFieldError("editMilestoneAmount", validateMilestoneAmount(value, project?.client_budget));
+              setFieldError(
+                "editMilestoneAmount",
+                validateMilestoneAmount(value, project?.client_budget)
+              );
               if (!value && !editMilestoneAmountPercent) {
-                setFieldError("editMilestoneAmount", validateMilestoneAmountFields(editMilestoneAmountPercent, value));
+                setFieldError(
+                  "editMilestoneAmount",
+                  validateMilestoneAmountFields(
+                    editMilestoneAmountPercent,
+                    value
+                  )
+                );
               }
             }
           }}
           description={editMilestoneDescription}
           onDescriptionChange={(value) => {
             setEditMilestoneDescription(value);
-            setFieldError("editMilestoneDescription", validateMilestoneDescription(value));
+            setFieldError(
+              "editMilestoneDescription",
+              validateMilestoneDescription(value)
+            );
           }}
           validationErrors={{
             editMilestoneTitle: validationErrors.editMilestoneTitle,
             editMilestoneStartDate: validationErrors.editMilestoneStartDate,
             editMilestoneEndDate: validationErrors.editMilestoneEndDate,
-            editMilestoneAmountPercent: validationErrors.editMilestoneAmountPercent,
+            editMilestoneAmountPercent:
+              validationErrors.editMilestoneAmountPercent,
             editMilestoneAmount: validationErrors.editMilestoneAmount,
             editMilestoneDescription: validationErrors.editMilestoneDescription,
           }}
@@ -2340,18 +2795,17 @@ export default function ProjectReview() {
             if (!open) {
               setSelectedAgentId("");
               setIsEditingAgent(false);
-              setFieldError("selectedAgentId", "");
+              setAssignmentType("assign_to_agent");
             }
           }}
           onAssign={handleAssignAgent}
           agents={agents}
           selectedAgentId={selectedAgentId}
-          onAgentSelect={(value) => {
-            setSelectedAgentId(value);
-            setFieldError("selectedAgentId", validateAgentSelection(value));
-          }}
+          onAgentSelect={setSelectedAgentId}
           isEditingAgent={isEditingAgent}
           validationError={validationErrors.selectedAgentId}
+          assignmentType={assignmentType}
+          onAssignmentTypeChange={setAssignmentType}
         />
 
         {/* Withdraw Bid Dialog */}

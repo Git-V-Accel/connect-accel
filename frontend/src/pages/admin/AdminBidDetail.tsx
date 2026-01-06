@@ -282,10 +282,21 @@ export default function AdminBidDetail() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6 max-h-[calc(100vh)] overflow-y-auto scrollbar-hide">
             {/* Full Proposal */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-2xl mb-6">Full Proposal</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl mb-6">Full Proposal</h2>
+                {/* Edit Button - Show only when project is in_bidding */}
+                  {project?.status === 'in_bidding' && (
+                    <Button
+                      onClick={() => navigate(`/admin/bids/${bid.id}/edit`)}
+                      variant="outline"
+                    >
+                      <Edit className="size-4 mr-2" />
+                    </Button>
+                 )}
+                </div>
 
               <div className="space-y-6">
                 {/* Freelancer Info */}
@@ -383,8 +394,7 @@ export default function AdminBidDetail() {
               </div>
             )}
 
-            {/* Admin Notes */}
-            {/* Admin Notes removed as requested */}
+         
 
             {/* Freelancer Proposals Section */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -483,134 +493,6 @@ export default function AdminBidDetail() {
               )}
             </div>
 
-            {/* Actions - Hide for agents */}
-            {user?.role !== 'agent' && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h2 className="text-xl mb-4">Actions</h2>
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Edit Button - Show only when project is in_bidding */}
-                  {project?.status === 'in_bidding' && (
-                    <Button
-                      onClick={() => navigate(`/admin/bids/${bid.id}/edit`)}
-                      variant="outline"
-                    >
-                      <Edit className="size-4 mr-2" />
-                      Edit Bid
-                    </Button>
-                  )}
-                  
-                  {(bid.status === 'pending' || bid.status === 'under_review') && !bid.isShortlisted ? (
-                    <>
-                      <Button
-                        onClick={handleAccept}
-                        disabled={actionLoading}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle2 className="size-4 mr-2" />
-                        Accept
-                      </Button>
-                      <Button
-                        onClick={handleReject}
-                        disabled={actionLoading}
-                        variant="destructive"
-                      >
-                        <XCircle className="size-4 mr-2" />
-                        Reject
-                      </Button>
-                      <Button
-                        onClick={handleShortlist}
-                        disabled={actionLoading}
-                        variant="outline"
-                      >
-                        <Users className="size-4 mr-2" />
-                        Shortlist
-                      </Button>
-                    </>
-                  ) : bid.status === 'accepted' || bid.isAccepted ? (
-                    <>
-                      <Button
-                        onClick={handleUndoAccept}
-                        disabled={actionLoading}
-                        variant="outline"
-                      >
-                        <RotateCcw className="size-4 mr-2" />
-                        Undo Accept
-                      </Button>
-                      <Button
-                        onClick={handleReject}
-                        disabled={actionLoading}
-                        variant="destructive"
-                      >
-                        <XCircle className="size-4 mr-2" />
-                        Reject
-                      </Button>
-                      <Button
-                        onClick={handleShortlist}
-                        disabled={actionLoading}
-                        variant="outline"
-                      >
-                        <Users className="size-4 mr-2" />
-                        Shortlist
-                      </Button>
-                    </>
-                  ) : bid.status === 'rejected' || bid.isDeclined ? (
-                    <>
-                      <Button
-                        onClick={handleAccept}
-                        disabled={actionLoading}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle2 className="size-4 mr-2" />
-                        Accept
-                      </Button>
-                      <Button
-                        onClick={handleUndoReject}
-                        disabled={actionLoading}
-                        variant="outline"
-                      >
-                        <RotateCcw className="size-4 mr-2" />
-                        Undo Reject
-                      </Button>
-                      <Button
-                        onClick={handleShortlist}
-                        disabled={actionLoading}
-                        variant="outline"
-                      >
-                        <Users className="size-4 mr-2" />
-                        Shortlist
-                      </Button>
-                    </>
-                  ) : (bid.status === 'shortlisted' || bid.isShortlisted) && !bid.isAccepted && !bid.isDeclined ? (
-                    <>
-                      <Button
-                        onClick={handleAccept}
-                        disabled={actionLoading}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle2 className="size-4 mr-2" />
-                        Accept
-                      </Button>
-                      <Button
-                        onClick={handleReject}
-                        disabled={actionLoading}
-                        variant="destructive"
-                      >
-                        <XCircle className="size-4 mr-2" />
-                        Reject
-                      </Button>
-                      <Button
-                        onClick={handleUndoShortlist}
-                        disabled={actionLoading}
-                        variant="outline"
-                      >
-                        <RotateCcw className="size-4 mr-2" />
-                        Undo Shortlist
-                      </Button>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Sidebar */}
