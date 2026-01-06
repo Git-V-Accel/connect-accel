@@ -102,6 +102,7 @@ app.use("/api/activity-logs", require("./routes/activityLogs"));
 app.use("/api/audit-logs", require("./routes/auditLogRoutes"));
 app.use("/api/consultations", require("./routes/consultations"));
 app.use("/api/freelancer-project-details", require("./routes/freelancerProjectDetails"));
+app.use("/api/in-house", require("./routes/inHouse"));
 
 // Create HTTP server
 const server = http.createServer(app);

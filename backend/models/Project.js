@@ -141,6 +141,11 @@ const projectSchema = new mongoose.Schema({
     ref: 'User',
     default: null
   },
+  assignmentType: {
+    type: String,
+    enum: ['agent', 'in_house'],
+    default: null
+  },
   milestones: [milestoneSchema],
   attachments: [{
     name: { type: String, required: false },
@@ -163,6 +168,7 @@ projectSchema.index({ client: 1, status: 1 });
 projectSchema.index({ status: 1, createdAt: -1 });
 projectSchema.index({ assignedFreelancerId: 1, status: 1 });
 projectSchema.index({ assignedAgentId: 1, status: 1 });
+projectSchema.index({ assignmentType: 1, status: 1 });
 projectSchema.index({ isOpenForBidding: 1, status: 1 });
 projectSchema.index({ createdAt: -1 });
 projectSchema.index({ client: 1, createdAt: -1 });

@@ -52,6 +52,7 @@ import {
   IndianRupee,
   Clock,
   User,
+  Home,
   Mail,
   Phone,
   Calendar,
@@ -403,6 +404,7 @@ export default function ProjectReview() {
   const [isAssignAgentDialogOpen, setIsAssignAgentDialogOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [isEditingAgent, setIsEditingAgent] = useState(false);
+  const [assignmentType, setAssignmentType] = useState<string>("assign_to_agent");
   const [isWithdrawBidDialogOpen, setIsWithdrawBidDialogOpen] = useState(false);
   const [bidToWithdraw, setBidToWithdraw] = useState<Bid | null>(null);
 
@@ -805,33 +807,75 @@ export default function ProjectReview() {
   };
 
   const handleAssignAgent = async () => {
-    const agentError = validateAgentSelection(selectedAgentId);
-    setFieldError("selectedAgentId", agentError);
+    // Only validate agent selection if we're assigning to an agent
+    if (assignmentType === "assign_to_agent") {
+      const agentError = validateAgentSelection(selectedAgentId);
+      setFieldError("selectedAgentId", agentError);
 
-    if (agentError) {
-      toast.error("Please select an agent");
-      return;
+      if (agentError) {
+        toast.error("Please select an agent");
+        return;
+      }
     }
 
     try {
-      await updateProject(project.id, {
-        assigned_agent_id: selectedAgentId,
-        status: "assigned",
-      } as any);
+      // Check assignment type from state
+      if (assignmentType === "assign_to_agent") {
+        // Check if project is currently in-house and needs to be moved out
+        if (project?.assignment_type === 'in_house') {
+          // Move from in-house to agent - remove from in-house first
+          const removeResponse = await apiClient.delete(`/in-house/by-project/${project.id}`);
+          
+          if (!removeResponse.data.success) {
+            throw new Error(removeResponse.data.message || 'Failed to remove project from in-house');
+          }
+          
+          // Then assign to agent
+          await updateProject(project.id, {
+            assigned_agent_id: selectedAgentId,
+            assignment_type: "agent",
+            status: "assigned",
+          } as any);
+          
+          toast.success("Project reassigned from in-house to agent successfully!");
+        } else {
+          // Regular agent assignment
+          await updateProject(project.id, {
+            assigned_agent_id: selectedAgentId,
+            assignment_type: "agent",
+            status: "assigned",
+          } as any);
+          toast.success("Agent assigned successfully!");
+        }
+      } else if (assignmentType === "move_to_in_house") {
+        // Move to in-house using new API
+        const response = await apiClient.post('/in-house/move', {
+          projectId: project.id,
+          notes: 'Moved to in-house from project review',
+          priority: 'medium'
+        });
+
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Failed to move project to in-house');
+        }
+
+        toast.success("Project moved to in-house successfully!");
+      }
+      
       loadStatus(project.id);
-      toast.success("Agent assigned successfully!");
       setIsAssignAgentDialogOpen(false);
       setSelectedAgentId("");
       setIsEditingAgent(false);
+      setAssignmentType("assign_to_agent");
       setFieldError("selectedAgentId", "");
-      // Reload project to get updated agent data
+      // Reload project to get updated data
       if (id) {
         const fetchedProject = await getProject(id);
         setProject(fetchedProject || null);
       }
     } catch (error: any) {
-      console.error("Failed to assign agent:", error);
-      toast.error(error?.response?.data?.message || "Failed to assign agent");
+      console.error("Failed to assign project:", error);
+      toast.error(error?.message || "Failed to assign project");
     }
   };
 
@@ -2343,56 +2387,79 @@ export default function ProjectReview() {
                   <Target className="size-4 mr-2" />
                   Add Milestone
                 </Button>
-                {/* Assign to Agent - Only show for admin/superadmin */}
-                {!isAgent &&
-                  (!project?.assigned_agent_id ? (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => setIsAssignAgentDialogOpen(true)}
-                    >
-                      <User className="size-4 mr-2" />
-                      Assign to Agent
-                    </Button>
-                  ) : (
-                    <div className="space-y-2 p-3 bg-gray-50 rounded-lg border">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <User className="size-4 text-gray-600" />
-                          <span className="text-sm font-medium">
-                            Assigned Agent
-                          </span>
+                {/* Assignment Status - Only show for admin/superadmin */}
+                {!isAgent && (
+                  <>
+                    {(!project?.assigned_agent_id && project?.assignment_type !== 'in_house') ? (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => setIsAssignAgentDialogOpen(true)}
+                      >
+                        <User className="size-4 mr-2" />
+                        Assign to Agent
+                      </Button>
+                    ) : (
+                      <div className="space-y-2 p-3 bg-gray-50 rounded-lg border">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {project?.assignment_type === 'in_house' ? (
+                              <>
+                                <Home className="size-4 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-600">
+                                  In-House Project
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <User className="size-4 text-gray-600" />
+                                <span className="text-sm font-medium">
+                                  Assigned Agent
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleEditAgent}
+                          >
+                            <Edit className="size-3" />
+                          </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleEditAgent}
-                        >
-                          <Edit className="size-3" />
-                        </Button>
-                      </div>
-                      {(() => {
-                        const assignedAgent = agents.find(
-                          (a) => a.id === project.assigned_agent_id
-                        );
-                        return assignedAgent ? (
+                        {project?.assignment_type === 'in_house' ? (
                           <div className="space-y-1 text-sm">
-                            <p className="font-medium">{assignedAgent.name}</p>
-                            <p className="text-gray-600">
-                              ID: {assignedAgent.userID || "N/A"}
-                            </p>
-                            <p className="text-gray-600">
-                              {assignedAgent.email}
+                            <p className="text-gray-600">Project is currently in-house</p>
+                            <p className="text-xs text-gray-500">
+                              Can be reassigned to an agent
                             </p>
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-500">
-                            Loading agent details...
-                          </p>
-                        );
-                      })()}
-                    </div>
-                  ))}
+                          (() => {
+                            const assignedAgent = agents.find(
+                              (a) => a.id === project.assigned_agent_id
+                            );
+                            return assignedAgent ? (
+                              <div className="space-y-1 text-sm">
+                                <p className="font-medium">{assignedAgent.name}</p>
+                                <p className="text-gray-600">
+                                  ID: {assignedAgent.userID || "N/A"}
+                                </p>
+                                <p className="text-gray-600">
+                                  {assignedAgent.email}
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500">
+                                Loading agent details...
+                              </p>
+                            );
+                          })()
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
                 {/* Show Agent Name for Agents (read-only) */}
                 {isAgent && project?.assigned_agent_id && (
                   <div className="space-y-2 p-3 bg-gray-50 rounded-lg border">
@@ -2728,18 +2795,17 @@ export default function ProjectReview() {
             if (!open) {
               setSelectedAgentId("");
               setIsEditingAgent(false);
-              setFieldError("selectedAgentId", "");
+              setAssignmentType("assign_to_agent");
             }
           }}
           onAssign={handleAssignAgent}
           agents={agents}
           selectedAgentId={selectedAgentId}
-          onAgentSelect={(value) => {
-            setSelectedAgentId(value);
-            setFieldError("selectedAgentId", validateAgentSelection(value));
-          }}
+          onAgentSelect={setSelectedAgentId}
           isEditingAgent={isEditingAgent}
           validationError={validationErrors.selectedAgentId}
+          assignmentType={assignmentType}
+          onAssignmentTypeChange={setAssignmentType}
         />
 
         {/* Withdraw Bid Dialog */}
