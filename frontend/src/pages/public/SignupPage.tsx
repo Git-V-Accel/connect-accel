@@ -265,17 +265,38 @@ export default function SignupPage() {
                 autoComplete="new-password"
               />
 
-              <PasswordField
-                id="confirmPassword"
-                name="confirmPassword"
-                label="Confirm Password"
-                placeholder="••••••••"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                showValidation={false}
-                autoComplete="new-password"
-              />
+              <div className="space-y-1">
+                <PasswordField
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  label="Confirm Password"
+                  placeholder="••••••••"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    if (errors.confirmPassword) {
+                      setErrors(prev => {
+                        const { confirmPassword, ...rest } = prev;
+                        return rest;
+                      });
+                    }
+                  }}
+                  onBlur={() => {
+                    if (password !== confirmPassword) {
+                      setErrors(prev => ({
+                        ...prev,
+                        confirmPassword: VALIDATION_MESSAGES.PASSWORD.MISMATCH
+                      }));
+                    }
+                  }}
+                  showValidation={false}
+                  autoComplete="new-password"
+                />
+                {errors.confirmPassword && (
+                  <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>
+                )}
+              </div>
 
               <div className="flex items-start">
                 <input

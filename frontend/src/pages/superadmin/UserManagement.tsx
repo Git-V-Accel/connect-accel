@@ -71,7 +71,6 @@ export default function UserManagement() {
   const [error, setError] = useState<string | null>(null);
 
   const isSuperAdmin = currentUser?.role === 'superadmin';
-  console.log(currentUser, isSuperAdmin, "Selvaaaa");
   const isAdmin = currentUser?.role === 'admin';
 
 

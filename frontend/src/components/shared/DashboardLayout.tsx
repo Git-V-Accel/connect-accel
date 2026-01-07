@@ -10,6 +10,8 @@ import { useTheme } from "next-themes";
 import { NotificationsDrawer } from "./NotificationsDrawer";
 import { useSocket } from "../../hooks/useSocket";
 import { SocketEvents } from "../../constants/socketConstants";
+import { toast } from "../../utils/toast";
+import { playNotificationSound } from "../../utils/notificationSound";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -55,6 +57,16 @@ export default function DashboardLayout({
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { onNotification } = useSocket();
+  const seenNotificationIdsRef = React.useRef<Set<string>>(new Set());
+  const isInitializedRef = React.useRef(false);
+
+  // Initialize seen notifications on mount to avoid showing toasts for existing ones
+  useEffect(() => {
+    if (!user || isInitializedRef.current) return;
+    const notifications = getUserNotifications(user.id);
+    notifications.forEach(n => seenNotificationIdsRef.current.add(n.id));
+    isInitializedRef.current = true;
+  }, [user, getUserNotifications]);
 
   // Listen for real-time notifications via socket
   useEffect(() => {
@@ -74,6 +86,17 @@ export default function DashboardLayout({
             description: notification.description,
             link: notification.link,
           });
+
+          // Show toast notification for new notifications
+          const notificationId = notification.id || `notif_${Date.now()}_${Math.random()}`;
+          if (!seenNotificationIdsRef.current.has(notificationId)) {
+            seenNotificationIdsRef.current.add(notificationId);
+            playNotificationSound();
+            toast.info(notification.title, {
+              description: notification.description,
+              duration: 5000,
+            });
+          }
         }
       }
     );
@@ -82,6 +105,41 @@ export default function DashboardLayout({
   }, [user, onNotification, createNotification]);
 
   const unreadCount = user ? getUserNotifications(user.id).filter(n => !n.read).length : 0;
+  const previousUnreadCountRef = React.useRef(unreadCount);
+
+  // Watch for new notifications in the drawer (from API polling or socket)
+  useEffect(() => {
+    if (!user || !isInitializedRef.current) return;
+
+    const notifications = getUserNotifications(user.id);
+    const currentNotificationIds = new Set(notifications.map(n => n.id));
+
+    // Find new notifications that we haven't seen before
+    notifications.forEach(notification => {
+      if (!seenNotificationIdsRef.current.has(notification.id)) {
+        seenNotificationIdsRef.current.add(notification.id);
+        
+        // Only show toast for unread notifications to avoid showing old ones
+        if (!notification.read) {
+          playNotificationSound();
+          toast.info(notification.title, {
+            description: notification.description,
+            duration: 5000,
+          });
+        }
+      }
+    });
+
+    // Clean up old notification IDs that are no longer in the list (optional, prevents memory leak)
+    const seenIds = Array.from(seenNotificationIdsRef.current);
+    seenIds.forEach(id => {
+      if (!currentNotificationIds.has(id)) {
+        seenNotificationIdsRef.current.delete(id);
+      }
+    });
+
+    previousUnreadCountRef.current = unreadCount;
+  }, [user, unreadCount, getUserNotifications]);
 
   // Avoid hydration mismatch
   React.useEffect(() => {

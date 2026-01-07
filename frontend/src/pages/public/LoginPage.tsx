@@ -6,6 +6,7 @@ import { Label } from '../../components/ui/label';
 import { Shield, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from '../../utils/toast';
+import { VALIDATION_MESSAGES, validateEmail } from '../../constants/validationConstants';
 
 const REMEMBER_ME_KEY = 'connect_accel_remember_me';
 const REMEMBERED_EMAIL_KEY = 'connect_accel_remembered_email';
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -30,8 +32,35 @@ export default function LoginPage() {
     }
   }, []);
 
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
+
+    // Validate email
+    const emailResult = validateEmail(email);
+    if (!emailResult.isValid) {
+      newErrors.email = emailResult.error || VALIDATION_MESSAGES.EMAIL.REQUIRED;
+    }
+
+    // Validate password
+    if (!password || !password.trim()) {
+      newErrors.password = VALIDATION_MESSAGES.PASSWORD.REQUIRED;
+    } else if (password.length < 8) {
+      newErrors.password = VALIDATION_MESSAGES.PASSWORD.MIN_LENGTH;
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validate()) {
+      const firstError = Object.values(errors)[0];
+      if (firstError) toast.error(firstError);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -81,7 +110,7 @@ export default function LoginPage() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
+            <div className="space-y-1">
               <Label htmlFor="email">Email address</Label>
               <Input
                 id="email"
@@ -90,12 +119,33 @@ export default function LoginPage() {
                 autoComplete="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) {
+                    setErrors(prev => {
+                      const { email, ...rest } = prev;
+                      return rest;
+                    });
+                  }
+                }}
+                onBlur={() => {
+                  const emailResult = validateEmail(email);
+                  if (!emailResult.isValid) {
+                    setErrors(prev => ({
+                      ...prev,
+                      email: emailResult.error || VALIDATION_MESSAGES.EMAIL.REQUIRED
+                    }));
+                  }
+                }}
                 className="mt-1"
+                aria-invalid={!!errors.email}
               />
+              {errors.email && (
+                <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+              )}
             </div>
 
-            <div>
+            <div className="space-y-1">
               <Label htmlFor="password">Password</Label>
               <div className="relative mt-1">
                 <Input
@@ -105,8 +155,30 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errors.password) {
+                      setErrors(prev => {
+                        const { password, ...rest } = prev;
+                        return rest;
+                      });
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!password || !password.trim()) {
+                      setErrors(prev => ({
+                        ...prev,
+                        password: VALIDATION_MESSAGES.PASSWORD.REQUIRED
+                      }));
+                    } else if (password.length < 8) {
+                      setErrors(prev => ({
+                        ...prev,
+                        password: VALIDATION_MESSAGES.PASSWORD.MIN_LENGTH
+                      }));
+                    }
+                  }}
                   className="pr-10"
+                  aria-invalid={!!errors.password}
                 />
                 <button
                   type="button"
@@ -120,6 +192,9 @@ export default function LoginPage() {
                   )}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-xs text-red-500 mt-1">{errors.password}</p>
+              )}
             </div>
 
             <div className="flex items-center justify-between">
@@ -145,7 +220,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <Button type="submit" className="w-full" disabled={loading || email.length < 3 || password.length < 3}>
+              <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? 'Signing in...' : 'Sign in'}
               </Button>
             </div>
