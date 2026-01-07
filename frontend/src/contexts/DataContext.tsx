@@ -4,6 +4,7 @@ import { socketService } from '../services/socketService';
 import { SocketEvents } from '../constants/socketConstants';
 import * as projectService from '../services/projectService';
 import * as bidService from '../services/bidService';
+import consultationService from '../services/consultationService';
 import apiClient from '../services/apiService';
 import { API_CONFIG } from '../config/api';
 import { toast } from '../utils/toast';
@@ -103,23 +104,46 @@ export interface BidInvitation {
 }
 
 export interface Consultation {
-    id: string;
-    client_id: string;
-    client_name?: string;
-    admin_id?: string;
-    admin_name?: string;
-    agent_id?: string;
-    scheduled_date: string;
-    duration: number;
-    duration_minutes?: number;
-    type: 'video' | 'phone' | 'in_person';
-    status: 'requested' | 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
-    meeting_link?: string;
-    notes?: string | null;
-    outcome?: string | null;
-    project_id?: string;
-    fee?: number;
-    paid?: boolean;
+    _id: string;
+    client: {
+        _id: string;
+        name: string;
+        email: string;
+        company?: string;
+        phone?: string;
+    };
+    clientName: string;
+    clientEmail: string;
+    clientPhone?: string;
+    clientCompany?: string;
+    projectTitle?: string;
+    projectDescription?: string;
+    projectBudget?: string;
+    projectTimeline?: string;
+    projectCategory?: string;
+    status: 'pending' | 'assigned' | 'completed';
+    assignedTo?: {
+        _id: string;
+        name: string;
+        email: string;
+        role: string;
+    } | null;
+    assignedBy?: {
+        _id: string;
+        name: string;
+        email: string;
+        role: string;
+    } | null;
+    assignedAt?: string | null;
+    project?: {
+        _id: string;
+        title: string;
+        status: string;
+        createdAt: string;
+    } | null;
+    convertedAt?: string | null;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface Payment {
@@ -321,6 +345,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: ReactNode }) {
     const { user } = useAuth();
     const isLoadingProjectsRef = useRef(false);
+    const isLoadingConsultationsRef = useRef(false);
     const [refreshTick, setRefreshTick] = useState(0);
     const [data, setData] = useState(() => {
         const stored = sessionStorage.getItem('connect_accel_data');
@@ -514,6 +539,36 @@ export function DataProvider({ children }: { children: ReactNode }) {
         };
 
         loadNotifications();
+    }, [user, refreshTick]);
+
+    // Load consultations from backend when user is available (admin/superadmin only)
+    useEffect(() => {
+        const loadConsultations = async () => {
+            if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) return;
+
+            // Prevent multiple simultaneous calls
+            if (isLoadingConsultationsRef.current) return;
+
+            isLoadingConsultationsRef.current = true;
+
+            try {
+                const result = await consultationService.getConsultations();
+                
+                setData((prev: any) => ({
+                    ...prev,
+                    consultations: result.data || [],
+                }));
+            } catch (error: any) {
+                console.error('Failed to load consultations:', error);
+                if (error.response?.status !== 401 && error.response?.status !== 403) {
+                    toast.error('Failed to load consultations');
+                }
+            } finally {
+                isLoadingConsultationsRef.current = false;
+            }
+        };
+
+        loadConsultations();
     }, [user, refreshTick]);
 
     useEffect(() => {
@@ -999,10 +1054,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
 
     // Consultation methods
-    const createConsultation = (consultationData: Omit<Consultation, 'id'>) => {
+    const createConsultation = (consultationData: Omit<Consultation, '_id'>) => {
         const newConsultation: Consultation = {
             ...consultationData,
-            id: 'consult_' + Math.random().toString(36).substr(2, 9),
+            _id: 'consult_' + Math.random().toString(36).substr(2, 9),
         };
         setData((prev: any) => ({ ...prev, consultations: [...prev.consultations, newConsultation] }));
         return newConsultation;
@@ -1011,22 +1066,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const updateConsultation = (id: string, updates: Partial<Consultation>) => {
         setData((prev: any) => {
             const updatedConsultations = prev.consultations.map((c: Consultation) =>
-                c.id === id ? { ...c, ...updates } : c
+                c._id === id ? { ...c, ...updates } : c
             );
 
             // Create notifications for consultation updates
-            const consultation = prev.consultations.find((c: Consultation) => c.id === id);
+            const consultation = prev.consultations.find((c: Consultation) => c._id === id);
             const newNotifications = [...prev.notifications];
 
             if (consultation && updates.status) {
-                if (updates.status === 'scheduled') {
+                if (updates.status === 'assigned') {
                     // Notify client when consultation is scheduled
                     newNotifications.push({
                         id: 'notif_' + Math.random().toString(36).substr(2, 9),
-                        user_id: consultation.client_id,
+                        user_id: consultation.client._id,
                         type: 'project',
                         title: 'Consultation Scheduled',
-                        description: `Your consultation has been scheduled for ${new Date(updates.scheduled_date || consultation.scheduled_date).toLocaleString()}`,
+                        description: `Your consultation has been scheduled for ${new Date(updates.createdAt || consultation.createdAt).toLocaleString()}`,
                         link: `/client/consultations`,
                         read: false,
                         created_at: new Date().toISOString(),
@@ -1035,10 +1090,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     // Notify client when consultation is completed
                     newNotifications.push({
                         id: 'notif_' + Math.random().toString(36).substr(2, 9),
-                        user_id: consultation.client_id,
+                        user_id: consultation.client._id,
                         type: 'project',
                         title: 'Consultation Completed',
-                        description: `Your consultation has been completed. ${updates.outcome || 'Check notes for details.'}`,
+                        description: `Your consultation has been completed. ${updates.projectTitle || 'Check notes for details.'}`,
                         link: `/client/consultations`,
                         read: false,
                         created_at: new Date().toISOString(),
@@ -1056,7 +1111,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const getConsultationsByUser = (userId: string, role: string) => {
         if (role === 'client') {
-            return data.consultations.filter((c: Consultation) => c.client_id === userId);
+            return data.consultations.filter((c: Consultation) => c.client._id === userId);
         } else if (role === 'admin' || role === 'superadmin') {
             return data.consultations;
         }

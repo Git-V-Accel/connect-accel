@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Card } from '../../components/ui/card';
@@ -36,7 +36,6 @@ import {
   Edit,
   Search,
   FileText,
-  Mail,
   ArrowRight,
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
@@ -57,24 +56,24 @@ export default function AdminConsultations() {
   const [actionItems, setActionItems] = useState('');
   const [outcome, setOutcome] = useState('');
 
-  const requestedConsultations = consultations.filter((c) => c.status === 'requested');
-  const scheduledConsultations = consultations.filter((c) => c.status === 'scheduled');
+  const requestedConsultations = consultations.filter((c) => c.status === 'pending');
+  const scheduledConsultations = consultations.filter((c) => c.status === 'assigned');
   const completedConsultations = consultations.filter((c) => c.status === 'completed');
 
   const filteredConsultations = consultations.filter(
     (c) =>
       c.status.includes(searchQuery.toLowerCase()) ||
-      projects.find((p) => p.id === c.project_id)?.title.toLowerCase().includes(searchQuery.toLowerCase())
+      projects.find((p) => p.id === c.project?._id)?.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
 
   const handleUpdateConsultation = () => {
     if (!selectedConsultation) return;
 
-    updateConsultation(selectedConsultation.id, {
-      scheduled_date: `${consultationDate} ${consultationTime}`,
-      type: consultationType,
-      agenda,
+    updateConsultation(selectedConsultation._id, {
+      createdAt: `${consultationDate} ${consultationTime}`,
+      projectTitle: consultationType,
+      projectDescription: agenda,
     });
 
     toast.success('Consultation updated successfully!');
@@ -87,12 +86,10 @@ export default function AdminConsultations() {
       return;
     }
 
-    updateConsultation(selectedConsultation.id, {
+    updateConsultation(selectedConsultation._id, {
       status: 'completed',
-      notes: meetingNotes,
-      outcome,
-      action_items: actionItems,
-      completed_at: new Date().toISOString(),
+      projectDescription: meetingNotes,
+      projectTitle: outcome,
     });
 
     toast.success('Consultation marked as completed!');
@@ -102,21 +99,19 @@ export default function AdminConsultations() {
     setOutcome('');
   };
 
-  const handleCancelConsultation = (id: string) => {
-    updateConsultation(id, { status: 'cancelled' });
+  const handleCancelConsultation = (_id: string) => {
+    updateConsultation(_id, { status: 'pending' });
     toast.success('Consultation cancelled');
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'requested':
+      case 'pending':
         return 'bg-yellow-100 text-yellow-700';
-      case 'scheduled':
+      case 'assigned':
         return 'bg-blue-100 text-blue-700';
       case 'completed':
         return 'bg-green-100 text-green-700';
-      case 'cancelled':
-        return 'bg-red-100 text-red-700';
       default:
         return 'bg-gray-100 text-gray-700';
     }
@@ -136,7 +131,6 @@ export default function AdminConsultations() {
   };
 
   const ConsultationCard = ({ consultation }: { consultation: any }) => {
-    const project = projects.find((p) => p.id === consultation.project_id);
     
     return (
       <Card className="p-6 hover:shadow-lg transition-shadow">
@@ -145,11 +139,11 @@ export default function AdminConsultations() {
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <div className="bg-blue-100 p-2 rounded-lg">
-                  {getTypeIcon(consultation.type)}
+                  {getTypeIcon('video')}
                 </div>
                 <div>
-                  <h3 className="font-medium">{project?.title || 'Unknown Project'}</h3>
-                  <p className="text-sm text-gray-600">with {project?.client_name}</p>
+                  <h3 className="font-medium">{consultation.projectTitle || 'Consultation Request'}</h3>
+                  <p className="text-sm text-gray-600">with {consultation.clientName}</p>
                 </div>
               </div>
             </div>
@@ -164,64 +158,64 @@ export default function AdminConsultations() {
                 <Calendar className="size-4" />
                 Date & Time
               </div>
-              <div>{new Date(consultation.scheduled_date).toLocaleString()}</div>
+              <div>{new Date(consultation.createdAt).toLocaleString()}</div>
             </div>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
                 {getTypeIcon(consultation.type)}
                 Type
               </div>
-              <div className="capitalize">{consultation.type}</div>
+              <div className="capitalize">Consultation</div>
             </div>
           </div>
 
-          {consultation.agenda && (
+          {consultation.projectDescription && (
             <div>
-              <Label className="text-gray-600">Agenda</Label>
-              <p className="mt-1 text-gray-700">{consultation.agenda}</p>
+              <Label className="text-gray-600">Project Description</Label>
+              <p className="mt-1 text-gray-700">{consultation.projectDescription}</p>
             </div>
           )}
 
-          {consultation.outcome && (
+          {consultation.projectTitle && (
             <div>
-              <Label className="text-gray-600">Outcome</Label>
-              <p className="mt-1 text-gray-700">{consultation.outcome}</p>
+              <Label className="text-gray-600">Project Title</Label>
+              <p className="mt-1 text-gray-700">{consultation.projectTitle}</p>
             </div>
           )}
 
           <div className="flex items-center gap-3">
-            {consultation.status === 'requested' && (
+            {consultation.status === 'pending' && (
               <>
                 <Button
                   size="sm"
                   onClick={() => {
                     setSelectedConsultation(consultation);
-                    const date = new Date(consultation.scheduled_date);
+                    const date = new Date(consultation.createdAt);
                     setConsultationDate(date.toISOString().split('T')[0]);
                     setConsultationTime(date.toTimeString().slice(0, 5));
-                    setConsultationType(consultation.type || 'video');
-                    setAgenda(consultation.agenda || '');
+                    setConsultationType('video');
+                    setAgenda(consultation.projectDescription || '');
                     setIsEditDialogOpen(true);
                   }}
                 >
                   <Calendar className="size-4 mr-2" />
-                  Schedule
+                  Assign
                 </Button>
               </>
             )}
             
-            {consultation.status === 'scheduled' && (
+            {consultation.status === 'assigned' && (
               <>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
                     setSelectedConsultation(consultation);
-                    const date = new Date(consultation.scheduled_date);
+                    const date = new Date(consultation.createdAt);
                     setConsultationDate(date.toISOString().split('T')[0]);
                     setConsultationTime(date.toTimeString().slice(0, 5));
-                    setConsultationType(consultation.type || 'video');
-                    setAgenda(consultation.agenda || '');
+                    setConsultationType('video');
+                    setAgenda(consultation.projectDescription || '');
                     setIsEditDialogOpen(true);
                   }}
                 >
@@ -245,7 +239,7 @@ export default function AdminConsultations() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleCancelConsultation(consultation.id)}
+                  onClick={() => handleCancelConsultation(consultation._id)}
                   className="text-red-600 hover:text-red-700"
                 >
                   <XCircle className="size-4 mr-2" />
@@ -255,7 +249,7 @@ export default function AdminConsultations() {
             )}
 
             {consultation.status === 'completed' && (
-              <Link to={`/admin/projects/${consultation.project_id}/review`}>
+              <Link to={`/admin/projects/${consultation.project?._id}/review`}>
                 <Button variant="outline" size="sm">
                   <ArrowRight className="size-4 mr-2" />
                   View Project
@@ -348,13 +342,13 @@ export default function AdminConsultations() {
             <TabsTrigger value="all">
               All ({consultations.length})
             </TabsTrigger>
-            <TabsTrigger value="requested">
+            <TabsTrigger value="pending">
               <Clock className="size-4 mr-2" />
-              Requested ({requestedConsultations.length})
+              Pending ({requestedConsultations.length})
             </TabsTrigger>
-            <TabsTrigger value="scheduled">
+            <TabsTrigger value="assigned">
               <Calendar className="size-4 mr-2" />
-              Scheduled ({scheduledConsultations.length})
+              Assigned ({scheduledConsultations.length})
             </TabsTrigger>
             <TabsTrigger value="completed">
               <CheckCircle className="size-4 mr-2" />
@@ -373,12 +367,12 @@ export default function AdminConsultations() {
               </Card>
             ) : (
               filteredConsultations.map((consultation) => (
-                <ConsultationCard key={consultation.id} consultation={consultation} />
+                <ConsultationCard key={consultation._id} consultation={consultation} />
               ))
             )}
           </TabsContent>
 
-          <TabsContent value="requested" className="space-y-4">
+          <TabsContent value="pending" className="space-y-4">
             {requestedConsultations.length === 0 ? (
               <Card className="p-12 text-center">
                 <CheckCircle className="size-12 text-gray-400 mx-auto mb-4" />
@@ -387,12 +381,12 @@ export default function AdminConsultations() {
               </Card>
             ) : (
               requestedConsultations.map((consultation) => (
-                <ConsultationCard key={consultation.id} consultation={consultation} />
+                <ConsultationCard key={consultation._id} consultation={consultation} />
               ))
             )}
           </TabsContent>
 
-          <TabsContent value="scheduled" className="space-y-4">
+          <TabsContent value="assigned" className="space-y-4">
             {scheduledConsultations.length === 0 ? (
               <Card className="p-12 text-center">
                 <Calendar className="size-12 text-gray-400 mx-auto mb-4" />
@@ -401,9 +395,9 @@ export default function AdminConsultations() {
               </Card>
             ) : (
               scheduledConsultations
-                .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime())
+                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                 .map((consultation) => (
-                  <ConsultationCard key={consultation.id} consultation={consultation} />
+                  <ConsultationCard key={consultation._id} consultation={consultation} />
                 ))
             )}
           </TabsContent>
@@ -417,10 +411,10 @@ export default function AdminConsultations() {
               </Card>
             ) : (
               completedConsultations
-                .sort((a, b) => new Date(b.completed_at || b.scheduled_date).getTime() - 
-                              new Date(a.completed_at || a.scheduled_date).getTime())
+                .sort((a, b) => new Date(b.updatedAt).getTime() - 
+                              new Date(a.updatedAt).getTime())
                 .map((consultation) => (
-                  <ConsultationCard key={consultation.id} consultation={consultation} />
+                  <ConsultationCard key={consultation._id} consultation={consultation} />
                 ))
             )}
           </TabsContent>

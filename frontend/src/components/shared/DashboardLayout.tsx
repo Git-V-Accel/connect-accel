@@ -33,6 +33,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Calendar,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -272,6 +273,11 @@ export default function DashboardLayout({
             icon: <MessageSquare className="size-5" />,
             path: "/messages",
           },
+          {
+            label: "Consultations",
+            icon: <Calendar className="size-5" />,
+            path: "/admin/consultations",
+          },
         ];
 
       case "superadmin":
@@ -325,6 +331,11 @@ export default function DashboardLayout({
             label: "Analytics",
             icon: <Activity className="size-5" />,
             path: "/superadmin/analytics",
+          },
+          {
+            label: "Consultations",
+            icon: <Calendar className="size-5" />,
+            path: "/admin/consultations",
           },
         ];
 

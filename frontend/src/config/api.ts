@@ -79,6 +79,11 @@ export const API_CONFIG = {
     GET_SHORTLISTED: (projectId: string) => `/bidding/project/${projectId}/shortlisted`,
     STATS: '/bidding/stats',
   },
+  CONSULTATIONS: {
+    LIST: '/consultations',
+    GET: (id: string) => `/consultations/${id}`,
+    ASSIGN: (id: string) => `/consultations/${id}/assign`,
+  },
   DASHBOARD: {
     SUPERADMIN: '/dashboard/superadmin',
     ADMIN: '/dashboard/admin',
