@@ -89,6 +89,18 @@ const AUDIT_MESSAGES = {
   // Consultation Actions
   CONSULTATION_ASSIGNED: (performedBy, clientName, assigneeName) =>
     `${performedBy} assigned consultation request for ${clientName} to ${assigneeName}`,
+  
+  CONSULTATION_REASSIGNED: (performedBy, clientName, assigneeName) =>
+    `${performedBy} re-assigned consultation request for ${clientName} to ${assigneeName}`,
+  
+  CONSULTATION_COMPLETED: (performedBy, clientName, completedBy) =>
+    `${performedBy} completed consultation request for ${clientName} by ${completedBy}`,
+  
+  CONSULTATION_CANCELLED: (performedBy, clientName, cancelledBy) =>
+    `${performedBy} cancelled consultation request for ${clientName} by ${cancelledBy}`,
+  
+  CONSULTATION_RESTORED: (performedBy, clientName, restoredBy) =>
+    `${performedBy} restored consultation request for ${clientName} by ${restoredBy}`,
 
   // Notification Actions
   NOTIFICATION_SENT: (targetUser, title) =>
@@ -148,6 +160,10 @@ const AUDIT_ACTIONS = {
   MILESTONE_PAID: 'MILESTONE_PAID',
 
   CONSULTATION_ASSIGNED: 'CONSULTATION_ASSIGNED',
+  CONSULTATION_REASSIGNED: 'CONSULTATION_REASSIGNED',
+  CONSULTATION_COMPLETED: 'CONSULTATION_COMPLETED',
+  CONSULTATION_CANCELLED: 'CONSULTATION_CANCELLED',
+  CONSULTATION_RESTORED: 'CONSULTATION_RESTORED',
 
   NOTIFICATION_SENT: 'NOTIFICATION_SENT'
 };
@@ -186,6 +202,10 @@ const AUDIT_SEVERITY = {
   MILESTONE_PAID: 'medium',
 
   CONSULTATION_ASSIGNED: 'low',
+  CONSULTATION_REASSIGNED: 'low',
+  CONSULTATION_COMPLETED: 'medium',
+  CONSULTATION_CANCELLED: 'medium',
+  CONSULTATION_RESTORED: 'medium',
 
   NOTIFICATION_SENT: 'low'
 };

@@ -89,6 +89,8 @@ export interface CreateProjectPayload {
   attachments?: File[];
   status?: 'draft' | 'pending_review';
   project_type?: string;
+  clientId?: string; // For admin usage
+  consultation_id?: string; // For admin usage
 }
 
 export interface UpdateProjectPayload extends Omit<Partial<CreateProjectPayload>, 'status' | 'attachments'> {
@@ -264,6 +266,10 @@ export const createProject = async (data: CreateProjectPayload): Promise<Project
     data.attachments.forEach(file => formData.append('files', file));
   }
   if (data.project_type) formData.append('project_type', data.project_type);
+  
+  // Add admin-specific fields
+  if (data.clientId) formData.append('clientId', data.clientId);
+  if (data.consultation_id) formData.append('consultation_id', data.consultation_id);
 
   const res = await apiClient.post<{ success: boolean; data: ProjectResponse }>(
     `${API_CONFIG.API_URL}/projects`,

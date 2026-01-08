@@ -137,6 +137,8 @@ const ACTIVITY_TYPES = {
   MESSAGE_SENT: 'message_sent',
   NOTIFICATION_SENT: 'notification_sent',
   CONSULTATION_REQUESTED: 'consultation_requested',
+  CONSULTATION_ASSIGNED: 'consultation_assigned',
+  CONSULTATION_COMPLETED: 'consultation_completed',
 
   // Bid activities
   BID_DELETED: 'bid_deleted',

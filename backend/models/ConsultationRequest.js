@@ -48,7 +48,7 @@ const ConsultationRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'assigned', 'completed'],
+      enum: ['pending', 'assigned', 'completed', 'cancelled'],
       default: 'pending',
       index: true,
     },
@@ -74,6 +74,40 @@ const ConsultationRequestSchema = new mongoose.Schema(
     convertedAt: {
       type: Date,
       default: null,
+    },
+    meetingNotes: {
+      type: String,
+      trim: true,
+    },
+    outcome: {
+      type: String,
+      trim: true,
+    },
+    actionItems: {
+      type: String,
+      trim: true,
+    },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+    completedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    cancellationReason: {
+      type: String,
+      trim: true,
     },
   },
   {

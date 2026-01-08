@@ -83,6 +83,9 @@ export const API_CONFIG = {
     LIST: '/consultations',
     GET: (id: string) => `/consultations/${id}`,
     ASSIGN: (id: string) => `/consultations/${id}/assign`,
+    COMPLETE: (id: string) => `/consultations/${id}/complete`,
+    CANCEL: (id: string) => `/consultations/${id}/cancel`,
+    UNDO_CANCEL: (id: string) => `/consultations/${id}/undo-cancel`,
   },
   DASHBOARD: {
     SUPERADMIN: '/dashboard/superadmin',

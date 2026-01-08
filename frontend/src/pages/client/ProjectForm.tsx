@@ -11,7 +11,8 @@ import { Badge } from '../../components/ui/badge';
 import { Progress } from '../../components/ui/progress';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { useNavigate, useParams } from 'react-router-dom';
+import * as projectService from '../../services/projectService';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Calendar, IndianRupee, FileText, Settings, Plus, X, Phone, Upload, FileImage, FileArchive, FileSpreadsheet } from 'lucide-react';
 import { toast } from '../../utils/toast';
 import { categories, commonSkills, projectTypes, projectPriorities } from '../../constants/projectConstants';
@@ -29,9 +30,19 @@ interface ProjectFormProps {
 
 export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
   const { user } = useAuth();
-  const { createProject, getProject, updateProject } = useData();
+  const { createProject, getProject, updateProject, clients, updateConsultation } = useData();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+
+  // Get URL parameters from consultation (for admin use)
+  const clientId = searchParams.get('clientId');
+  const clientName = searchParams.get('clientName');
+  const consultationId = searchParams.get('consultationId');
+  
+  // Check if this is admin usage (has consultation parameters)
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isAdminUsage = !!(clientId && consultationId) || isAdmin;
 
   const [step, setStep] = useState(1);
   const [visitedSteps, setVisitedSteps] = useState<Set<number>>(new Set([1]));
@@ -56,7 +67,43 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
     negotiable: false,
     skills_required: [] as string[],
     attachments: [] as File[],
+    status: 'draft',
+    selectedClientId: clientId || '', // For admin client selection
   });
+
+  // Pre-fill form data when coming from consultation (admin usage)
+  useEffect(() => {
+    if (isAdminUsage && clientName && consultationId) {
+      setFormData(prev => ({
+        ...prev,
+        title: `Project for ${clientName}`,
+        description: `Project created from consultation #${consultationId.slice(-6)}`,
+      }));
+    }
+  }, [isAdminUsage, clientName, consultationId]);
+
+  // Auto-select consultation client when clients are loaded
+  useEffect(() => {
+    if (isAdminUsage && clientId && clients && clients.length > 0 && !formData.selectedClientId) {
+      
+      // Find the consultation client in the clients list
+      const consultationClient = clients.find((client: any) => 
+        (client.id === clientId) || (client._id === clientId)
+      );
+      
+      
+      if (consultationClient) {
+        const clientToSelect = consultationClient.id || consultationClient._id;
+        
+        setFormData(prev => ({
+          ...prev,
+          selectedClientId: clientToSelect,
+        }));
+      } else {
+      }
+    }
+  }, [isAdminUsage, clientId, clients, formData.selectedClientId]);
+
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
@@ -67,18 +114,20 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
         try {
           const project = await getProject(id);
           if (project) {
-              setFormData({
-                title: project.title || '',
-                description: project.description || '',
-                category: project.category || '',
-                project_type: project.project_type || '',
-                priority: project.priority || 'medium',
-                client_budget: project.client_budget?.toString() || '',
-                duration_weeks: project.duration_weeks?.toString() || '',
-                negotiable: project.isNegotiableBudget || false,
-                skills_required: project.skills_required || [],
-                attachments: [], // New attachments will be added here
-              });
+            setFormData({
+              title: project.title || '',
+              description: project.description || '',
+              category: project.category || '',
+              project_type: project.project_type || '',
+              priority: project.priority || 'medium',
+              client_budget: project.client_budget?.toString() || '',
+              duration_weeks: project.duration_weeks?.toString() || '',
+              negotiable: project.isNegotiableBudget || false,
+              skills_required: project.skills_required || [],
+              attachments: [],
+              status: project.status || 'draft',
+              selectedClientId: clientId || '',
+            });
             setExistingAttachments(project.attachments || []);
           }
         } catch (error) {
@@ -419,11 +468,29 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
         });
         toast.success('Project updated successfully!');
       } else {
-        await createProject({
-          title: formData.title,
-          description: formData.description,
+        // Determine client information based on usage context
+        let clientInfo = {
           client_id: user.id,
           client_name: user.name,
+        };
+        
+        // If admin usage, use selected client
+        if (isAdminUsage && formData.selectedClientId) {
+          const selectedClient = clients?.find((c: any) => c._id === formData.selectedClientId);
+          if (selectedClient) {
+            clientInfo = {
+              client_id: selectedClient.id,
+              client_name: selectedClient.name,
+            };
+          }
+        }
+        
+        const projectResponse = await createProject({
+          title: formData.title,
+          description: formData.description,
+          client_id: clientInfo.client_id,
+          client_name: clientInfo.client_name,
+          clientId: clientInfo.client_id, // Add this for backend compatibility
           status: status === "draft" ? "draft" : "active",
           category: formData.category,
           skills_required: formData.skills_required,
@@ -437,14 +504,37 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
           isNegotiableBudget: formData.negotiable,
           project_type: formData.project_type,
           attachments: formData.attachments,
+          consultation_id: consultationId, // Add consultation reference for admin usage
         });
         const successMessage = status === 'draft'
           ? 'Project saved as draft successfully!'
           : 'Project submitted successfully! Our team will review it shortly.';
         toast.success(successMessage);
+
+        // If project was created from consultation, update consultation with project reference
+        if (consultationId && projectResponse) {
+          
+          try {
+            if (projectResponse.id) {
+              updateConsultation(consultationId, { 
+                project: {
+                  _id: projectResponse.id,
+                  title: projectResponse.title,
+                  status: projectResponse.status,
+                  createdAt: projectResponse.created_at || new Date().toISOString()
+                },
+                status: 'completed' // Ensure consultation is marked as completed
+              });
+            } else {
+            }
+          } catch (error) {
+            console.error('Failed to update consultation with project reference:', error);
+          }
+        } else {
+        }
       }
 
-      navigate('/client/projects');
+      navigate(isAdminUsage ? '/admin/consultations' : '/client/projects');
     } catch (error: any) {
       console.error('Failed to submit project:', error);
     } finally {
@@ -457,6 +547,31 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
       case 1:
         return (
           <div className="space-y-4">
+              {/* Admin Client Selection */}
+              {isAdminUsage && (
+                <div>
+                  <Label htmlFor="client">Client *</Label>
+                  <Select
+                    value={formData.selectedClientId}
+                    onValueChange={(value) => {
+                      updateFormData('selectedClientId', value);
+                    }}
+                    disabled={!!clientId} // Disable when coming from consultation
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients?.map((client: any) => (
+                        <SelectItem key={client.id || client._id} value={client.id || client._id}>
+                          {client.name} ({client.userID}{client.company && "-"} {client.company})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="title">Project Title *</Label>
@@ -934,7 +1049,7 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
     <DashboardLayout>
       <div className="max-w-8xl mx-auto p-6">
                {/* Header */}
-        <div className="flex items-center gap-4 mb-4">
+       {!isAdminUsage && <div className="flex items-center gap-4 mb-4">
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
             <ArrowLeft className="size-4 mr-2" />
           </Button>
@@ -950,7 +1065,7 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
             <Phone className="size-4 mr-2" />
             {consultationLoading ? 'Sending...' : 'Consultation'}
           </Button>
-        </div>
+        </div>}
 
 
 
@@ -1024,14 +1139,14 @@ export default function ProjectForm({ mode = 'create' }: ProjectFormProps) {
             </Button>
           ) : (
             <div className="flex gap-4">
-              <Button
+              {!isAdminUsage && <Button
                 onClick={() => handleSubmit('draft')}
                 variant="outline"
                 className="flex-1"
                 disabled={submitting}
               >
                 {submitting ? 'Saving...' : 'Save as Draft'}
-              </Button>
+              </Button>}
               <Button
                 onClick={() => handleSubmit('active')}
                 className="flex-1"

@@ -13,6 +13,21 @@ export interface ConsultationRequestData {
   projectCategory?: string;
 }
 
+export interface ConsultationCompletionData {
+  meetingNotes?: string;
+  outcome: string;
+  actionItems?: string;
+}
+
+export interface ConsultationCancellationData {
+  cancellationReason?: string;
+}
+
+export interface ConsultationAssignmentData {
+  assigneeId?: string;
+  assignmentType?: 'assign_to_agent' | 'move_to_in_house';
+}
+
 export interface ConsultationFilters {
   status?: string;
   assigned?: 'me' | 'unassigned';
@@ -37,11 +52,27 @@ export const consultationService = {
     return response.data;
   },
 
-  // Assign consultation to admin
-  assignConsultation: async (id: string, assigneeId?: string) => {
-    const response = await apiClient.patch(API_CONFIG.CONSULTATIONS.ASSIGN(id), {
-      assigneeId,
-    });
+  // Assign consultation to agent/admin
+  assignConsultation: async (id: string, data: ConsultationAssignmentData) => {
+    const response = await apiClient.patch(API_CONFIG.CONSULTATIONS.ASSIGN(id), data);
+    return response.data;
+  },
+
+  // Complete consultation
+  completeConsultation: async (id: string, data: ConsultationCompletionData) => {
+    const response = await apiClient.patch(API_CONFIG.CONSULTATIONS.COMPLETE(id), data);
+    return response.data;
+  },
+
+  // Cancel consultation
+  cancelConsultation: async (id: string, data: ConsultationCancellationData) => {
+    const response = await apiClient.patch(API_CONFIG.CONSULTATIONS.CANCEL(id), data);
+    return response.data;
+  },
+
+  // Undo cancel consultation
+  undoCancelConsultation: async (id: string) => {
+    const response = await apiClient.patch(API_CONFIG.CONSULTATIONS.UNDO_CANCEL(id));
     return response.data;
   },
 

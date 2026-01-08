@@ -64,6 +64,7 @@ import ProjectReview from "./pages/admin/ProjectReview";
 import FreelancerDetails from "./pages/admin/FreelancerDetails";
 import BiddingManagement from "./pages/admin/BiddingManagement";
 import AdminConsultations from "./pages/admin/AdminConsultations";
+import AdminCreateProject from "./pages/client/CreateProject";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminProjectDetail from "./pages/admin/AdminProjectDetail";
 import FreelancerDetail from "./pages/admin/FreelancerDetail";
@@ -428,6 +429,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["admin", "superadmin"]}>
             <AdminConsultations />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/projects/create"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "superadmin"]}>
+            <AdminCreateProject />
           </ProtectedRoute>
         }
       />

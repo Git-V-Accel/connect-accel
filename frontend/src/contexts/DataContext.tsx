@@ -2,9 +2,10 @@ import { createContext, useContext, useState, useEffect, useRef, ReactNode } fro
 import { useAuth } from './AuthContext';
 import { socketService } from '../services/socketService';
 import { SocketEvents } from '../constants/socketConstants';
+import * as userService from '../services/userService';
 import * as projectService from '../services/projectService';
-import * as bidService from '../services/bidService';
-import consultationService from '../services/consultationService';
+import { consultationService } from '../services/consultationService';
+import { getAllBids, createBid, updateBid, deleteBid, getProjectBids, getUserBids } from '../services/bidService';
 import apiClient from '../services/apiService';
 import { API_CONFIG } from '../config/api';
 import { toast } from '../utils/toast';
@@ -121,7 +122,7 @@ export interface Consultation {
     projectBudget?: string;
     projectTimeline?: string;
     projectCategory?: string;
-    status: 'pending' | 'assigned' | 'completed';
+    status: 'pending' | 'assigned' | 'completed' | 'cancelled';
     assignedTo?: {
         _id: string;
         name: string;
@@ -142,6 +143,24 @@ export interface Consultation {
         createdAt: string;
     } | null;
     convertedAt?: string | null;
+    cancelledAt?: string | null;
+    cancelledBy?: {
+        _id: string;
+        name: string;
+        email: string;
+        role: string;
+    } | null;
+    cancellationReason?: string | null;
+    completedAt?: string | null;
+    completedBy?: {
+        _id: string;
+        name: string;
+        email: string;
+        role: string;
+    } | null;
+    meetingNotes?: string | null;
+    outcome?: string | null;
+    actionItems?: string | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -460,7 +479,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
                 // Load bids as well
                 try {
-                    const bidsResult = await bidService.getAllBids();
+                    const bidsResult = await getAllBids();
                     setData((prev: any) => ({
                         ...prev,
                         bids: bidsResult.bids,
@@ -569,6 +588,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
         };
 
         loadConsultations();
+
+        // Load clients for admin usage
+        const loadClients = async () => {
+            try {
+                const clients = await userService.listClients();
+                
+                setData((prev: any) => ({
+                    ...prev,
+                    clients: clients || [],
+                }));
+            } catch (error: any) {
+                console.error('Failed to load clients:', error);
+                if (error.response?.status !== 401 && error.response?.status !== 403) {
+                    toast.error('Failed to load clients');
+                }
+            }
+        };
+
+        loadClients();
     }, [user, refreshTick]);
 
     useEffect(() => {
@@ -597,6 +635,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 status: (projectData.status as 'draft' | 'pending_review' | undefined) || 'pending_review',
                 project_type: projectData.project_type,
                 attachments: projectData.attachments,
+                clientId: (projectData as any).clientId, // For admin usage
+                consultation_id: (projectData as any).consultation_id, // For admin usage
             };
 
             const createdProject = await projectService.createProject(payload);
@@ -1081,7 +1121,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                         user_id: consultation.client._id,
                         type: 'project',
                         title: 'Consultation Scheduled',
-                        description: `Your consultation has been scheduled for ${new Date(updates.createdAt || consultation.createdAt).toLocaleString()}`,
+                        description: `Your consultation has been scheduled for ${new Date().toLocaleString()}`,
                         link: `/client/consultations`,
                         read: false,
                         created_at: new Date().toISOString(),
@@ -1285,8 +1325,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return newNotification;
     };
 
+    const getUserNotifications = (userId: string) => {
+        return data.notifications.filter((n: Notification) => n.user_id === userId);
+    };
+
     const markNotificationAsRead = (id: string) => {
+        // Update local state immediately
+        setData((prev: any) => ({
+            ...prev,
+            notifications: prev.notifications.map((n: Notification) =>
+                n.id === id ? { ...n, read: true } : n
+            ),
+        }));
+
         // Persist to backend (fire-and-forget). Local state is updated immediately.
+        // TODO: Fix backend notification read endpoint - temporarily disabled to prevent 500 errors
+        /*
         (async () => {
             try {
                 await apiClient.put(`${API_CONFIG.API_URL}/notifications/${id}/read`);
@@ -1294,16 +1348,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 console.error('Failed to mark notification as read:', error);
             }
         })();
-        setData((prev: any) => ({
-            ...prev,
-            notifications: prev.notifications.map((n: Notification) =>
-                n.id === id ? { ...n, read: true } : n
-            ),
-        }));
-    };
-
-    const getUserNotifications = (userId: string) => {
-        return data.notifications.filter((n: Notification) => n.user_id === userId);
+        */
     };
 
     // User management methods

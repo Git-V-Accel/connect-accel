@@ -36,6 +36,7 @@ interface AssignAgentDialogProps {
   isLoading?: boolean;
   assignmentType?: string;
   onAssignmentTypeChange?: (value: string) => void;
+  showInHouseOption?: boolean;
 }
 
 const AssignAgentDialog = ({
@@ -49,7 +50,8 @@ const AssignAgentDialog = ({
   validationError,
   isLoading = false,
   assignmentType: externalAssignmentType,
-  onAssignmentTypeChange
+  onAssignmentTypeChange,
+  showInHouseOption = true
 }: AssignAgentDialogProps) => {
   const [internalAssignmentType, setInternalAssignmentType] = useState<string>(externalAssignmentType || "assign_to_agent");
 
@@ -80,38 +82,40 @@ const AssignAgentDialog = ({
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
-        <div>
-          <Label htmlFor="assignment-type">Assignment Type *</Label>
-          <Select
-            value={assignmentType}
-            onValueChange={(value) => {
-              if (onAssignmentTypeChange) {
-                onAssignmentTypeChange(value);
-              } else {
-                setInternalAssignmentType(value);
-              }
-              onAgentSelect(""); // Clear agent selection when type changes
-            }}
-            disabled={isLoading}
-          >
-            <SelectTrigger
-              id="assignment-type"
-              className="mt-2"
+        {showInHouseOption && (
+          <div>
+            <Label htmlFor="assignment-type">Assignment Type *</Label>
+            <Select
+              value={assignmentType}
+              onValueChange={(value) => {
+                if (onAssignmentTypeChange) {
+                  onAssignmentTypeChange(value);
+                } else {
+                  setInternalAssignmentType(value);
+                }
+                onAgentSelect(""); // Clear agent selection when type changes
+              }}
+              disabled={isLoading}
             >
-              <SelectValue placeholder="Choose assignment type..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="assign_to_agent">
-                Assign to Agent
-              </SelectItem>
-              <SelectItem value="move_to_in_house">
-                Move to In House
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+              <SelectTrigger
+                id="assignment-type"
+                className="mt-2"
+              >
+                <SelectValue placeholder="Choose assignment type..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="assign_to_agent">
+                  Assign to Agent
+                </SelectItem>
+                <SelectItem value="move_to_in_house">
+                  Move to In House
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
-        {assignmentType === "assign_to_agent" && (
+        {(assignmentType === "assign_to_agent" || !showInHouseOption) && (
           <div>
             <Label htmlFor="agent-select">Select Agent *</Label>
             <Select
@@ -164,10 +168,10 @@ const AssignAgentDialog = ({
         </Button>
         <Button
           onClick={onAssign}
-          disabled={(assignmentType === "assign_to_agent" && !selectedAgentId) || isLoading}
+          disabled={((assignmentType === "assign_to_agent" || !showInHouseOption) && !selectedAgentId) || isLoading}
         >
           <CheckCircle className="size-4 mr-2" />
-          {assignmentType === "assign_to_agent" 
+          {(!showInHouseOption || assignmentType === "assign_to_agent") 
             ? (isEditingAgent ? 'Re-assign Agent' : 'Assign Agent')
             : 'Move to In House'
           }
