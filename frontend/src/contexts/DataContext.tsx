@@ -305,8 +305,8 @@ interface DataContextType {
     getBidInvitationsByFreelancer: (freelancerId: string) => BidInvitation[];
 
     // Consultation methods
-    createConsultation: (consultation: Omit<Consultation, 'id'>) => Consultation;
-    updateConsultation: (id: string, updates: Partial<Consultation>) => void;
+    createConsultation: (consultation: Omit<Consultation, '_id'>) => Consultation;
+    updateConsultation: (id: string, updates: Partial<Consultation>) => Promise<void>;
     getConsultationsByUser: (userId: string, role: string) => Consultation[];
 
     // Payment methods
@@ -560,10 +560,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         loadNotifications();
     }, [user, refreshTick]);
 
-    // Load consultations from backend when user is available (admin/superadmin only)
+    // Load consultations from backend when user is available (admin/superadmin/agent)
     useEffect(() => {
         const loadConsultations = async () => {
-            if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) return;
+            if (!user || (user.role !== 'admin' && user.role !== 'superadmin' && user.role !== 'agent')) return;
 
             // Prevent multiple simultaneous calls
             if (isLoadingConsultationsRef.current) return;
@@ -571,7 +571,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
             isLoadingConsultationsRef.current = true;
 
             try {
-                const result = await consultationService.getConsultations();
+                // For agents, load only their assigned consultations
+                const filters = user.role === 'agent' ? { assigned: 'me' as const } : undefined;
+                const result = await consultationService.getConsultations(filters);
                 
                 setData((prev: any) => ({
                     ...prev,
@@ -591,6 +593,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
         // Load clients for admin usage
         const loadClients = async () => {
+            if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) return;
+            
             try {
                 const clients = await userService.listClients();
                 
@@ -1103,50 +1107,82 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return newConsultation;
     };
 
-    const updateConsultation = (id: string, updates: Partial<Consultation>) => {
-        setData((prev: any) => {
-            const updatedConsultations = prev.consultations.map((c: Consultation) =>
-                c._id === id ? { ...c, ...updates } : c
-            );
-
-            // Create notifications for consultation updates
-            const consultation = prev.consultations.find((c: Consultation) => c._id === id);
-            const newNotifications = [...prev.notifications];
-
-            if (consultation && updates.status) {
-                if (updates.status === 'assigned') {
-                    // Notify client when consultation is scheduled
-                    newNotifications.push({
-                        id: 'notif_' + Math.random().toString(36).substr(2, 9),
-                        user_id: consultation.client._id,
-                        type: 'project',
-                        title: 'Consultation Scheduled',
-                        description: `Your consultation has been scheduled for ${new Date().toLocaleString()}`,
-                        link: `/client/consultations`,
-                        read: false,
-                        created_at: new Date().toISOString(),
-                    });
-                } else if (updates.status === 'completed') {
-                    // Notify client when consultation is completed
-                    newNotifications.push({
-                        id: 'notif_' + Math.random().toString(36).substr(2, 9),
-                        user_id: consultation.client._id,
-                        type: 'project',
-                        title: 'Consultation Completed',
-                        description: `Your consultation has been completed. ${updates.projectTitle || 'Check notes for details.'}`,
-                        link: `/client/consultations`,
-                        read: false,
-                        created_at: new Date().toISOString(),
-                    });
-                }
+    const updateConsultation = async (id: string, updates: Partial<Consultation>) => {
+        try {
+            // Make API call based on the status update
+            if (updates.status === 'completed') {
+                await consultationService.completeConsultation(id, {
+                    outcome: updates.outcome || '',
+                    meetingNotes: updates.meetingNotes || '',
+                    actionItems: updates.actionItems || ''
+                });
+            } else if (updates.status === 'cancelled') {
+                await consultationService.cancelConsultation(id, {
+                    cancellationReason: updates.cancellationReason || ''
+                });
+            } else if (updates.status === 'assigned') {
+                await consultationService.assignConsultation(id, {
+                    assigneeId: updates.assignedTo?._id,
+                    assignmentType: 'assign_to_agent'
+                });
+            } else {
+                // For other updates, use a generic patch (if backend supports it)
+                // For now, we'll just update local state
+                console.log('Updating consultation locally:', updates);
             }
 
-            return {
-                ...prev,
-                consultations: updatedConsultations,
-                notifications: newNotifications,
-            };
-        });
+            // Update local state after successful API call
+            setData((prev: any) => {
+                const updatedConsultations = prev.consultations.map((c: Consultation) =>
+                    c._id === id ? { ...c, ...updates } : c
+                );
+
+                // Create notifications for consultation updates
+                const consultation = prev.consultations.find((c: Consultation) => c._id === id);
+                const newNotifications = [...prev.notifications];
+
+                if (consultation && updates.status) {
+                    if (updates.status === 'assigned') {
+                        // Notify client when consultation is scheduled
+                        newNotifications.push({
+                            id: 'notif_' + Math.random().toString(36).substr(2, 9),
+                            user_id: consultation.client._id,
+                            type: 'project',
+                            title: 'Consultation Scheduled',
+                            description: `Your consultation has been scheduled for ${new Date().toLocaleString()}`,
+                            link: `/client/consultations`,
+                            read: false,
+                            created_at: new Date().toISOString(),
+                        });
+                    } else if (updates.status === 'completed') {
+                        // Notify client when consultation is completed
+                        newNotifications.push({
+                            id: 'notif_' + Math.random().toString(36).substr(2, 9),
+                            user_id: consultation.client._id,
+                            type: 'project',
+                            title: 'Consultation Completed',
+                            description: `Your consultation has been completed. ${updates.projectTitle || 'Check notes for details.'}`,
+                            link: `/client/consultations`,
+                            read: false,
+                            created_at: new Date().toISOString(),
+                        });
+                    }
+                }
+
+                return {
+                    ...prev,
+                    consultations: updatedConsultations,
+                    notifications: newNotifications,
+                };
+            });
+        } catch (error: any) {
+            console.error('Failed to update consultation:', error);
+            // Optionally show toast error
+            if (error.response?.data?.message) {
+                // You could import toast here if needed
+                console.error('Error message:', error.response.data.message);
+            }
+        }
     };
 
     const getConsultationsByUser = (userId: string, role: string) => {

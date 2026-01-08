@@ -9,8 +9,8 @@ const {
   undoCancelConsultation,
 } = require('../controllers/consultationController');
 
-// All consultation routes require authentication and admin/super admin role
-router.use(protect, authorize('admin', 'superadmin'));
+// All consultation routes require authentication and admin/super admin/agent role
+router.use(protect, authorize('admin', 'superadmin', 'agent'));
 
 router.get('/', getConsultations);
 router.patch('/:id/assign', assignConsultation);

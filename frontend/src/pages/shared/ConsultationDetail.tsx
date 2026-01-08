@@ -1,25 +1,24 @@
-import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
-import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/shared/DashboardLayout';
-import { ArrowLeft, Calendar, Clock, Video, CheckCircle, XCircle, Edit2 } from 'lucide-react';
+import CompleteConsultationDialog from '../../components/shared/CompleteConsultationDialog';
+import { ArrowLeft, Calendar, Clock, CheckCircle, XCircle, User, FileText } from 'lucide-react';
 import { toast } from '../../utils/toast';
+import { useState } from 'react';
 
 export default function ConsultationDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { consultations, projects, updateConsultation } = useData();
+  const { consultations, updateConsultation } = useData();
+  const [isUpdating, setIsUpdating] = useState(false);
   
-  const consultation = consultations.find(c => c.id === id);
-  const project = consultation?.project_id ? projects.find(p => p.id === consultation.project_id) : undefined;
+  // Dialog states
+  const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
+  const [meetingNotes, setMeetingNotes] = useState('');
+  const [dialogOutcome, setDialogOutcome] = useState('');
+  const [actionItems, setActionItems] = useState('');
   
-  const [isEditing, setIsEditing] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState(consultation?.scheduled_date || '');
-  const [meetingLink, setMeetingLink] = useState(consultation?.meeting_link || '');
-  const [notes, setNotes] = useState(consultation?.notes || '');
-  const [outcome, setOutcome] = useState('');
+  const consultation = consultations.find(c => c._id === id);
 
   if (!consultation) {
     return (
@@ -43,67 +42,75 @@ export default function ConsultationDetail() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      requested: 'bg-yellow-100 text-yellow-800',
-      scheduled: 'bg-blue-100 text-blue-800',
-      completed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
+      'pending': 'bg-yellow-100 text-yellow-800',
+      'assigned': 'bg-blue-100 text-blue-800',
+      'completed': 'bg-green-100 text-green-800',
+      'cancelled': 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-  const canEdit = isAdmin && consultation.status !== 'completed' && consultation.status !== 'cancelled';
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="w-4 h-4" />;
+      case 'assigned':
+        return <Clock className="w-4 h-4" />;
+      case 'completed':
+        return <CheckCircle className="w-4 h-4" />;
+      case 'cancelled':
+        return <XCircle className="w-4 h-4" />;
+      default:
+        return <Calendar className="w-4 h-4" />;
+    }
+  };
 
-  const handleSchedule = () => {
-    if (!scheduledDate || !meetingLink) {
-      toast.error('Please provide both date and meeting link');
+  const handleUpdateStatus = async (newStatus: 'completed' | 'cancelled') => {
+    if (newStatus === 'completed') {
+      // Open dialog instead of inline input
+      setIsCompleteDialogOpen(true);
       return;
     }
 
-    updateConsultation(consultation.id, {
-      scheduled_date: scheduledDate,
-      meeting_link: meetingLink,
-      status: 'scheduled',
-      admin_id: user?.id,
-      admin_name: user?.name,
-    });
-
-    toast.success('Consultation scheduled successfully');
-    setIsEditing(false);
-  };
-
-  const handleComplete = () => {
-    if (!outcome.trim()) {
-      toast.error('Please provide outcome details');
-      return;
-    }
-
-    updateConsultation(consultation.id, {
-      status: 'completed',
-      outcome,
-      notes: notes || consultation.notes,
-    });
-
-    toast.success('Consultation marked as completed');
-  };
-
-  const handleCancel = () => {
-    if (confirm('Are you sure you want to cancel this consultation?')) {
-      updateConsultation(consultation.id, {
-        status: 'cancelled',
+    try {
+      setIsUpdating(true);
+      await updateConsultation(consultation._id, { 
+        status: newStatus
       });
-      toast.success('Consultation cancelled');
+      toast.success(`Consultation marked as ${newStatus}`);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update consultation');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
-  const handleSaveNotes = () => {
-    updateConsultation(consultation.id, { notes });
-    toast.success('Notes saved');
-    setIsEditing(false);
-  };
+  const handleCompleteConsultation = async () => {
+    if (!dialogOutcome.trim()) {
+      toast.error('Outcome is required to complete consultation');
+      return;
+    }
 
-  const isPastDate = new Date(consultation.scheduled_date) < new Date();
-  const canComplete = isAdmin && consultation.status === 'scheduled' && isPastDate;
+    try {
+      setIsUpdating(true);
+      await updateConsultation(consultation._id, { 
+        status: 'completed',
+        outcome: dialogOutcome,
+        meetingNotes: meetingNotes,
+        actionItems: actionItems
+      });
+      toast.success('Consultation marked as completed');
+      setIsCompleteDialogOpen(false);
+      // Reset dialog fields
+      setMeetingNotes('');
+      setDialogOutcome('');
+      setActionItems('');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to complete consultation');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -115,250 +122,196 @@ export default function ConsultationDetail() {
               onClick={() => navigate(-1)}
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
+              Back to Consultations
             </button>
-
-            <div className="flex items-start justify-between">
-              <div>
-                <h1 className="text-3xl mb-2">Consultation Details</h1>
-                <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(consultation.status)}`}>
-                  {consultation.status.toUpperCase()}
+            
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold">{consultation.clientName}</h1>
+                    <p className="text-gray-600">{consultation.clientEmail}</p>
+                    {consultation.clientCompany && (
+                      <p className="text-gray-600">{consultation.clientCompany}</p>
+                    )}
+                  </div>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs flex items-center gap-1 ${getStatusColor(consultation.status)}`}>
+                  {getStatusIcon(consultation.status)}
+                  {consultation.status}
                 </span>
               </div>
-              
-              {canEdit && (
-                <button
-                  onClick={() => setIsEditing(!isEditing)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  {isEditing ? 'Cancel Edit' : 'Edit'}
-                </button>
-              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Basic Information */}
-              <div className="bg-white rounded-lg border p-6">
-                <h2 className="text-xl mb-4">Consultation Information</h2>
-                
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm text-gray-600">Client</label>
-                      <p className="mt-1">{consultation.client_name}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm text-gray-600">Admin Assigned</label>
-                      <p className="mt-1">{consultation.admin_name || 'Not assigned'}</p>
-                    </div>
-                  </div>
-
-                  {isEditing ? (
-                    <>
-                      <div>
-                        <label className="text-sm text-gray-600 block mb-2">Scheduled Date & Time</label>
-                        <input
-                          type="datetime-local"
-                          value={scheduledDate.slice(0, 16)}
-                          onChange={(e) => setScheduledDate(new Date(e.target.value).toISOString())}
-                          className="w-full px-3 py-2 border rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-600 block mb-2">Meeting Link</label>
-                        <input
-                          type="url"
-                          value={meetingLink}
-                          onChange={(e) => setMeetingLink(e.target.value)}
-                          className="w-full px-3 py-2 border rounded-lg"
-                          placeholder="https://meet.google.com/..."
-                        />
-                      </div>
-                      <button
-                        onClick={handleSchedule}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                      >
-                        Save Schedule
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm text-gray-600 flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
-                            Date & Time
-                          </label>
-                          <p className="mt-1">{new Date(consultation.scheduled_date).toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm text-gray-600 flex items-center gap-2">
-                            <Clock className="w-4 h-4" />
-                            Duration
-                          </label>
-                          <p className="mt-1">{consultation.duration_minutes} minutes</p>
-                        </div>
-                      </div>
-
-                      {consultation.meeting_link && (
-                        <div>
-                          <label className="text-sm text-gray-600 flex items-center gap-2">
-                            <Video className="w-4 h-4" />
-                            Meeting Link
-                          </label>
-                          <a
-                            href={consultation.meeting_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-1 text-blue-600 hover:underline block"
-                          >
-                            {consultation.meeting_link}
-                          </a>
-                          {consultation.status === 'scheduled' && (
-                            <button
-                              onClick={() => window.open(consultation.meeting_link, '_blank')}
-                              className="mt-3 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-                            >
-                              <Video className="w-4 h-4" />
-                              Join Meeting
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  <div>
-                    <label className="text-sm text-gray-600">Fee</label>
-                    <p className="mt-1">₹{(consultation.fee || 0).toLocaleString()}</p>
-                    <span className={`text-sm ${consultation.paid ? 'text-green-600' : 'text-yellow-600'}`}>
-                      {consultation.paid ? '✓ Paid' : '⏳ Payment Pending'}
-                    </span>
-                  </div>
+          {/* Consultation Details */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Client Information */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Client Information
+              </h2>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Name</label>
+                  <p className="text-gray-900">{consultation.clientName}</p>
                 </div>
-              </div>
-
-              {/* Notes */}
-              <div className="bg-white rounded-lg border p-6">
-                <h2 className="text-xl mb-4">Notes</h2>
-                {isAdmin ? (
-                  <>
-                    <textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg resize-none mb-3"
-                      rows={6}
-                      placeholder="Add notes about the consultation..."
-                    />
-                    <button
-                      onClick={handleSaveNotes}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      Save Notes
-                    </button>
-                  </>
-                ) : (
-                  <p className="text-gray-600">{consultation.notes || 'No notes available yet.'}</p>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Email</label>
+                  <p className="text-gray-900">{consultation.clientEmail}</p>
+                </div>
+                {consultation.clientPhone && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Phone</label>
+                    <p className="text-gray-900">{consultation.clientPhone}</p>
+                  </div>
+                )}
+                {consultation.clientCompany && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Company</label>
+                    <p className="text-gray-900">{consultation.clientCompany}</p>
+                  </div>
                 )}
               </div>
-
-              {/* Complete Consultation (Admin Only) */}
-              {canComplete && (
-                <div className="bg-white rounded-lg border p-6">
-                  <h2 className="text-xl mb-4">Complete Consultation</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm text-gray-600 block mb-2">Outcome Summary</label>
-                      <textarea
-                        value={outcome}
-                        onChange={(e) => setOutcome(e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg resize-none"
-                        rows={4}
-                        placeholder="Summarize the consultation outcome and next steps..."
-                      />
-                    </div>
-                    <button
-                      onClick={handleComplete}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      Mark as Completed
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Outcome (if completed) */}
-              {consultation.status === 'completed' && consultation.outcome && (
-                <div className="bg-green-50 rounded-lg border border-green-200 p-6">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
-                    <div>
-                      <h3 className="text-lg mb-2 text-green-900">Consultation Outcome</h3>
-                      <p className="text-green-800">{consultation.outcome}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Related Project */}
-              {project && (
-                <div className="bg-white rounded-lg border p-6">
-                  <h3 className="text-lg mb-4">Related Project</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-sm text-gray-600">Project</label>
-                      <p className="mt-1">{project.title}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm text-gray-600">Status</label>
-                      <p className="mt-1 capitalize">{project.status.replace('_', ' ')}</p>
-                    </div>
-                    <button
-                      onClick={() => navigate(`/${user?.role}/projects/${project.id}`)}
-                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mt-3"
-                    >
-                      View Project
-                    </button>
-                  </div>
+            {/* Consultation Details */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Consultation Details
+              </h2>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Status</label>
+                  <p className="text-gray-900">{consultation.status}</p>
                 </div>
-              )}
-
-              {/* Actions */}
-              {isAdmin && consultation.status !== 'completed' && consultation.status !== 'cancelled' && (
-                <div className="bg-white rounded-lg border p-6">
-                  <h3 className="text-lg mb-4">Actions</h3>
-                  <div className="space-y-2">
-                    <button
-                      onClick={handleCancel}
-                      className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      Cancel Consultation
-                    </button>
-                  </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Created Date</label>
+                  <p className="text-gray-900">{new Date(consultation.createdAt).toLocaleDateString()}</p>
                 </div>
-              )}
-
-              {/* Quick Info */}
-              <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
-                <h3 className="text-lg mb-3 text-blue-900">Consultation Tips</h3>
-                <ul className="text-sm text-blue-800 space-y-2">
-                  <li>• Join 5 minutes early</li>
-                  <li>• Have your questions ready</li>
-                  <li>• Take notes during the call</li>
-                  <li>• Follow up on action items</li>
-                </ul>
+                {consultation.assignedTo && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Assigned To</label>
+                    <p className="text-gray-900">{consultation.assignedTo.name}</p>
+                  </div>
+                )}
+                {consultation.assignedBy && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Assigned By</label>
+                    <p className="text-gray-900">{consultation.assignedBy.name}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
+
+          {/* Project Information */}
+          {consultation.projectTitle && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Project Information
+              </h2>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Project Title</label>
+                  <p className="text-gray-900">{consultation.projectTitle}</p>
+                </div>
+                {consultation.projectDescription && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Description</label>
+                    <p className="text-gray-900">{consultation.projectDescription}</p>
+                  </div>
+                )}
+                {consultation.projectBudget && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Budget</label>
+                    <p className="text-gray-900">{consultation.projectBudget}</p>
+                  </div>
+                )}
+                {consultation.projectTimeline && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Timeline</label>
+                    <p className="text-gray-900">{consultation.projectTimeline}</p>
+                  </div>
+                )}
+                {consultation.projectCategory && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Category</label>
+                    <p className="text-gray-900">{consultation.projectCategory}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Meeting Notes */}
+          {consultation.meetingNotes && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Meeting Notes
+              </h2>
+              <p className="text-gray-900">{consultation.meetingNotes}</p>
+            </div>
+          )}
+
+          {/* Outcome */}
+          {consultation.outcome && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5" />
+                Outcome
+              </h2>
+              <p className="text-gray-900">{consultation.outcome}</p>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
+            <h2 className="text-lg font-semibold mb-4">Actions</h2>
+            
+            <div className="flex items-center gap-3">
+              {consultation.status === 'assigned' && (
+                <>
+                  <button
+                    onClick={() => setIsCompleteDialogOpen(true)}
+                    disabled={isUpdating}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUpdating ? 'Updating...' : 'Mark Complete'}
+                  </button>
+                  <button
+                    onClick={() => handleUpdateStatus('cancelled')}
+                    disabled={isUpdating}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUpdating ? 'Cancelling...' : 'Cancel'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Complete Consultation Dialog */}
+          <CompleteConsultationDialog
+            open={isCompleteDialogOpen}
+            onOpenChange={setIsCompleteDialogOpen}
+            onComplete={handleCompleteConsultation}
+            meetingNotes={meetingNotes}
+            onMeetingNotesChange={setMeetingNotes}
+            outcome={dialogOutcome}
+            onOutcomeChange={setDialogOutcome}
+            actionItems={actionItems}
+            onActionItemsChange={setActionItems}
+            isLoading={isUpdating}
+          />
         </div>
       </div>
     </DashboardLayout>

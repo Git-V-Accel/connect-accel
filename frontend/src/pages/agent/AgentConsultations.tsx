@@ -3,79 +3,98 @@ import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
+import CompleteConsultationDialog from '../../components/shared/CompleteConsultationDialog';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   Calendar,
   Clock,
-  Video,
-  Phone,
-  MapPin,
   CheckCircle2,
   XCircle,
   AlertCircle,
   User,
-  FileText,
-  IndianRupee
+  FileText
 } from 'lucide-react';
 import { toast } from '../../utils/toast';
 
 export default function AgentConsultations() {
-  const { consultations, clients, updateConsultation } = useData();
+  const { consultations, updateConsultation } = useData();
   const { user } = useAuth();
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  
+  // Dialog states
+  const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
+  const [meetingNotes, setMeetingNotes] = useState('');
+  const [outcome, setOutcome] = useState('');
+  const [actionItems, setActionItems] = useState('');
+  const [selectedConsultation, setSelectedConsultation] = useState<any>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  // Filter consultations for this agent
-  const agentConsultations = consultations.filter(c => c.agent_id === user?.id);
+  // Filter consultations for this agent (only assigned consultations)
+  const agentConsultations = consultations.filter(c => c.assignedTo && c.assignedTo._id === user?.id);
 
   const filteredConsultations = agentConsultations.filter(consultation => {
     if (statusFilter === 'all') return true;
     return consultation.status === statusFilter;
   });
 
-  const getClientName = (clientId: string) => {
-    const client = clients.find(c => c.id === clientId);
-    return client?.name || 'Unknown Client';
-  };
-
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      'scheduled': 'bg-blue-100 text-blue-700',
+      'pending': 'bg-gray-100 text-gray-700',
+      'assigned': 'bg-blue-100 text-blue-700',
       'completed': 'bg-green-100 text-green-700',
       'cancelled': 'bg-red-100 text-red-700',
-      'rescheduled': 'bg-yellow-100 text-yellow-700',
     };
     return colors[status] || 'bg-gray-100 text-gray-700';
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'scheduled':
+      case 'pending':
+        return <Calendar className="size-4" />;
+      case 'assigned':
         return <Clock className="size-4" />;
       case 'completed':
         return <CheckCircle2 className="size-4" />;
       case 'cancelled':
         return <XCircle className="size-4" />;
-      case 'rescheduled':
+      default:
         return <AlertCircle className="size-4" />;
-      default:
-        return <Calendar className="size-4" />;
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'video':
-        return <Video className="size-4" />;
-      case 'phone':
-        return <Phone className="size-4" />;
-      case 'in_person':
-        return <MapPin className="size-4" />;
-      default:
-        return <Calendar className="size-4" />;
+  const handleCompleteConsultation = async () => {
+    if (!outcome.trim()) {
+      toast.error('Outcome is required to complete consultation');
+      return;
+    }
+
+    try {
+      setIsUpdating(true);
+      await updateConsultation(selectedConsultation._id, { 
+        status: 'completed',
+        outcome: outcome,
+        meetingNotes: meetingNotes,
+        actionItems: actionItems
+      });
+      toast.success('Consultation marked as completed');
+      setIsCompleteDialogOpen(false);
+      // Reset dialog fields
+      setMeetingNotes('');
+      setOutcome('');
+      setActionItems('');
+      setSelectedConsultation(null);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to complete consultation');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
+  const openCompleteDialog = (consultation: any) => {
+    setSelectedConsultation(consultation);
+    setIsCompleteDialogOpen(true);
+  };
 
   const stats = [
     {
@@ -86,7 +105,7 @@ export default function AgentConsultations() {
     },
     {
       label: 'Scheduled',
-      value: agentConsultations.filter(c => c.status === 'scheduled').length,
+      value: agentConsultations.filter(c => c.status === 'assigned').length,
       icon: <Clock className="size-5" />,
       color: 'bg-purple-500',
     },
@@ -99,7 +118,7 @@ export default function AgentConsultations() {
     {
       label: 'This Week',
       value: agentConsultations.filter(c => {
-        const consultDate = new Date(c.scheduled_date);
+        const consultDate = new Date(c.createdAt);
         const now = new Date();
         const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
         return consultDate >= now && consultDate <= weekFromNow;
@@ -147,10 +166,9 @@ export default function AgentConsultations() {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Status</option>
-              <option value="scheduled">Scheduled</option>
+              <option value="assigned">Assigned</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
-              <option value="rescheduled">Rescheduled</option>
             </select>
           </div>
         </div>
@@ -165,32 +183,24 @@ export default function AgentConsultations() {
             </div>
           ) : (
             filteredConsultations
-              .sort((a, b) => new Date(b.scheduled_date).getTime() - new Date(a.scheduled_date).getTime())
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
               .map((consultation) => (
-                <div key={consultation.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                <div key={consultation._id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-start gap-4">
                       <div className="size-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white">
                         <User className="size-6" />
                       </div>
                       <div>
-                        <h3 className="text-lg">{getClientName(consultation.client_id)}</h3>
+                        <h3 className="text-lg">{consultation.clientName || 'Unknown Client'}</h3>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
                           <div className="flex items-center gap-1">
                             <Calendar className="size-4" />
-                            <span>{new Date(consultation.scheduled_date).toLocaleDateString()}</span>
+                            <span>{new Date(consultation.createdAt).toLocaleDateString()}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="size-4" />
-                            <span>{new Date(consultation.scheduled_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {getTypeIcon(consultation.type)}
-                            <span className="capitalize">{consultation.type.replace('_', ' ')}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="size-4" />
-                            <span>{consultation.duration} min</span>
+                            <span>{new Date(consultation.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                         </div>
                       </div>
@@ -201,13 +211,13 @@ export default function AgentConsultations() {
                     </span>
                   </div>
 
-                  {consultation.notes && (
+                  {consultation.meetingNotes && (
                     <div className="mb-4 p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <FileText className="size-4 text-gray-500" />
                         <span className="text-sm">Notes:</span>
                       </div>
-                      <p className="text-sm text-gray-600">{consultation.notes}</p>
+                      <p className="text-sm text-gray-600">{consultation.meetingNotes}</p>
                     </div>
                   )}
 
@@ -223,20 +233,17 @@ export default function AgentConsultations() {
 
                   <div className="flex items-center gap-2 pt-4 border-t border-gray-200">
                     <Button asChild variant="outline" size="sm">
-                      <Link to={`/consultation/${consultation.id}`}>
+                      <Link to={`/consultation/${consultation._id}`}>
                         <FileText className="size-4 mr-2" />
                         View Details
                       </Link>
                     </Button>
-                    {consultation.status === 'scheduled' && (
+                    {consultation.status === 'assigned' && (
                       <>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            updateConsultation(consultation.id, { status: 'completed' });
-                            toast.success('Consultation marked as completed');
-                          }}
+                          onClick={() => openCompleteDialog(consultation)}
                         >
                           <CheckCircle2 className="size-4 mr-2" />
                           Mark Complete
@@ -245,7 +252,7 @@ export default function AgentConsultations() {
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            updateConsultation(consultation.id, { status: 'cancelled' });
+                            updateConsultation(consultation._id, { status: 'cancelled' });
                             toast.success('Consultation cancelled');
                           }}
                         >
@@ -259,7 +266,20 @@ export default function AgentConsultations() {
               ))
           )}
         </div>
-
+  
+    {/* Complete Consultation Dialog */}
+    <CompleteConsultationDialog
+      open={isCompleteDialogOpen}
+      onOpenChange={setIsCompleteDialogOpen}
+      onComplete={handleCompleteConsultation}
+      meetingNotes={meetingNotes}
+      onMeetingNotesChange={setMeetingNotes}
+      outcome={outcome}
+      onOutcomeChange={setOutcome}
+      actionItems={actionItems}
+      onActionItemsChange={setActionItems}
+      isLoading={isUpdating}
+    />
       </div>
     </DashboardLayout>
   );

@@ -18,6 +18,7 @@ import {
 } from '../../components/ui/dialog';
 import AssignAgentDialog from '../../components/shared/AssignAgentDialog';
 import CancelConsultationDialog from '../../components/shared/CancelConsultationDialog';
+import CompleteConsultationDialog from '../../components/shared/CompleteConsultationDialog';
 import ConsultationCard from '../../components/shared/ConsultationCard';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -51,6 +52,7 @@ export default function AdminConsultations() {
   const [selectedAgentId, setSelectedAgentId] = useState('');
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   const [assignmentType, setAssignmentType] = useState('assign_to_agent');
+  const [isCompleting, setIsCompleting] = useState(false);
 
   // Form states
   const [meetingNotes, setMeetingNotes] = useState('');
@@ -105,6 +107,7 @@ export default function AdminConsultations() {
     }
 
     try {
+      setIsCompleting(true);
       const response = await consultationService.completeConsultation(selectedConsultation._id, {
         meetingNotes,
         outcome,
@@ -124,6 +127,8 @@ export default function AdminConsultations() {
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error.message || 'Failed to complete consultation';
       toast.error(errorMessage);
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -520,58 +525,18 @@ export default function AdminConsultations() {
 
 
         {/* Complete Dialog */}
-        <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Complete Consultation</DialogTitle>
-              <DialogDescription>
-                Add meeting notes and outcomes
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label>Meeting Notes</Label>
-                <Textarea
-                  placeholder="What was discussed..."
-                  value={meetingNotes}
-                  onChange={(e) => setMeetingNotes(e.target.value)}
-                  rows={4}
-                />
-              </div>
-
-              <div>
-                <Label>Outcome *</Label>
-                <Textarea
-                  placeholder="What was decided or agreed upon..."
-                  value={outcome}
-                  onChange={(e) => setOutcome(e.target.value)}
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <Label>Action Items</Label>
-                <Textarea
-                  placeholder="Next steps and follow-ups..."
-                  value={actionItems}
-                  onChange={(e) => setActionItems(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCompleteConsultation} className="bg-green-600 hover:bg-green-700">
-                <CheckCircle className="size-4 mr-2" />
-                Mark Complete
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <CompleteConsultationDialog
+          open={isCompleteDialogOpen}
+          onOpenChange={setIsCompleteDialogOpen}
+          onComplete={handleCompleteConsultation}
+          meetingNotes={meetingNotes}
+          onMeetingNotesChange={setMeetingNotes}
+          outcome={outcome}
+          onOutcomeChange={setOutcome}
+          actionItems={actionItems}
+          onActionItemsChange={setActionItems}
+          isLoading={isCompleting}
+        />
 
         {/* Cancel Consultation Dialog */}
         <CancelConsultationDialog

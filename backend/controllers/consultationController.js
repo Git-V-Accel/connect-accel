@@ -14,10 +14,10 @@ const ensureAgentOrAdmin = (role) =>
 
 const getConsultations = async (req, res) => {
   try {
-    if (!ensureAdmin(req.user.role)) {
+    if (!ensureAgentOrAdmin(req.user.role)) {
       return res.status(STATUS_CODES.FORBIDDEN).json({
         success: false,
-        message: MESSAGES.ADMIN_REQUIRED || 'Only admins can access consultations',
+        message: MESSAGES.ADMIN_REQUIRED || 'Only admins and agents can access consultations',
       });
     }
 
@@ -163,6 +163,18 @@ const assignConsultation = async (req, res) => {
       .populate('assignedBy', 'name email role')
       .populate('project', 'title status createdAt');
 
+    if (!updatedConsultation) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: 'Consultation request not found',
+      });
+    }
+
+    // Check if this is a re-assignment
+    if (updatedConsultation.assignedTo && updatedConsultation.assignedTo.toString() !== targetAssigneeId.toString()) {
+      isReassignment = true;
+    }
+
     // Notify all admin users about the assignment in real-time
     socketService.emitToAdminUsers('consultation-updated', {
       consultation: updatedConsultation
@@ -195,10 +207,10 @@ const assignConsultation = async (req, res) => {
 
 const completeConsultation = async (req, res) => {
   try {
-    if (!ensureAdmin(req.user.role)) {
+    if (!ensureAgentOrAdmin(req.user.role)) {
       return res.status(STATUS_CODES.FORBIDDEN).json({
         success: false,
-        message: MESSAGES.ADMIN_REQUIRED || 'Only admins can complete consultations',
+        message: MESSAGES.ADMIN_REQUIRED || 'Only admins and agents can complete consultations',
       });
     }
 
@@ -227,6 +239,14 @@ const completeConsultation = async (req, res) => {
       });
     }
 
+    // Check if agent is trying to complete a consultation not assigned to them
+    if (req.user.role === USER_ROLES.AGENT && (!consultation.assignedTo || consultation.assignedTo.toString() !== req.user._id.toString())) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'You can only complete consultations assigned to you',
+      });
+    }
+
     // Update consultation with completion details
     consultation.status = 'completed';
     consultation.meetingNotes = meetingNotes;
@@ -249,12 +269,14 @@ const completeConsultation = async (req, res) => {
       await createAuditLog({
         performedBy: req.user,
         action: AUDIT_ACTIONS.CONSULTATION_COMPLETED,
-        targetUser: consultation.assignedTo,
+        targetUser: updatedConsultation.assignedTo,
         metadata: {
-          consultationId: consultation._id,
-          clientName: consultation.clientName || 'Client',
+          consultationId: updatedConsultation._id,
+          clientName: updatedConsultation.clientName || 'Client',
           outcome,
-          completedBy: req.user.name
+          completedBy: req.user._id,
+          meetingNotes,
+          actionItems
         },
         req
       });
@@ -324,10 +346,10 @@ const completeConsultation = async (req, res) => {
 
 const cancelConsultation = async (req, res) => {
   try {
-    if (!ensureAdmin(req.user.role)) {
+    if (!ensureAgentOrAdmin(req.user.role)) {
       return res.status(STATUS_CODES.FORBIDDEN).json({
         success: false,
-        message: MESSAGES.ADMIN_REQUIRED || 'Only admins can cancel consultations',
+        message: MESSAGES.ADMIN_REQUIRED || 'Only admins and agents can cancel consultations',
       });
     }
 
@@ -353,6 +375,14 @@ const cancelConsultation = async (req, res) => {
       return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
         message: 'Cannot cancel a completed consultation',
+      });
+    }
+
+    // Check if agent is trying to cancel a consultation not assigned to them
+    if (req.user.role === USER_ROLES.AGENT && (!consultation.assignedTo || consultation.assignedTo.toString() !== req.user._id.toString())) {
+      return res.status(STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: 'You can only cancel consultations assigned to you',
       });
     }
 
