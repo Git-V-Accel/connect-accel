@@ -141,21 +141,21 @@ const ConsultationCard: React.FC<ConsultationCardProps> = ({
               <p className="mt-1 text-gray-700">{new Date(consultation.completedAt).toLocaleString()}</p>
             </div>
           )}
-            {consultation.status === 'cancelled' && consultation.cancelledBy && (
-          <div>
-            <Label className="text-gray-600">Cancelled By</Label>
-            <p className="mt-1 text-gray-700">{consultation.cancelledBy.name} <em>({consultation.cancelledBy.role})</em></p>
-          </div>
-        )}
+          {consultation.status === 'cancelled' && consultation.cancelledBy && (
+            <div>
+              <Label className="text-gray-600">Cancelled By</Label>
+              <p className="mt-1 text-gray-700">{consultation.cancelledBy.name} <em>({consultation.cancelledBy.role})</em></p>
+            </div>
+          )}
 
-        {consultation.status === 'cancelled' && consultation.cancellationReason && (
-          <div>
-            <Label className="text-gray-600">Cancellation Reason</Label>
-            <p className="mt-1 text-gray-700 whitespace-pre-wrap">{consultation.cancellationReason}</p>
-          </div>
-        )}
+          {consultation.status === 'cancelled' && consultation.cancellationReason && (
+            <div>
+              <Label className="text-gray-600">Cancellation Reason</Label>
+              <p className="mt-1 text-gray-700 whitespace-pre-wrap">{consultation.cancellationReason}</p>
+            </div>
+          )}
         </div>
-      
+
 
 
         {showActions && (
@@ -171,39 +171,48 @@ const ConsultationCard: React.FC<ConsultationCardProps> = ({
             )}
 
             {consultation.status === 'assigned' && (
-              <>
-                {onReassignAgent && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onReassignAgent(consultation)}
-                  >
-                    <Edit className="size-4 mr-2" />
-                    Re-assign
-                  </Button>
-                )}
-                {onCompleteConsultation && (
-                  <Button
-                    size="sm"
-                    onClick={() => onCompleteConsultation(consultation)}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <CheckCircle className="size-4 mr-2" />
-                    Complete
-                  </Button>
-                )}
-                {onCancelConsultation && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onCancelConsultation(consultation)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <XCircle className="size-4 mr-2" />
-                    Cancel
-                  </Button>
-                )}
-              </>
+              <div className="flex justify-between items-center w-full">
+                {/* LEFT */}
+                <span className="flex items-center gap-2">
+                  {onReassignAgent && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onReassignAgent(consultation)}
+                    >
+                      <Edit className="size-4 mr-2" />
+                      Re-assign
+                    </Button>
+                  )}
+                </span>
+
+                {/* RIGHT */}
+                <span className="flex items-center gap-2">
+                  {onCancelConsultation && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onCancelConsultation(consultation)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <XCircle className="size-4 mr-2" />
+                      Cancel
+                    </Button>
+                  )}
+
+                  {onCompleteConsultation && (
+                    <Button
+                      size="sm"
+                      onClick={() => onCompleteConsultation(consultation)}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle className="size-4 mr-2" />
+                      Complete
+                    </Button>
+                  )}
+                </span>
+              </div>
+
             )}
 
             {consultation.status === 'cancelled' && onUndoCancelConsultation && (
@@ -217,7 +226,7 @@ const ConsultationCard: React.FC<ConsultationCardProps> = ({
                 Undo Cancel
               </Button>
             )}
-  {consultation.status === 'completed' && consultation.project && (
+            {consultation.status === 'completed' && consultation.project && (
               <Link to={`/admin/projects/${consultation.project._id}/review`}>
                 <Button variant="outline" size="sm">
                   <ArrowRight className="size-4 mr-2" />
