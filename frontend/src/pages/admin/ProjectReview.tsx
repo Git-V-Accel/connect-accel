@@ -70,6 +70,7 @@ import {
   Star,
   Eye,
   Loader2,
+  Paperclip,
 } from "lucide-react";
 import { toast } from "../../utils/toast";
 import ProjectTimeline from "../../components/project/ProjectTimeline";
@@ -77,6 +78,7 @@ import * as userService from "../../services/userService";
 import * as bidService from "../../services/bidService";
 import type { Bid } from "../../services/bidService";
 import DeleteWithReasonDialog from "../../components/common/DeleteWithReasonDialog";
+import AttachmentItem from "../../components/common/AttachmentItem";
 import apiClient from "../../services/apiService";
 import { API_CONFIG } from "../../config/api";
 
@@ -1228,6 +1230,10 @@ export default function ProjectReview() {
                   <Award className="size-4 mr-2" />
                   Bidding Info
                 </TabsTrigger>
+                <TabsTrigger value="attachments">
+                  <Paperclip className="size-4 mr-2" />
+                  Attachments
+                </TabsTrigger>
               </TabsList>
 
               {/* Details Tab */}
@@ -2277,6 +2283,36 @@ export default function ProjectReview() {
                     </div>
                   </Card>
                 )}
+              </TabsContent>
+
+              {/* Attachments Tab */}
+              <TabsContent value="attachments" className="space-y-4">
+                <Card className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-medium text-lg">
+                      Project Attachments ({project.attachments?.length || 0})
+                    </h3>
+                  </div>
+                  
+                  {project.attachments && project.attachments.length > 0 ? (
+                    <div className="space-y-3">
+                      {project.attachments.map((attachment: any, index: number) => (
+                        <AttachmentItem
+                          key={attachment.id || attachment._id || index}
+                          attachment={attachment}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <Paperclip className="size-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No Attachments</h3>
+                      <p className="text-gray-600">
+                        This project doesn't have any attachments yet.
+                      </p>
+                    </div>
+                  )}
+                </Card>
               </TabsContent>
             </Tabs>
           </div>
