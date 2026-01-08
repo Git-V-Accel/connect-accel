@@ -158,6 +158,11 @@ const projectSchema = new mongoose.Schema({
     uploadedAt: { type: Date, default: Date.now }
   }],
   adminNotes: String,
+  consultation_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ConsultationRequest',
+    default: null
+  },
   completedAt: Date
 }, {
   timestamps: true
@@ -172,6 +177,7 @@ projectSchema.index({ assignmentType: 1, status: 1 });
 projectSchema.index({ isOpenForBidding: 1, status: 1 });
 projectSchema.index({ createdAt: -1 });
 projectSchema.index({ client: 1, createdAt: -1 });
+projectSchema.index({ consultation_id: 1 });
 
 projectSchema.pre('save', function(next) {
   if (this.isNew && !this.clientTitle) {

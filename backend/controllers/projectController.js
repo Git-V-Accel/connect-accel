@@ -296,8 +296,7 @@ const createProject = async (req, res) => {
       budget = 0;
     }
 
-    const { clientId: clientIdFromBody, consultationId } = req.body || {};
-
+    const { clientId: clientIdFromBody, consultation_id:consultationId } = req.body || {};
     const parseClientIdentifier = (value) => {
       if (!value) return null;
       if (typeof value === 'string') {
@@ -387,7 +386,8 @@ const createProject = async (req, res) => {
       attachments: processedAttachments,
       client: targetClientId,
       isNegotiableBudget,
-      project_type: req.body.project_type || 'from_scratch'
+      project_type: req.body.project_type || 'from_scratch',
+      consultation_id: consultationId || null
     });
 
     // Log activity
