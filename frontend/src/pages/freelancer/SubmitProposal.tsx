@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../../components/shared/DashboardLayout';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
@@ -27,6 +27,7 @@ import { useAuth } from '../../contexts/AuthContext';
 export default function SubmitProposal() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [bid, setBid] = useState<Bid | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,24 +35,61 @@ export default function SubmitProposal() {
   const [bidAmount, setBidAmount] = useState('');
   const [bidDuration, setBidDuration] = useState('');
   const [bidProposal, setBidProposal] = useState('');
+  const [existingBidding, setExistingBidding] = useState<any>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  // Check if we're in edit mode
+  useEffect(() => {
+    const pathname = location.pathname;
+    setIsEditMode(pathname.includes('/edit'));
+  }, [location.pathname]);
 
   useEffect(() => {
     const loadBid = async () => {
       if (!id) return;
       try {
         setLoading(true);
-        const bidData = await bidService.getBidDetails(id);
-        setBid(bidData);
+        
+        if (location.pathname.includes('/edit')) {
+          // In edit mode, load admin bid details first
+          const bidData = await bidService.getBidDetails(id);
+          setBid(bidData);
+          
+          // Load existing bidding data
+          try {
+            const biddingResponse = await apiClient.get(API_CONFIG.BIDDING.GET_BY_FREELANCER(user.id));
+            if (biddingResponse.data.success && biddingResponse.data.data) {
+              const biddings = Array.isArray(biddingResponse.data.data) ? biddingResponse.data.data : [];
+              const myBidding = biddings.find((b: any) => {
+                const adminBidId = b.adminBidId?._id?.toString() || b.adminBidId?.toString() || b.adminBidId;
+                return adminBidId === id || adminBidId === String(id) || String(adminBidId) === String(id);
+              });
+              
+              if (myBidding) {
+                setExistingBidding(myBidding);
+                setBidAmount(myBidding.bidAmount?.toString() || '');
+                setBidDuration(myBidding.timeline?.replace(' weeks', '') || '');
+                setBidProposal(myBidding.description || '');
+              }
+            }
+          } catch (error) {
+            console.error('Failed to load existing bidding:', error);
+          }
+        } else {
+          // In create mode, load admin bid details
+          const bidData = await bidService.getBidDetails(id);
+          setBid(bidData);
+        }
       } catch (error: any) {
         console.error('Failed to load bid:', error);
         toast.error(error.message || 'Failed to load bid details');
-        navigate('/freelancer/projects');
+        navigate('/freelancer/bids');
       } finally {
         setLoading(false);
       }
     };
     loadBid();
-  }, [id, navigate]);
+  }, [id, navigate, user?.id, location.pathname]);
 
   const handleSubmitProposal = async () => {
     if (!bid || !bidAmount || !bidDuration || !bidProposal) {
@@ -68,20 +106,40 @@ export default function SubmitProposal() {
 
     try {
       setSubmitting(true);
-      const response = await apiClient.post(API_CONFIG.BIDDING.CREATE, {
-        adminBidId: bid.id,
-        bidAmount: parseFloat(bidAmount),
-        timeline: `${bidDuration} weeks`,
-        description: bidProposal,
-        attachments: [],
-        notes: '',
-      });
+      
+      if (isEditMode && existingBidding) {
+        // Update existing bidding
+        const response = await apiClient.put(API_CONFIG.BIDDING.UPDATE(existingBidding._id || existingBidding.id), {
+          bidAmount: parseFloat(bidAmount),
+          timeline: `${bidDuration} weeks`,
+          description: bidProposal,
+          attachments: [],
+          notes: '',
+        });
 
-      if (response.data.success) {
-        toast.success('Proposal submitted successfully!');
-        navigate('/freelancer/bids');
+        if (response.data.success) {
+          toast.success('Bid updated successfully!');
+          navigate('/freelancer/bids');
+        } else {
+          toast.error(response.data.message || 'Failed to update bid');
+        }
       } else {
-        toast.error(response.data.message || 'Failed to submit proposal');
+        // Create new bidding
+        const response = await apiClient.post(API_CONFIG.BIDDING.CREATE, {
+          adminBidId: bid.id,
+          bidAmount: parseFloat(bidAmount),
+          timeline: `${bidDuration} weeks`,
+          description: bidProposal,
+          attachments: [],
+          notes: '',
+        });
+
+        if (response.data.success) {
+          toast.success('Proposal submitted successfully!');
+          navigate('/freelancer/bids');
+        } else {
+          toast.error(response.data.message || 'Failed to submit proposal');
+        }
       }
     } catch (error: any) {
       console.error('Failed to submit proposal:', error);
@@ -250,7 +308,7 @@ export default function SubmitProposal() {
           {/* Right Side - Proposal Form */}
           <div>
             <Card className="p-6">
-              <h2 className="text-2xl mb-6">Your Proposal</h2>
+              <h2 className="text-2xl mb-6">{isEditMode ? 'Edit Your Proposal' : 'Your Proposal'}</h2>
               
               <div className="space-y-6">
                 <div className="bg-blue-50 p-4 rounded-lg">
@@ -321,7 +379,7 @@ export default function SubmitProposal() {
                     className="flex-1"
                   >
                     <Send className="size-4 mr-2" />
-                    {submitting ? 'Submitting...' : 'Submit Proposal'}
+                    {submitting ? 'Submitting...' : (isEditMode ? 'Update Bid' : 'Submit Proposal')}
                   </Button>
                 </div>
               </div>

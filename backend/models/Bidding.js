@@ -125,7 +125,12 @@ const biddingSchema = new mongoose.Schema({
   clientName: { 
     type: String, 
     required: [true, VALIDATION.BIDDING.CLIENT_NAME_REQUIRED]
-  }
+  },
+  
+  // Withdrawal information
+  withdrawalReason: { 
+    type: String 
+  },
 }, { 
   timestamps: true 
 });

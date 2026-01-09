@@ -350,6 +350,14 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/freelancer/bids/:id/edit"
+        element={
+          <ProtectedRoute allowedRoles={["freelancer"]}>
+            <SubmitProposal />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Admin routes */}
       <Route

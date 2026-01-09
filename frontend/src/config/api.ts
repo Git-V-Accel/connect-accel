@@ -73,6 +73,7 @@ export const API_CONFIG = {
     UPDATE: (id: string) => `/bidding/${id}`,
     UPDATE_STATUS: (id: string) => `/bidding/${id}/status`,
     DELETE: (id: string) => `/bidding/${id}`,
+    UNDO_WITHDRAWAL: (id: string) => `/bidding/${id}/undo-withdrawal`,
     SHORTLIST: (id: string) => `/bidding/${id}/shortlist`,
     ACCEPT: (id: string) => `/bidding/${id}/accept`,
     DECLINE: (id: string) => `/bidding/${id}/decline`,
@@ -86,6 +87,12 @@ export const API_CONFIG = {
     COMPLETE: (id: string) => `/consultations/${id}/complete`,
     CANCEL: (id: string) => `/consultations/${id}/cancel`,
     UNDO_CANCEL: (id: string) => `/consultations/${id}/undo-cancel`,
+  },
+  SHORTLISTED_PROJECTS: {
+    LIST: '/shortlisted-projects',
+    ADD: '/shortlisted-projects',
+    REMOVE: (projectId: string) => `/shortlisted-projects/${projectId}`,
+    CHECK: (projectId: string) => `/shortlisted-projects/check/${projectId}`,
   },
   DASHBOARD: {
     SUPERADMIN: '/dashboard/superadmin',

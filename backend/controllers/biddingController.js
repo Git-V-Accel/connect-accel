@@ -339,7 +339,7 @@ const getBiddingsByFreelancer = async (req, res) => {
 
     const biddings = await Bidding.find({ freelancerId })
       .populate('adminBidId', 'bidAmount timeline description')
-      .populate('projectId', 'title description')
+      .populate('projectId', 'title description category skills')
       .sort({ submittedAt: -1 });
 
     sendResponse(res, true, biddings.map(b => b.toApiResponse()), 'Biddings retrieved successfully');
@@ -493,11 +493,51 @@ const deleteBidding = async (req, res) => {
 
     // Mark as withdrawn instead of deleting
     bidding.status = 'withdrawn';
+    
+    // Add withdrawal reason if provided
+    if (req.body.reason) {
+      bidding.withdrawalReason = req.body.reason;
+    }
+    
     await bidding.save();
 
     sendResponse(res, true, null, 'Bidding withdrawn successfully');
   } catch (error) {
     handleError(res, error, 'Failed to withdraw bidding');
+  }
+};
+
+// @desc    Undo withdrawal - Restore a withdrawn bidding to pending status
+// @route   PUT /api/bidding/:biddingId/undo-withdrawal
+// @access  Private (Bidder only)
+const undoWithdrawal = async (req, res) => {
+  try {
+    const { biddingId } = req.params;
+
+    const bidding = await Bidding.findById(biddingId);
+    if (!bidding) {
+      return sendResponse(res, false, null, 'Bidding not found', 404);
+    }
+
+    // Check if user is the bidder
+    if (bidding.freelancerId.toString() !== req.user.id) {
+      return sendResponse(res, false, null, 'Access denied', 403);
+    }
+
+    // Check if bidding is actually withdrawn
+    if (bidding.status !== 'withdrawn') {
+      return sendResponse(res, false, null, 'Bidding is not withdrawn', 400);
+    }
+
+    // Restore to pending status
+    bidding.status = 'pending';
+    bidding.withdrawalReason = undefined;
+    
+    await bidding.save();
+
+    sendResponse(res, true, null, 'Bid withdrawal undone successfully');
+  } catch (error) {
+    handleError(res, error, 'Failed to undo withdrawal');
   }
 };
 
@@ -1002,6 +1042,7 @@ module.exports = {
   updateBiddingStatus,
   updateBidding,
   deleteBidding,
+  undoWithdrawal,
   getBiddingStats,
   updateShortlistStatus,
   updateAcceptanceStatus,

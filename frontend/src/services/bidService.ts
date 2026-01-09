@@ -196,6 +196,14 @@ export const getBidDetails = async (bidId: string): Promise<Bid> => {
   throw new Error(response.data.message || 'Failed to fetch bid details');
 };
 
+export const getBiddingDetails = async (biddingId: string): Promise<any> => {
+  const response = await apiClient.get(API_CONFIG.BIDDING.GET(biddingId));
+  if (response.data.success && response.data.data) {
+    return response.data.data;
+  }
+  throw new Error(response.data.message || 'Failed to fetch bidding details');
+};
+
 export const updateBid = async (bidId: string, payload: UpdateBidPayload): Promise<Bid> => {
   const response = await apiClient.put(API_CONFIG.BIDS.UPDATE(bidId), payload);
   if (response.data.success && response.data.data) {

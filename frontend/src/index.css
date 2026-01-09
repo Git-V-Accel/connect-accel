@@ -54,13 +54,21 @@
     --sidebar-accent: 40 25% 95%;
     --sidebar-accent-foreground: 0 0% 8%;
     --sidebar-border: 0 0% 88%;
-    --sidebar-ring: 205 65% 30%;
+    --sidebar-ring: 205 65% 30%;   
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+    /* Hide scrollbars for entire application */
+    scrollbar-width: none !important;  /* Firefox */
+    -ms-overflow-style: none !important;  /* IE and Edge */
+  }
+  
+  /* Hide scrollbars for Webkit browsers (Chrome, Safari) */
+  *::-webkit-scrollbar {
+    display: none !important;
   }
   
   html {
@@ -76,9 +84,6 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Scroll performance */
-    overscroll-behavior-y: none;
-    -webkit-overflow-scrolling: touch;
   }
   
   h1, h2, h3, h4, h5, h6 {

@@ -18,7 +18,8 @@ import {
   Search,
   ArrowRight,
   CheckCircle,
-  TrendingUp
+  TrendingUp,
+  Pause
 } from 'lucide-react';
 
 export default function ActiveProjects() {
@@ -44,6 +45,7 @@ export default function ActiveProjects() {
   // Include both 'assigned' and 'in_progress' statuses for active projects
   const activeProjects = myProjects.filter(p => p.status === 'in_progress' || p.status === 'assigned');
   const completedProjects = myProjects.filter(p => p.status === 'completed');
+  const holdProjects = myProjects.filter(p => p.status === 'hold');
   const payments = getPaymentsByUser(user.id);
 
   const filteredActive = activeProjects.filter(p =>
@@ -52,6 +54,11 @@ export default function ActiveProjects() {
   );
 
   const filteredCompleted = completedProjects.filter(p =>
+    p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.client_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredHold = holdProjects.filter(p =>
     p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.client_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -90,8 +97,8 @@ export default function ActiveProjects() {
           <div className="flex-1">
             <h3 className="text-xl mb-2">{project.title}</h3>
           </div>
-          <Badge variant={project.status === 'in_progress' || project.status === 'assigned' ? 'default' : 'secondary'}>
-            {project.status.replace('_', ' ')}
+          <Badge variant={project.status === 'in_progress' || project.status === 'assigned' ? 'default' : project.status === 'hold' ? 'secondary' : 'outline'}>
+            {project.status === 'hold' ? 'on hold' : project.status.replace('_', ' ')}
           </Badge>
         </div>
 
@@ -153,6 +160,7 @@ export default function ActiveProjects() {
 
   const totalActive = activeProjects.length;
   const totalCompleted = completedProjects.length;
+  const totalHold = holdProjects.length;
   const totalEarned = payments.filter(p => p.to_user_id === user.id && p.status === 'completed').reduce((sum, p) => sum + p.amount, 0);
 
   return (
@@ -162,7 +170,7 @@ export default function ActiveProjects() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl mb-2">My Projects</h1>
-            <p className="text-gray-600">Manage your active and completed projects</p>
+            <p className="text-gray-600">Manage your active, completed, and hold projects</p>
           </div>
           <Link to="/freelancer/projects">
             <Button size="lg">
@@ -173,7 +181,7 @@ export default function ActiveProjects() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -193,6 +201,17 @@ export default function ActiveProjects() {
               </div>
               <div className="bg-green-100 text-green-600 p-3 rounded-lg">
                 <CheckCircle className="size-6" />
+              </div>
+            </div>
+          </Card>
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Hold Projects</p>
+                <p className="text-3xl mt-2">{totalHold}</p>
+              </div>
+              <div className="bg-orange-100 text-orange-600 p-3 rounded-lg">
+                <Pause className="size-6" />
               </div>
             </div>
           </Card>
@@ -222,12 +241,15 @@ export default function ActiveProjects() {
 
         {/* Tabs */}
         <Tabs defaultValue="active" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="active">
               Active Projects ({activeProjects.length})
             </TabsTrigger>
             <TabsTrigger value="completed">
               Completed Projects ({completedProjects.length})
+            </TabsTrigger>
+            <TabsTrigger value="hold">
+              Hold Projects ({holdProjects.length})
             </TabsTrigger>
           </TabsList>
 
@@ -268,6 +290,24 @@ export default function ActiveProjects() {
                 <h3 className="text-xl mb-2">No Completed Projects</h3>
                 <p className="text-gray-600">
                   {searchQuery ? 'No projects match your search' : 'Completed projects will appear here'}
+                </p>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="hold" className="space-y-6 mt-6">
+            {filteredHold.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {filteredHold.map(project => (
+                  <ProjectCard key={project.id} project={project} />
+                ))}
+              </div>
+            ) : (
+              <Card className="p-12 text-center">
+                <Pause className="size-16 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-xl mb-2">No Hold Projects</h3>
+                <p className="text-gray-600">
+                  {searchQuery ? 'No projects match your search' : 'Projects on hold will appear here'}
                 </p>
               </Card>
             )}

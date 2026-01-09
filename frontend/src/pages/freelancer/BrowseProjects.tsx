@@ -10,12 +10,13 @@ import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { Search, IndianRupee, Clock, Send, Filter, Eye, FileText } from 'lucide-react';
+import { Search, IndianRupee, Clock, Send, Filter, Eye, FileText, ArrowUpDown, Bookmark, BookmarkCheck } from 'lucide-react';
 import * as bidService from '../../services/bidService';
 import type { Bid } from '../../services/bidService';
 import apiClient from '../../services/apiService';
 import { API_CONFIG } from '../../config/api';
 import { toast } from '../../utils/toast';
+import * as shortlistService from '../../services/shortlistService';
 
 export default function BrowseProjects() {
   const { user } = useAuth();
@@ -23,19 +24,53 @@ export default function BrowseProjects() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('submittedAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const [availableBids, setAvailableBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [myBiddingIds, setMyBiddingIds] = useState<string[]>([]);
   const [myBiddingMap, setMyBiddingMap] = useState<Map<string, string>>(new Map()); // Map of adminBidId -> biddingId
+  const [shortlistedProjectIds, setShortlistedProjectIds] = useState<Set<string>>(new Set());
+
+  // Toggle shortlist status
+  const toggleShortlist = async (projectId: string, adminBidId: string) => {
+    try {
+      if (shortlistedProjectIds.has(projectId)) {
+        // Remove from shortlist
+        await shortlistService.removeFromShortlist(projectId);
+        setShortlistedProjectIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(projectId);
+          return newSet;
+        });
+        toast.success('Project removed from shortlist');
+      } else {
+        // Add to shortlist
+        await shortlistService.addToShortlist(projectId, adminBidId);
+        setShortlistedProjectIds(prev => {
+          const newSet = new Set(prev);
+          newSet.add(projectId);
+          return newSet;
+        });
+        toast.success('Project added to shortlist');
+      }
+    } catch (error: any) {
+      console.error('Failed to toggle shortlist:', error);
+      toast.error('Failed to update shortlist status');
+    }
+  };
 
   useEffect(() => {
     const loadBids = async () => {
       if (!user) return;
       setLoading(true);
       try {
-        // Fetch all available admin bids (not filtering by status to show all bids)
-        const response = await bidService.getAvailableAdminBids({});
+        // Fetch all available admin bids with sorting parameters
+        const response = await bidService.getAvailableAdminBids({
+          sortBy,
+          sortOrder
+        });
         setAvailableBids(response.bids || []);
 
         // Fetch freelancer's existing biddings to track which bids they've already submitted proposals for
@@ -63,6 +98,21 @@ export default function BrowseProjects() {
         } catch (error) {
           console.error('Failed to load my biddings:', error);
         }
+
+        // Fetch shortlisted projects
+        try {
+          const shortlistResponse = await shortlistService.getShortlistedProjects();
+          if (shortlistResponse.success && shortlistResponse.data) {
+            const shortlistedIds = new Set(
+              Array.isArray(shortlistResponse.data) 
+                ? shortlistResponse.data.map((sp: any) => sp.projectId)
+                : []
+            );
+            setShortlistedProjectIds(shortlistedIds);
+          }
+        } catch (error) {
+          console.error('Failed to load shortlisted projects:', error);
+        }
       } catch (error: any) {
         console.error('Failed to load bids:', error);
         toast.error('Failed to load available bids');
@@ -71,7 +121,7 @@ export default function BrowseProjects() {
       }
     };
     loadBids();
-  }, [user]);
+  }, [user, sortBy, sortOrder]);
 
   if (!user) return null;
 
@@ -132,6 +182,22 @@ export default function BrowseProjects() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
+              const [sort, order] = value.split('-');
+              setSortBy(sort);
+              setSortOrder(order as 'asc' | 'desc');
+            }}>
+              <SelectTrigger className="w-full md:w-48">
+                <ArrowUpDown className="size-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="submittedAt-desc">Newest First</SelectItem>
+                <SelectItem value="submittedAt-asc">Oldest First</SelectItem>
+                <SelectItem value="bidAmount-desc">Highest Amount</SelectItem>
+                <SelectItem value="bidAmount-asc">Lowest Amount</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </Card>
 
@@ -176,6 +242,19 @@ export default function BrowseProjects() {
                       </span>
                     </div>
                   </div>
+                </div>
+                <div className="ml-4">
+                   <Button
+                    variant="outline"
+                    onClick={() => toggleShortlist(bid.projectId || bid.id, bid.id)}
+                    className={shortlistedProjectIds.has(bid.projectId || bid.id) ? 'text-yellow-600 border-yellow-300 hover:text-yellow-700' : 'text-blue-600 border-blue-300 hover:text-blue-700'}
+                  >
+                    {shortlistedProjectIds.has(bid.projectId || bid.id) ? (
+                      <BookmarkCheck className="size-4 mr-2 fill-current" />
+                    ) : (
+                      <Bookmark className="size-4 mr-2" />
+                    )}
+                  </Button>
                 </div>
               </div>
 

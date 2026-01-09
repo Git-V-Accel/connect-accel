@@ -9,6 +9,7 @@ const {
   updateBiddingStatus,
   updateBidding,
   deleteBidding,
+  undoWithdrawal,
   getBiddingStats,
   updateShortlistStatus,
   updateAcceptanceStatus,
@@ -126,5 +127,10 @@ router.patch('/:biddingId/decline', auth, validateBiddingId, [
 // @desc    Delete/Withdraw a bidding (only if status is pending)
 // @access  Private (Bidder only)
 router.delete('/:biddingId', auth, validateBiddingId, deleteBidding);
+
+// @route   PUT /api/bidding/:biddingId/undo-withdrawal
+// @desc    Undo withdrawal - Restore a withdrawn bidding to pending status
+// @access  Private (Bidder only)
+router.put('/:biddingId/undo-withdrawal', auth, validateBiddingId, undoWithdrawal);
 
 module.exports = router;
