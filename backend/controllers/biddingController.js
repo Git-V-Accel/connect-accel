@@ -86,7 +86,17 @@ const sendFreelancerEmail = async (freelancerEmail, freelancerName, subject, mes
 // @access  Private
 const submitBidding = async (req, res) => {
   try {
-    const { adminBidId, bidAmount, timeline, description, attachments, notes } = req.body;
+    // Handle both regular JSON and multipart form data
+    let requestData;
+    if (req.body.biddingData) {
+      // Multipart form data (with files)
+      requestData = JSON.parse(req.body.biddingData);
+    } else {
+      // Regular JSON data
+      requestData = req.body;
+    }
+
+    const { adminBidId, bidAmount, timeline, description, attachments, notes } = requestData;
     const freelancerId = req.user.id;
 
     // Validate admin bid existence
@@ -135,9 +145,11 @@ const submitBidding = async (req, res) => {
     }
 
     // Create new bidding
-    const processedAttachments = processAttachments(req.files, attachments);
-    if (req.body.attachments) {
-      delete req.body.attachments;
+    // Handle files from multer - req.files might be an object or array
+    const files = req.files ? (Array.isArray(req.files) ? req.files : req.files.attachments || []) : [];
+    const processedAttachments = processAttachments(files, attachments);
+    if (requestData.attachments) {
+      delete requestData.attachments;
     }
 
     const biddingData = {
@@ -437,7 +449,18 @@ const updateBiddingStatus = async (req, res) => {
 const updateBidding = async (req, res) => {
   try {
     const { biddingId } = req.params;
-    const { bidAmount, timeline, description, attachments, notes } = req.body;
+    
+    // Handle both regular JSON and multipart form data
+    let updateData;
+    if (req.body.biddingData) {
+      // Multipart form data (with files)
+      updateData = JSON.parse(req.body.biddingData);
+    } else {
+      // Regular JSON data
+      updateData = req.body;
+    }
+    
+    const { bidAmount, timeline, description, attachments, notes } = updateData;
 
     const bidding = await Bidding.findById(biddingId);
     if (!bidding) {
@@ -454,11 +477,19 @@ const updateBidding = async (req, res) => {
       return sendResponse(res, false, null, 'Bidding cannot be updated', 400);
     }
 
+    // Process attachments if files are provided
+    let processedAttachments = attachments;
+    // Handle files from multer - req.files might be an object or array
+    const files = req.files ? (Array.isArray(req.files) ? req.files : req.files.attachments || []) : [];
+    if (files.length > 0) {
+      processedAttachments = processAttachments(files, attachments);
+    }
+
     // Update bidding fields
     if (bidAmount !== undefined) bidding.bidAmount = parseFloat(bidAmount);
     if (timeline !== undefined) bidding.timeline = timeline;
     if (description !== undefined) bidding.description = description;
-    if (attachments !== undefined) bidding.attachments = attachments;
+    if (attachments !== undefined) bidding.attachments = processedAttachments;
     if (notes !== undefined) bidding.notes = notes;
 
     await bidding.save();

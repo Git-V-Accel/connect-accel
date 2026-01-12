@@ -367,14 +367,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const isLoadingConsultationsRef = useRef(false);
     const [refreshTick, setRefreshTick] = useState(0);
     const [data, setData] = useState(() => {
-        const stored = sessionStorage.getItem('connect_accel_data');
-        if (stored) {
-            try {
-                return JSON.parse(stored);
-            } catch {
-                // If parsing fails, return empty data structure
-            }
-        }
         // Initialize with empty data structure
         return {
             projects: [],
@@ -415,21 +407,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
             // Check if we have cached projects and they're recent (less than 30 seconds old)
             const lastLoadTime = sessionStorage.getItem('projects_last_load_time');
-            const stored = sessionStorage.getItem('connect_accel_data');
-            let hasProjects = false;
 
-            if (stored) {
-                try {
-                    const parsed = JSON.parse(stored);
-                    hasProjects = parsed.projects && parsed.projects.length > 0;
-                } catch {
-                    // Ignore parse errors
-                }
-            }
-
-            if (hasProjects && lastLoadTime) {
+            if (lastLoadTime) {
                 const timeSinceLastLoad = Date.now() - parseInt(lastLoadTime, 10);
-                // If we have projects and they were loaded less than 30 seconds ago, skip reload
+                // If projects were loaded less than 30 seconds ago, skip reload
                 if (timeSinceLastLoad < 30000) {
                     return;
                 }
@@ -613,14 +594,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         loadClients();
     }, [user, refreshTick]);
 
-    useEffect(() => {
-        if (user) {
-            const timeoutId = setTimeout(() => {
-                sessionStorage.setItem('connect_accel_data', JSON.stringify(data));
-            }, 1000);
-            return () => clearTimeout(timeoutId);
-        }
-    }, [data, user]);
+    // Removed sessionStorage persistence - data now only stored in secure database
 
     // Project methods
     const createProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'attachments'> & { attachments?: File[] }) => {

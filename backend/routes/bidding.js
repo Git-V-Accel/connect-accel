@@ -17,6 +17,7 @@ const {
   getShortlistedProposals
 } = require('../controllers/biddingController');
 const { protect: auth } = require('../middleware/auth');
+const { uploadFiles } = require('../middleware/upload');
 const { body, param, query } = require('express-validator');
 
 // Validation middleware
@@ -54,7 +55,7 @@ const validatePagination = [
 // @route   POST /api/bidding
 // @desc    Submit a freelancer bid on admin's bid
 // @access  Private
-router.post('/', auth, validateBiddingSubmission, submitBidding);
+router.post('/', auth, uploadFiles, validateBiddingSubmission, submitBidding);
 
 // @route   GET /api/bidding
 // @desc    Get all biddings (Admin only)
@@ -89,7 +90,7 @@ router.put('/:biddingId/status', auth, validateBiddingStatus, updateBiddingStatu
 // @route   PUT /api/bidding/:biddingId
 // @desc    Update a bidding (only if status is pending)
 // @access  Private (Bidder only)
-router.put('/:biddingId', auth, validateBiddingUpdate, updateBidding);
+router.put('/:biddingId', auth, uploadFiles, validateBiddingUpdate, updateBidding);
 
 // @route   GET /api/bidding/project/:projectId/shortlisted
 // @desc    Get shortlisted proposals for a project

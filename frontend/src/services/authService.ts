@@ -116,7 +116,6 @@ export const logout = async (): Promise<void> => {
     sessionStorage.removeItem('auth_token');
     sessionStorage.removeItem('refresh_token');
     sessionStorage.removeItem('connect_accel_user');
-    sessionStorage.removeItem('connect_accel_data');
   }
 };
 

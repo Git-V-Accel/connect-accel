@@ -8,6 +8,7 @@ import { Label } from '../../components/ui/label';
 import * as bidService from '../../services/bidService';
 import type { Bid } from '../../services/bidService';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
+import AttachmentItem from '../../components/common/AttachmentItem';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   ArrowLeft,
@@ -186,17 +187,11 @@ export default function FreelancerBidDetail() {
                     <h4 className="font-medium mb-3">Attachments</h4>
                     <div className="space-y-2">
                       {bid.attachments.map((attachment, index) => (
-                        <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                          <FileText className="size-4 text-gray-400" />
-                          <a
-                            href={attachment.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            {attachment.name}
-                          </a>
-                        </div>
+                        <AttachmentItem
+                          key={index}
+                          attachment={attachment}
+                          className="w-full"
+                        />
                       ))}
                     </div>
                   </div>

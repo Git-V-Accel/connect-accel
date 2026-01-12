@@ -8,10 +8,11 @@ import { Badge } from '../../components/ui/badge';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import * as bidService from '../../services/bidService';
-import type { Bid as ApiBid } from '../../services/bidService';
+import type { Bid as ApiBid, BidAttachment } from '../../services/bidService';
 import apiClient from '../../services/apiService';
 import { API_CONFIG } from '../../config/api';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
+import AttachmentItem from '../../components/common/AttachmentItem';
 import {
   ArrowLeft,
   IndianRupee,
@@ -103,7 +104,7 @@ export default function AdminBidDetail() {
       isShortlisted: apiBid.isShortlisted,
       isAccepted: apiBid.isAccepted,
       isDeclined: apiBid.isDeclined,
-      submitted_at: apiBid.submittedAt,
+      submittedAt: apiBid.submittedAt,
       created_at: apiBid.submittedAt,
       admin_notes: '',
       milestones: [],
@@ -302,7 +303,6 @@ export default function AdminBidDetail() {
                 {/* Freelancer Info */}
                 {freelancer && (
                   <div>
-                    <h4 className="font-medium mb-3">Freelancer Details</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Name</span>
@@ -354,10 +354,27 @@ export default function AdminBidDetail() {
                   </p>
                 </div>
 
+                {/* Bid Attachments */}
+                
+                {(bid?.attachments && bid.attachments.length > 0) && (
+                  <div className="pt-4 border-t">
+                    <h4 className="font-medium mb-3">Bid Attachments</h4>
+                    <div className="space-y-2">
+                      {bid.attachments.map((attachment: BidAttachment, index: number) => (
+                        <AttachmentItem
+                          key={index}
+                          attachment={attachment}
+                          className="w-full"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Submitted Date */}
                 <div className="pt-4 border-t">
                   <div className="text-sm text-gray-600">
-                    Submitted on {new Date(bid.submitted_at || bid.created_at).toLocaleString()}
+                    Submitted on {new Date(bid.submittedAt || bid.created_at).toLocaleString()}
                   </div>
                 </div>
               </div>

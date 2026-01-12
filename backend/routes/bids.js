@@ -17,6 +17,7 @@ const {
   getShortlistedProposals
 } = require('../controllers/bidController');
 const { protect: auth } = require('../middleware/auth');
+const { uploadFiles } = require('../middleware/upload');
 const { body, param, query } = require('express-validator');
 
 // Validation middleware
@@ -131,7 +132,7 @@ const validatePagination = [
 // @route   POST /api/bids
 // @desc    Submit a new bid
 // @access  Private
-router.post('/', auth, validateBidSubmission, submitBid);
+router.post('/', auth, uploadFiles, validateBidSubmission, submitBid);
 
 // @route   GET /api/bids
 // @desc    Get all bids (Admin only)
@@ -171,7 +172,7 @@ router.put('/:bidId/status', auth, validateMongoId('bidId'), validateStatusUpdat
 // @route   PUT /api/bids/:bidId
 // @desc    Update bid details
 // @access  Private (Bid owner only)
-router.put('/:bidId', auth, validateMongoId('bidId'), validateBidUpdate, updateBid);
+router.put('/:bidId', auth, uploadFiles, validateMongoId('bidId'), validateBidUpdate, updateBid);
 
 // @route   DELETE /api/bids/:bidId
 // @desc    Delete/Withdraw a bid

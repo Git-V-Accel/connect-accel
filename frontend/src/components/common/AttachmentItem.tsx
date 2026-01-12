@@ -63,7 +63,7 @@ export default function AttachmentItem({
       </div>
       {showDownload && (
         <Button variant="secondary" size="sm" asChild>
-          <a href={url} download>
+          <a href={url} target="_blank" download>
             <Download className="size-4 mr-2" /> Download
           </a>
         </Button>

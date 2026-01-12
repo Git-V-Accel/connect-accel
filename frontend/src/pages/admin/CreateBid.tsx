@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -9,7 +9,7 @@ import { RichTextEditor } from "../../components/common/RichTextEditor";
 import { Label } from "../../components/ui/label";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
-import { createBid } from "../../services/bidService";
+import { createBid, createBidWithAttachments } from "../../services/bidService";
 import { getProjectBids } from "../../services/bidService";
 import {
   projectTypes,
@@ -21,20 +21,22 @@ import {
   IndianRupee,
   Clock,
   Calendar,
-  FileText,
   User,
   Mail,
   Phone,
   CheckCircle,
   AlertCircle,
+  Upload,
+  X,
+  Paperclip,
 } from "lucide-react";
 import { toast } from "../../utils/toast";
 import { RichTextViewer } from "../../components/common";
+import AttachmentItem from "../../components/common/AttachmentItem";
 import ProjectDetail from "../client/ProjectDetail";
 import { updateProject } from "@/services/projectService";
 
 export default function CreateBid() {
-  const { id } = useParams();
   const navigate = useNavigate();
   const { projects, getBidsByProject } = useData();
   const { user } = useAuth();
@@ -52,7 +54,7 @@ export default function CreateBid() {
     return existingBids.length === 0;
   });
 
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(id || "");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const project = availableProjects.find((p) => p.id === selectedProjectId);
 
   // Check if bid already exists for this project
@@ -67,6 +69,8 @@ export default function CreateBid() {
     amount: "",
     duration_weeks: "",
   });
+
+  const [bidAttachments, setBidAttachments] = useState<File[]>([]);
 
   // Refresh bids data when component loads to clear stale cache after withdrawal
   useEffect(() => {
@@ -108,6 +112,17 @@ export default function CreateBid() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setBidAttachments(prev => [...prev, ...files]);
+    // Clear the input value to allow selecting the same file again
+    e.target.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setBidAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   if (!selectedProjectId) {
     return (
       <DashboardLayout>
@@ -144,7 +159,7 @@ export default function CreateBid() {
                   className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Choose a project...</option>
-                  {/* Show selected project first if it exists (for withdrawal scenario) */}
+                      {/* Show selected project first if it exists (for withdrawal scenario) */}
                   {project && !projectsWithoutBids.some(p => p.id === project.id) && (
                     <option key={project.id} value={project.id}>
                       {project.title} (Previously withdrawn)
@@ -160,7 +175,7 @@ export default function CreateBid() {
             </div>
           </Card>
         </div>
-      </DashboardLayout>
+      </DashboardLayout>  
     );
   }
 
@@ -217,17 +232,26 @@ export default function CreateBid() {
 
     try {
       setSubmitting(true);
-      await createBid({
+      
+      const bidPayload = {
         projectId: project.id,
         projectTitle: formData.title.trim(),
         bidAmount: bidAmount,
         timeline: `${formData.duration_weeks} weeks`,
         description: formData.description.trim(),
         notes: "",
+      };
+
+      // Use the appropriate function based on whether there are attachments
+      if (bidAttachments.length > 0) {
+        await createBidWithAttachments(bidPayload, bidAttachments);
+      } else {
+        await createBid(bidPayload);
+      }
+
+      await updateProject(project.id, {
+        status: "in_bidding",
       });
-await updateProject(project.id, {
-      status: "in_bidding",
-    });
       toast.success("Bid created successfully!");
       const redirectPath =
         user?.role === "agent" ? `/agent/bids` : `/admin/bids`;
@@ -391,6 +415,40 @@ await updateProject(project.id, {
                     </div>
                   </div>
                 </div>
+
+                {project.attachments && project.attachments.length > 0 && (
+                  <div className="pt-4 border-t">
+                    <Label className="text-gray-600">Project Attachments</Label>
+                    <div className="mt-3 space-y-2">
+                      {project.attachments.map((attachment, idx) => {
+                        // Handle both string (URL) and object (attachment details) types
+                        let attachmentObj: any;
+                        if (typeof attachment === 'string') {
+                          attachmentObj = { 
+                            name: attachment.split('/').pop() || attachment, 
+                            url: attachment 
+                          };
+                        } else if (attachment instanceof File) {
+                          attachmentObj = {
+                            name: attachment.name,
+                            size: attachment.size,
+                            type: attachment.type
+                          };
+                        } else {
+                          attachmentObj = attachment;
+                        }
+                        
+                        return (
+                          <AttachmentItem
+                            key={idx}
+                            attachment={attachmentObj}
+                            className="w-full"
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
@@ -517,6 +575,62 @@ await updateProject(project.id, {
                       disabled={hasExistingBid}
                     />
                   </div>
+                </div>
+
+                {/* Attachments Section */}
+                <div className="space-y-4">
+                  <Label className="text-gray-900 font-medium">Bid Attachments</Label>
+                  
+                  {/* File Upload */}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    <input
+                      type="file"
+                      id="bid-attachments"
+                      multiple
+                      onChange={handleFileChange}
+                      className="hidden"
+                      disabled={hasExistingBid}
+                    />
+                    <label
+                      htmlFor="bid-attachments"
+                      className={`flex flex-col items-center justify-center cursor-pointer ${hasExistingBid ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                    >
+                      <Upload className="size-8 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-600">
+                        {hasExistingBid ? 'Attachments disabled' : 'Click to upload or drag and drop'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        PDF, DOC, DOCX, images (max 10MB each)
+                      </p>
+                    </label>
+                  </div>
+
+                  {/* Existing Attachments */}
+                  {bidAttachments.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">Attached files:</p>
+                      {bidAttachments.map((file, index) => (
+                        <div key={index} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                          <Paperclip className="size-4 text-gray-500" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium truncate">{file.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {(file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeAttachment(index)}
+                            disabled={hasExistingBid}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t">

@@ -97,6 +97,81 @@ export const createBid = async (payload: CreateBidPayload): Promise<Bid> => {
   throw new Error(response.data.message || 'Failed to create bid');
 };
 
+export const createBidWithAttachments = async (
+  payload: Omit<CreateBidPayload, 'attachments'>,
+  files: File[]
+): Promise<Bid> => {
+  const formData = new FormData();
+  
+  // Add bid data as JSON
+  formData.append('bidData', JSON.stringify(payload));
+  
+  // Add files
+  files.forEach((file) => {
+    formData.append(`attachments`, file);
+  });
+
+  const response = await apiClient.post(API_CONFIG.BIDS.CREATE, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  
+  if (response.data.success && response.data.data) {
+    return normalizeBid(response.data.data as any);
+  }
+  throw new Error(response.data.message || 'Failed to create bid with attachments');
+};
+
+// ==================== Bidding Functions ====================
+
+export const createBiddingWithAttachments = async (
+  payload: any,
+  files: File[]
+): Promise<any> => {
+  const formData = new FormData();
+  
+  // Add bidding data as JSON
+  formData.append('biddingData', JSON.stringify(payload));
+  
+  // Add files
+  files.forEach((file) => {
+    formData.append(`attachments`, file);
+  });
+
+  const response = await apiClient.post(API_CONFIG.BIDDING.CREATE, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  
+  return response;
+};
+
+export const updateBiddingWithAttachments = async (
+  id: string,
+  payload: any,
+  files: File[]
+): Promise<any> => {
+  const formData = new FormData();
+  
+  // Add bidding data as JSON
+  formData.append('biddingData', JSON.stringify(payload));
+  
+  // Add files
+  files.forEach((file) => {
+    formData.append(`attachments`, file);
+  });
+
+  const response = await apiClient.put(API_CONFIG.BIDDING.UPDATE(id), formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  
+  return response;
+};
+
 export const getAllBids = async (params?: {
   page?: number;
   limit?: number;
@@ -210,6 +285,33 @@ export const updateBid = async (bidId: string, payload: UpdateBidPayload): Promi
     return normalizeBid(response.data.data as any);
   }
   throw new Error(response.data.message || 'Failed to update bid');
+};
+
+export const updateBidWithAttachments = async (
+  bidId: string,
+  payload: Omit<UpdateBidPayload, 'attachments'>,
+  files: File[]
+): Promise<Bid> => {
+  const formData = new FormData();
+  
+  // Add bid data as JSON
+  formData.append('bidData', JSON.stringify(payload));
+  
+  // Add files
+  files.forEach((file) => {
+    formData.append(`attachments`, file);
+  });
+
+  const response = await apiClient.put(API_CONFIG.BIDS.UPDATE(bidId), formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  
+  if (response.data.success && response.data.data) {
+    return normalizeBid(response.data.data as any);
+  }
+  throw new Error(response.data.message || 'Failed to update bid with attachments');
 };
 
 export const updateBidStatus = async (

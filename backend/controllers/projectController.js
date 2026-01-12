@@ -1846,7 +1846,7 @@ const postProject = async (req, res) => {
     }
 
     const oldStatus = project.status;
-    project.status = PROJECT_STATUS.ACTIVE;
+    project.status = PROJECT_STATUS.PENDING_REVIEW;
     await project.save();
 
     // Log to timeline and emit socket event
@@ -1855,7 +1855,7 @@ const postProject = async (req, res) => {
       req.user.id,
       req.user.role,
       oldStatus,
-      PROJECT_STATUS.ACTIVE,
+      PROJECT_STATUS.PENDING_REVIEW,
       'post_project',
       null
     );
@@ -1869,7 +1869,7 @@ const postProject = async (req, res) => {
       description: `Project "${project.title}" was posted for review`,
       metadata: {
         oldStatus,
-        newStatus: PROJECT_STATUS.ACTIVE,
+        newStatus: PROJECT_STATUS.PENDING_REVIEW,
         action: 'post_project'
       },
       tags: ['project', 'status', 'post'],
@@ -1916,10 +1916,10 @@ const createBidding = async (req, res) => {
     }
 
     // Validate current status
-    if (project.status !== PROJECT_STATUS.ACTIVE) {
+    if (project.status !== PROJECT_STATUS.PENDING_REVIEW) {
       return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
-        message: `Project must be in active status to create bidding. Current status: ${project.status}`
+        message: `Project must be in pending review status to create bidding. Current status: ${project.status}`
       });
     }
 

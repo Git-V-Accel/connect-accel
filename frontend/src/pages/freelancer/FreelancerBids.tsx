@@ -45,6 +45,7 @@ import {
   ArrowUpDown,
   ChevronDown,
 } from 'lucide-react';
+import { RichTextViewer } from '@/components/common';
 
 interface Bidding {
   _id: string;
@@ -109,18 +110,28 @@ export default function FreelancerBids() {
         // Fetch my biddings
         const response = await apiClient.get(API_CONFIG.BIDDING.GET_BY_FREELANCER(user.id));
         if (response.data.success && response.data.data) {
-          setMyBiddings(Array.isArray(response.data.data) ? response.data.data : []);
+          const allBiddings: Bidding[] = Array.isArray(response.data.data) ? response.data.data : [];
+          setMyBiddings(allBiddings);
+          
+          // Filter biddings to get only shortlisted ones
+          const shortlistedBiddings = allBiddings.filter((bidding: Bidding) => 
+            bidding.status === 'shortlisted'
+          );
+          setShortlistedProjects(shortlistedBiddings);
         }
 
-        // Fetch shortlisted projects
-        try {
-          const shortlistResponse = await apiClient.get(API_CONFIG.SHORTLISTED_PROJECTS.LIST);
-          if (shortlistResponse.data && shortlistResponse.data.success) {
-            setShortlistedProjects(Array.isArray(shortlistResponse.data.data) ? shortlistResponse.data.data : []);
-          }
-        } catch (error) {
-          console.error('Failed to load shortlisted projects:', error);
-        }
+        // Remove the old shortlisted projects fetch since we're filtering biddings now
+        // try {
+        //   const shortlistResponse = await apiClient.get(API_CONFIG.SHORTLISTED_PROJECTS.LIST);
+        //   console.log('Shortlisted projects response:', shortlistResponse.data);
+        //   if (shortlistResponse.data && shortlistResponse.data.success) {
+        //     const shortlistedData = Array.isArray(shortlistResponse.data.data) ? shortlistResponse.data.data : [];
+        //     console.log('Shortlisted projects array:', shortlistedData);
+        //     setShortlistedProjects(shortlistedData);
+        //   }
+        // } catch (error) {
+        //   console.error('Failed to load shortlisted projects:', error);
+        // }
       } catch (error: any) {
         console.error('Failed to load biddings:', error);
         // If it's a 401, interceptor should handle token refresh and retry
@@ -341,12 +352,6 @@ export default function FreelancerBids() {
             ) : (
               <div className="space-y-4">
                 {sortedBiddings.map((bidding) => {
-                  console.log('Bidding object:', bidding);
-                  console.log('Bidding _id:', bidding._id);
-                  console.log('Bidding id:', bidding.id);
-                  console.log('Bidding adminBidId:', bidding.adminBidId?._id);
-                  console.log('Using bidding _id for withdraw:', bidding._id);
-                  
                   const projectTitle = bidding.adminBidId?.projectTitle || bidding.projectId?.title || 'Project';
                   const submittedDate = bidding.submittedAt ? new Date(bidding.submittedAt).toLocaleDateString() : 'N/A';
                   const projectCategory = bidding.projectId?.category ; // Fallback since category structure is unclear
@@ -372,7 +377,7 @@ export default function FreelancerBids() {
 
                         {/* Description */}
                         <p className="text-gray-700 line-clamp-2">
-                          {projectDescription}
+                          <RichTextViewer content={projectDescription} />
                         </p>
 
                         {/* Skills */}
@@ -498,7 +503,7 @@ export default function FreelancerBids() {
                             <Badge variant="outline">Shortlisted</Badge>
                           </div>
                           <div className="text-gray-600 mb-4 line-clamp-2">
-                            {project.description || adminBid.description}
+                            <RichTextViewer content={project.description || adminBid.description} />
                           </div>
 
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -580,262 +585,6 @@ export default function FreelancerBids() {
                 })}
               </div>
             )}
-          </TabsContent>
-
-          {/* Available Projects Tab */}
-          <TabsContent value="available" className="space-y-6">
-            {/* Filters */}
-            <Card className="p-6">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="md:col-span-1">
-                  <Label>Search Projects</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-                    <Input
-                      placeholder="Search by title, skills..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Category</Label>
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      <SelectItem value="Web Development">Web Development</SelectItem>
-                      <SelectItem value="Mobile Development">Mobile Development</SelectItem>
-                      <SelectItem value="UI/UX Design">UI/UX Design</SelectItem>
-                      <SelectItem value="Data Science">Data Science</SelectItem>
-                      <SelectItem value="DevOps">DevOps</SelectItem>
-                      <SelectItem value="Content Writing">Content Writing</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </Card>
-
-            {/* Projects List */}
-            <div className="space-y-4">
-              {filteredProjects.length === 0 ? (
-                <Card className="p-12 text-center">
-                  <FileText className="size-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl mb-2">No projects found</h3>
-                  <p className="text-gray-600">
-                    Try adjusting your filters or search criteria
-                  </p>
-                </Card>
-              ) : (
-                filteredProjects.map((project) => (
-                  <Card key={project.id} className="p-6 hover:shadow-lg transition-shadow">
-                    <div className="space-y-4">
-                      {/* Header */}
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-xl mb-2">{project.title}</h3>
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
-                            <span className="flex items-center gap-1">
-                              <Clock className="size-4" />
-                              Posted {new Date(project.created_at).toLocaleDateString()}
-                            </span>
-                            <Badge variant="secondary">{project.category}</Badge>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Description */}
-                      <p className="text-gray-700">{project.description}</p>
-
-                      {/* Skills */}
-                      <div className="flex flex-wrap gap-2">
-                        {project.skills_required.map((skill) => (
-                          <Badge key={skill} variant="outline">
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
-
-                      {/* Project Details */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-y">
-                        <div>
-                          <div className="flex items-center gap-2 text-gray-600 text-sm mb-1">
-                            <IndianRupee className="size-4" />
-                            Budget
-                          </div>
-                          <div>₹{project.budget?.toLocaleString() || '0'}</div>
-                          <div className="text-sm text-gray-600 capitalize">
-                            {project.budgetType || 'Fixed Price'}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 text-gray-600 text-sm mb-1">
-                            <Calendar className="size-4" />
-                            Duration
-                          </div>
-                          <div>{project.duration || 'N/A'}</div>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 text-gray-600 text-sm mb-1">
-                            <Users className="size-4" />
-                            Bids
-                          </div>
-                          <div>{project.bidsCount || 0} proposals</div>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 text-gray-600 text-sm mb-1">
-                            <Star className="size-4" />
-                            Client
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {project.client?.rating || 0}
-                            <span className="text-sm text-gray-600">
-                              ({project.client?.projectsPosted || 0} projects)
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Client Info & Actions */}
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-sm text-gray-600">Posted by</div>
-                          <div>{project.client?.name || 'N/A'}</div>
-                        </div>
-
-                        <Button
-                          onClick={() => {
-                            setSelectedProject(project);
-                            setIsBidDialogOpen(true);
-                          }}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          <Send className="size-4 mr-2" />
-                          Submit Bid
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))
-              )}
-            </div>
-
-            {/* Bid Submission Dialog */}
-            <Dialog open={isBidDialogOpen} onOpenChange={setIsBidDialogOpen}>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Submit Your Bid</DialogTitle>
-                  <DialogDescription>
-                    {selectedProject?.title}
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-6 mt-4">
-                  {/* Project Overview */}
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <div className="text-gray-600">Budget</div>
-                        <div>{selectedProject?.budget}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-600">Duration</div>
-                        <div>{selectedProject?.duration}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-600">Bids</div>
-                        <div>{selectedProject?.bidsCount} proposals</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bid Form */}
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Your Bid Amount (₹) *</Label>
-                      <Input
-                        type="number"
-                        placeholder="Enter your bid amount"
-                        value={bidAmount}
-                        onChange={(e) => setBidAmount(e.target.value)}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Client budget: {selectedProject?.budget}
-                      </p>
-                    </div>
-
-                    <div>
-                      <Label>Delivery Time *</Label>
-                      <Select
-                        value={deliveryTime}
-                        onValueChange={setDeliveryTime}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select timeline" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1-week">1 week</SelectItem>
-                          <SelectItem value="2-weeks">2 weeks</SelectItem>
-                          <SelectItem value="3-weeks">3 weeks</SelectItem>
-                          <SelectItem value="1-month">1 month</SelectItem>
-                          <SelectItem value="2-months">2 months</SelectItem>
-                          <SelectItem value="3-months">3 months</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Cover Letter / Proposal *</Label>
-                    <RichTextEditor
-                      value={proposal}
-                      onChange={setProposal}
-                      placeholder="Explain why you're the best fit for this project. Include relevant experience, approach, and any questions..."
-                      className="mt-1"
-                      minHeight="200px"
-                    />
-                    <div className="flex items-center justify-between mt-1">
-                      <p className="text-xs text-gray-500">
-                        Minimum 100 characters
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {proposal.length} / 100
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <h4 className="font-medium mb-2">Tips for a winning bid:</h4>
-                    <ul className="text-sm text-gray-700 space-y-1">
-                      <li>• Be specific about your relevant experience</li>
-                      <li>• Ask clarifying questions about the project</li>
-                      <li>• Provide a realistic timeline and budget</li>
-                      <li>• Mention similar projects you've completed</li>
-                    </ul>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsBidDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSubmitBid}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <Send className="size-4 mr-2" />
-                      Submit Bid
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
           </TabsContent>
         </Tabs>
       </div>

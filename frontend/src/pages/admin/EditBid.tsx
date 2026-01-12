@@ -10,6 +10,7 @@ import { Label } from "../../components/ui/label";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { getBidDetails, updateBid } from "../../services/bidService";
+import { updateBidWithAttachments } from "../../services/bidService";
 import {
   projectTypes,
   statusColors,
@@ -26,9 +27,13 @@ import {
   Phone,
   CheckCircle,
   AlertCircle,
+  Upload,
+  X,
+  Paperclip,
 } from "lucide-react";
 import { toast } from "../../utils/toast";
 import { RichTextViewer } from "../../components/common";
+import AttachmentItem from "../../components/common/AttachmentItem";
 
 export default function EditBid() {
   const { bidId } = useParams();
@@ -38,6 +43,7 @@ export default function EditBid() {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [bid, setBid] = useState<any>(null);
+  const [newAttachments, setNewAttachments] = useState<File[]>([]);
 
   // Filter projects based on user role
   const availableProjects =
@@ -120,7 +126,7 @@ export default function EditBid() {
   }
 
   const project = bid.project || availableProjects.find((p) => p.id === bid.projectId);
-
+console.log(project,bid,availableProjects, "project");
   if (!project) {
     return (
       <DashboardLayout>
@@ -166,6 +172,24 @@ export default function EditBid() {
     );
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setNewAttachments(prev => [...prev, ...files]);
+    // Clear the input value to allow selecting the same file again
+    e.target.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setNewAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingAttachment = (index: number) => {
+    if (bid?.attachments) {
+      const updatedAttachments = bid.attachments.filter((_: any, i: number) => i !== index);
+      setBid(prev => prev ? { ...prev, attachments: updatedAttachments } : null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -199,12 +223,23 @@ export default function EditBid() {
 
     try {
       setSubmitting(true);
-      await updateBid(bidId!, {
+      
+      const bidPayload = {
         bidAmount: bidAmount,
         timeline: `${formData.duration_weeks} weeks`,
         description: formData.description.trim(),
         notes: bid.notes || "",
-      });
+        attachments: bid.attachments, // Include updated attachments (may have removed items)
+      };
+
+      // Use the appropriate function based on whether there are new attachments
+      if (newAttachments.length > 0) {
+        console.log('Updating bid with attachments:', newAttachments);
+        console.log('Current bid attachments:', bid.attachments);
+        await updateBidWithAttachments(bidId!, bidPayload, newAttachments);
+      } else {
+        await updateBid(bidId!, bidPayload);
+      }
 
       toast.success("Bid updated successfully!");
       const redirectPath =
@@ -285,7 +320,6 @@ export default function EditBid() {
                     <RichTextViewer content={project.description || ""} />
                   </p>
                 </div>
-
                 <div className="grid md:grid-cols-2 gap-4 pt-4 border-t">
                   <div>
                     <Label className="text-gray-600">Category</Label>
@@ -478,6 +512,87 @@ export default function EditBid() {
                       required
                     />
                   </div>
+                </div>
+
+                {/* Bid Attachments */}
+                <div className="space-y-4">
+                  <Label className="text-gray-900 font-medium">Bid Attachments</Label>
+                  
+                  {/* Existing Attachments */}
+                  {bid?.attachments && bid.attachments.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">Current attachments:</p>
+                      {bid.attachments.map((attachment: any, index: number) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <AttachmentItem
+                              attachment={attachment}
+                              className="w-full"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeExistingAttachment(index)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                            title="Remove attachment"
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* File Upload */}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    <input
+                      type="file"
+                      id="edit-bid-attachments"
+                      multiple
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="edit-bid-attachments"
+                      className="flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50"
+                    >
+                      <Upload className="size-8 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-600">
+                        Click to upload or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        PDF, DOC, DOCX, images (max 10MB each)
+                      </p>
+                    </label>
+                  </div>
+
+                  {/* New Attachments */}
+                  {newAttachments.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">New attachments to be added:</p>
+                      {newAttachments.map((file, index) => (
+                        <div key={index} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                          <Paperclip className="size-4 text-gray-500" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium truncate">{file.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {(file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeAttachment(index)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t">

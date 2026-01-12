@@ -660,7 +660,7 @@ export default function ProjectDetail() {
                           </Button>
                         )}
                         {/* Show Activate button if no freelancer assigned */}
-                        {getAllowedStatusButtons().includes('active') && (!project?.freelancer_id && !project?.assignedFreelancerId) && (
+                        {/* {getAllowedStatusButtons().includes('active') && (!project?.freelancer_id && !project?.assignedFreelancerId) && (
                           <Button
                             variant="outline"
                             onClick={handleActiveProject}
@@ -669,7 +669,7 @@ export default function ProjectDetail() {
                           >
                             Activate Project
                           </Button>
-                        )}
+                        )} */}
                         {/* Show Resume button if freelancer is assigned */}
                         {getAllowedStatusButtons().includes('in_progress') && (project?.freelancer_id || project?.assignedFreelancerId) && (
                           <Button

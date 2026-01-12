@@ -7,9 +7,12 @@ import { Badge } from '../../components/ui/badge';
 import { Label } from '../../components/ui/label';
 import { Input } from '../../components/ui/input';
 import * as bidService from '../../services/bidService';
+import { createBiddingWithAttachments, updateBiddingWithAttachments } from '../../services/bidService';
 import type { Bid } from '../../services/bidService';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
 import { RichTextEditor } from '../../components/common/RichTextEditor';
+import AttachmentItem from '../../components/common/AttachmentItem';
+import FileUpload from '../../components/common/FileUpload';
 import { 
   ArrowLeft,
   IndianRupee,
@@ -37,6 +40,21 @@ export default function SubmitProposal() {
   const [bidProposal, setBidProposal] = useState('');
   const [existingBidding, setExistingBidding] = useState<any>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [proposalAttachments, setProposalAttachments] = useState<File[]>([]);
+
+  // Attachment handler for FileUpload component
+  const removeAttachment = (index: number) => {
+    setProposalAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handler for removing existing attachments
+  const removeExistingAttachment = (index: number) => {
+    if (existingBidding?.attachments) {
+      const updatedAttachments = [...existingBidding.attachments];
+      updatedAttachments.splice(index, 1);
+      setExistingBidding((prev: any) => prev ? {...prev, attachments: updatedAttachments} : null);
+    }
+  };
 
   // Check if we're in edit mode
   useEffect(() => {
@@ -70,6 +88,7 @@ export default function SubmitProposal() {
                 setBidAmount(myBidding.bidAmount?.toString() || '');
                 setBidDuration(myBidding.timeline?.replace(' weeks', '') || '');
                 setBidProposal(myBidding.description || '');
+                // Note: Existing attachments are handled separately in the FileUpload component
               }
             }
           } catch (error) {
@@ -109,36 +128,56 @@ export default function SubmitProposal() {
       
       if (isEditMode && existingBidding) {
         // Update existing bidding
-        const response = await apiClient.put(API_CONFIG.BIDDING.UPDATE(existingBidding._id || existingBidding.id), {
+        const biddingPayload = {
           bidAmount: parseFloat(bidAmount),
           timeline: `${bidDuration} weeks`,
           description: bidProposal,
-          attachments: [],
           notes: '',
-        });
+          attachments: existingBidding?.attachments || [], // Include existing attachments
+        };
 
-        if (response.data.success) {
+        let response;
+        if (proposalAttachments.length > 0) {
+          response = await updateBiddingWithAttachments(existingBidding._id || existingBidding.id, biddingPayload, proposalAttachments);
+        } else {
+          response = await apiClient.put(API_CONFIG.BIDDING.UPDATE(existingBidding._id || existingBidding.id), biddingPayload);
+        }
+
+        if (response?.data?.success) {
           toast.success('Bid updated successfully!');
           navigate('/freelancer/bids');
         } else {
-          toast.error(response.data.message || 'Failed to update bid');
+          const errorMessage = response?.data?.message || 'Failed to update bid';
+          console.error('Update bid error:', response?.data);
+          toast.error(errorMessage);
         }
       } else {
         // Create new bidding
-        const response = await apiClient.post(API_CONFIG.BIDDING.CREATE, {
+        const biddingPayload = {
           adminBidId: bid.id,
           bidAmount: parseFloat(bidAmount),
           timeline: `${bidDuration} weeks`,
           description: bidProposal,
-          attachments: [],
           notes: '',
-        });
+        };
 
-        if (response.data.success) {
+        let response;
+        if (proposalAttachments.length > 0) {
+          response = await createBiddingWithAttachments(biddingPayload, proposalAttachments);
+        } else {
+          response = await apiClient.post(API_CONFIG.BIDDING.CREATE, {
+            ...biddingPayload,
+            attachments: [],
+          });
+        }
+
+        if (response?.data?.success) {
           toast.success('Proposal submitted successfully!');
           navigate('/freelancer/bids');
         } else {
-          toast.error(response.data.message || 'Failed to submit proposal');
+          const errorMessage = response?.data?.message || 'Failed to submit proposal';
+          console.error('Submit proposal error:', response?.data);
+          toast.error(errorMessage);
         }
       }
     } catch (error: any) {
@@ -276,17 +315,11 @@ export default function SubmitProposal() {
                     <h4 className="font-medium mb-3">Attachments</h4>
                     <div className="space-y-2">
                       {bid.attachments.map((attachment, index) => (
-                        <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                          <FileText className="size-4 text-gray-400" />
-                          <a
-                            href={attachment.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            {attachment.name}
-                          </a>
-                        </div>
+                        <AttachmentItem
+                          key={index}
+                          attachment={attachment}
+                          className="w-full"
+                        />
                       ))}
                     </div>
                   </div>
@@ -361,6 +394,21 @@ export default function SubmitProposal() {
                       A detailed proposal increases your chances of being shortlisted
                     </p>
                   </div>
+
+                  {/* Attachments Section */}
+                  <FileUpload
+                    files={proposalAttachments}
+                    onFilesChange={setProposalAttachments}
+                    onRemoveFile={removeAttachment}
+                    existingAttachments={existingBidding?.attachments || []}
+                    onRemoveExistingAttachment={removeExistingAttachment}
+                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif"
+                    maxFiles={10}
+                    maxSize={10}
+                    disabled={submitting}
+                    label="Proposal Attachments"
+                    description="Add any relevant documents, portfolio samples, or supporting materials (optional)"
+                  />
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t">

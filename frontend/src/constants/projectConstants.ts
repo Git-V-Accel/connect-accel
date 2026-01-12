@@ -68,10 +68,10 @@ export const statusColors: Record<string, string> = {
 export const statusLabels: Record<string, string> = {
     draft: 'Draft',
     pending_review: 'Pending Review',
-    active: 'Active',
+    // active: 'Active',
+    in_progress: 'In Progress',
     in_bidding: 'In Bidding',
     assigned: 'Assigned',
-    in_progress: 'In Progress',
     completed: 'Completed',
     cancelled: 'Cancelled',
     rejected: 'Rejected',
@@ -83,8 +83,8 @@ export const statusLabels: Record<string, string> = {
 
 // Client action permissions by status
 export const clientAllowedTransitions: Record<string, string[]> = {
-    draft: ['active'],                    // Can post project
-    active: ['hold', 'cancelled'],         // While pending review, only hold or cancel
+    draft: ['pending_review'],                    // Can post project
+    pending_review: ['hold', 'cancelled'],         // While pending review, only hold or cancel
     in_bidding: ['hold', 'cancelled'],         // While in bidding, only hold or cancel
     assigned: ['hold', 'cancelled'],         // Once assigned, only hold or cancel
     in_progress: ['hold', 'cancelled'],         // During progress, only hold or cancel

@@ -29,7 +29,17 @@ const handleError = (res, error, message = 'Internal server error') => {
 // @access  Private
 const submitBid = async (req, res) => {
   try {
-    const { projectId, bidAmount, timeline, description, attachments, notes } = req.body;
+    // Handle both regular JSON and multipart form data
+    let bidData;
+    if (req.body.bidData) {
+      // Multipart form data (with files)
+      bidData = JSON.parse(req.body.bidData);
+    } else {
+      // Regular JSON data
+      bidData = req.body;
+    }
+
+    const { projectId, bidAmount, timeline, description, attachments, notes } = bidData;
     const bidderId = req.user.id;
 
     // Check if project exists
@@ -231,7 +241,11 @@ const getUserBids = async (req, res) => {
 const getBidDetails = async (req, res) => {
   try {
     const { bidId } = req.params;
-    const bid = await Bid.findById(bidId).populate('projectId').populate('bidderId');
+    const bid = await Bid.findById(bidId)
+      .populate('projectId')
+      .populate('bidderId', 'name email avatar')
+      .populate('clientId', 'name email phone company');
+    console.log(bid);
     if (!bid) {
       return sendResponse(res, false, null, 'Bid not found', 404);
     }
@@ -311,7 +325,16 @@ const updateBidStatus = async (req, res) => {
 const updateBid = async (req, res) => {
   try {
     const { bidId } = req.params;
-    const updates = req.body;
+    
+    // Handle both regular JSON and multipart form data
+    let updates;
+    if (req.body.bidData) {
+      // Multipart form data (with files)
+      updates = JSON.parse(req.body.bidData);
+    } else {
+      // Regular JSON data
+      updates = req.body;
+    }
 
     const bid = await Bid.findById(bidId);
     if (!bid) {
@@ -342,6 +365,22 @@ const updateBid = async (req, res) => {
       if (updates[key] !== undefined) {
         actualUpdates[key] = updates[key];
       }
+    }
+
+    // Process attachments if files are uploaded
+    console.log('Files received:', req.files);
+    console.log('Updates.attachments:', updates.attachments);
+    console.log('Existing attachments:', bid.attachments);
+    
+    if (req.files && req.files.length > 0) {
+      const processedAttachments = processAttachments(req.files, updates.attachments);
+      // Merge new attachments with existing ones
+      const existingAttachments = bid.attachments || [];
+      actualUpdates.attachments = [...existingAttachments, ...processedAttachments];
+      console.log('Merged attachments:', actualUpdates.attachments);
+    } else if (updates.attachments !== undefined) {
+      // Handle case where attachments are explicitly updated (e.g., removed)
+      actualUpdates.attachments = updates.attachments;
     }
 
     const updatedBid = await Bid.findByIdAndUpdate(bidId, actualUpdates, { new: true });

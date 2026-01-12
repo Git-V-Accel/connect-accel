@@ -26,14 +26,6 @@ import {
   TabsTrigger,
 } from "../../components/ui/tabs";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "../../components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -45,7 +37,6 @@ import { statusColors, statusLabels } from "../../constants/projectConstants";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   ArrowLeft,
-  ArrowRight,
   CheckCircle,
   XCircle,
   Edit,
@@ -58,13 +49,9 @@ import {
   Calendar,
   FileText,
   AlertCircle,
-  TrendingUp,
   Users,
   MessageSquare,
-  Send,
-  Calculator,
   Target,
-  Briefcase,
   Trash2,
   Award,
   Star,
@@ -699,6 +686,7 @@ export default function ProjectReview() {
         status: "in_progress",
       });
       toast.success("Project approved and status changed to In Progress!");
+      loadStatus(project.id);
       setIsApproveDialogOpen(false);
 
       // Reload project to get updated status
@@ -741,6 +729,7 @@ export default function ProjectReview() {
         ...({ rejectionReason: rejectionReason.trim() } as any), // Include rejection reason in the update
       });
       toast.success("Project rejected successfully");
+      loadStatus(project.id);
       setIsRejectDialogOpen(false);
       setRejectionReason("");
       setFieldError("rejectionReason", "");
@@ -2379,7 +2368,7 @@ export default function ProjectReview() {
                   // Show Withdraw Bids for admin/superadmin if bid exists, otherwise show Add Bids
 
                   // Show Add Bids only if no bid exists and project is closed (after withdrawal)
-                  if (!existingBid && projectStatus === "closed") {
+                  if (!existingBid || projectStatus === "closed") {
                     return (
                       <Button
                         variant="outline"

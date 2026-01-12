@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import apiClient from '../../services/apiService';
 import { API_CONFIG } from '../../config/api';
 import { RichTextViewer } from '../../components/common/RichTextViewer';
+import AttachmentItem from '../../components/common/AttachmentItem';
 import { 
   ArrowLeft,
   Star,
@@ -22,7 +23,7 @@ import { toast } from '../../utils/toast';
 
 interface BiddingData {
   _id: string;
-  adminBidId: any;
+  adminBidId: string;
   projectId: any;
   freelancerId: any;
   bidAmount: number;
@@ -33,6 +34,12 @@ interface BiddingData {
   isAccepted?: boolean;
   isDeclined?: boolean;
   submittedAt: string;
+  attachments?: Array<{
+    name: string;
+    url: string;
+    size?: number;
+    type?: string;
+  }>;
 }
 
 export default function ViewProposal() {
@@ -305,6 +312,22 @@ export default function ViewProposal() {
                 <p className="text-gray-700">No proposal provided.</p>
               )}
             </div>
+
+            {/* Attachments */}
+            {biddingData?.attachments && biddingData.attachments.length > 0 && (
+              <div className="pt-4 border-t">
+                <h4 className="font-medium mb-3">Attachments</h4>
+                <div className="space-y-2">
+                  {biddingData.attachments.map((attachment: any, index: number) => (
+                    <AttachmentItem
+                      key={index}
+                      attachment={attachment}
+                      showDownload={true}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Submitted Date */}
             <div className="pt-4 border-t">
