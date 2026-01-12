@@ -102,10 +102,12 @@ export default function BrowseProjects() {
         // Fetch shortlisted projects
         try {
           const shortlistResponse = await shortlistService.getShortlistedProjects();
-          if (shortlistResponse.success && shortlistResponse.data) {
-            const shortlistedIds = new Set(
-              Array.isArray(shortlistResponse.data) 
-                ? shortlistResponse.data.map((sp: any) => sp.projectId)
+          if (shortlistResponse && shortlistResponse.data) {
+            const shortlistedIds = new Set<string>(
+              Array.isArray(shortlistResponse.data)
+                ? shortlistResponse.data.map((sp: any) => {
+                  return sp.projectId?._id || sp._id;
+                })
                 : []
             );
             setShortlistedProjectIds(shortlistedIds);
@@ -244,17 +246,12 @@ export default function BrowseProjects() {
                   </div>
                 </div>
                 <div className="ml-4">
-                   <Button
-                    variant="outline"
+                  <div
                     onClick={() => toggleShortlist(bid.projectId || bid.id, bid.id)}
-                    className={shortlistedProjectIds.has(bid.projectId || bid.id) ? 'text-yellow-600 border-yellow-300 hover:text-yellow-700' : 'text-blue-600 border-blue-300 hover:text-blue-700'}
+                    className={shortlistedProjectIds.has(bid.projectId || bid.id) ? 'text-yellow-600 border-yellow-300 hover:text-yellow-700 cursor-pointer' : 'text-blue-600 border-blue-300 hover:text-blue-700 cursor-pointer'}
                   >
-                    {shortlistedProjectIds.has(bid.projectId || bid.id) ? (
-                      <BookmarkCheck className="size-4 mr-2 fill-current" />
-                    ) : (
-                      <Bookmark className="size-4 mr-2" />
-                    )}
-                  </Button>
+                    <Bookmark className={`${shortlistedProjectIds.has(bid.projectId || bid.id) ? "size-4 mr-2 fill-current" : "size-4 mr-2"}`} />
+                  </div>
                 </div>
               </div>
 
